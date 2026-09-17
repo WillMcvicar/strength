@@ -1,0 +1,35 @@
+# Dependencies and builds
+node_modules/
+.expo/
+dist/
+web-build/
+coverage/
+ios/
+android/
+*.tsbuildinfo
+
+# Expo / EAS
+expo-env.d.ts
+.eas/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+
+# Environment
+.env
+.env.*
+
+# Claude Code: personal files (team config in .claude/ IS committed)
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/agent-memory-local/
+
+# Scaffolding kit archive (its contents are now the repository)
+workout-planner-repo-kit.zip
+
+# OS / editor
+.DS_Store
+*.log

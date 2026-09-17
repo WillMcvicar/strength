@@ -1,0 +1,63 @@
+# NFR-14 / DESIGN §9.5 — runs on every push and pull request. main must stay green.
+name: CI
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Typecheck, lint, format, licences, AC coverage
+    runs-on: ubuntu-latest
+    env:
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/heads/release/') || startsWith(github.base_ref, 'release/') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run check:licences
+
+      # Report-only during development; strict on release branches (DESIGN §9.3).
+      - name: Acceptance-criteria coverage
+        run: |
+          if [ "$IS_RELEASE" = "true" ]; then npm run check:ac -- --strict; else npm run check:ac; fi
+
+      - name: No placeholder template exercises on release branches (OQ-1)
+        if: env.IS_RELEASE == 'true'
+        run: |
+          if grep -rn "TODO(OQ-1)" src; then
+            echo "::error::Resolve OQ-1 (template exercises) before releasing."
+            exit 1
+          fi
+
+  test:
+    name: Tests (TZ=${{ matrix.tz }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [Pacific/Auckland, America/New_York, UTC] # NFR-12, DESIGN §9.4
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --ci --coverage
