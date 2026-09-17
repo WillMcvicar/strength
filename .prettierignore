@@ -1,0 +1,11 @@
+# Hand-aligned tables and ASCII sketches: don't reformat
+*.md
+node_modules/
+.expo/
+coverage/
+src/data/migrations/
+android/
+ios/
+dist/
+package-lock.json
+assets/
