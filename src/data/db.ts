@@ -19,6 +19,11 @@ export interface Db {
   runAsync(sql: string, params?: SqlValue[]): Promise<RunResult>;
   /** Read every matching row. */
   getAllAsync<T>(sql: string, params?: SqlValue[]): Promise<T[]>;
+  /**
+   * Read every matching row as an array of values in column order. Drizzle's proxy driver maps
+   * rows by position, and object rows would collapse duplicate column names in a join.
+   */
+  getAllRawAsync(sql: string, params?: SqlValue[]): Promise<SqlValue[][]>;
   /** Read the first matching row, or null. */
   getFirstAsync<T>(sql: string, params?: SqlValue[]): Promise<T | null>;
   /**

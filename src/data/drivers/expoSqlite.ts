@@ -15,6 +15,16 @@ function wrap(handle: SQLite.SQLiteDatabase): Db {
     getAllAsync: <T>(sql: string, params: SqlValue[] = []): Promise<T[]> =>
       handle.getAllAsync<T>(sql, params),
 
+    getAllRawAsync: async (sql: string, params: SqlValue[] = []): Promise<SqlValue[][]> => {
+      const statement = await handle.prepareAsync(sql);
+      try {
+        const result = await statement.executeForRawResultAsync<Record<string, SqlValue>>(params);
+        return await result.getAllAsync();
+      } finally {
+        await statement.finalizeAsync();
+      }
+    },
+
     getFirstAsync: <T>(sql: string, params: SqlValue[] = []): Promise<T | null> =>
       handle.getFirstAsync<T>(sql, params),
 
@@ -27,8 +37,15 @@ function wrap(handle: SQLite.SQLiteDatabase): Db {
   };
 }
 
+// The database file lives in expo-sqlite's default directory: the app's document directory on
+// iOS, which iCloud device backups include, and `filesDir/SQLite` on Android, which the backup
+// rules in plugins/withAndroidBackup.js include (DESIGN §2.7, NFR-4).
 export async function openDeviceDb(databaseName: string): Promise<Db> {
-  const handle = await SQLite.openDatabaseAsync(databaseName);
-  await handle.execAsync('PRAGMA foreign_keys = ON');
+  // Change listening drives live queries (DESIGN §2.4).
+  const handle = await SQLite.openDatabaseAsync(databaseName, { enableChangeListener: true });
+  // Exclusive transactions run on their own connection, where this pragma never reaches, so
+  // foreign keys are also compiled on with SQLITE_DEFAULT_FOREIGN_KEYS (app.json, D-27 note in
+  // §4.1); `migrate` checks it. WAL is stored in the file, so it covers every connection (§4.1).
+  await handle.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL');
   return wrap(handle);
 }
