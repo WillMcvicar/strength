@@ -61,7 +61,12 @@ Rules:
 ## Git and PRs
 
 - **Branches:** one build-plan step or feature per branch, named `feat/<short-name>` or `fix/<short-name>`.
-- **Commits:** Conventional Commits that cite IDs, e.g. `feat(core): estimated 1RM suggestion (FR-3.5, AC-25)`.
+- **Commits:** Conventional Commits that cite IDs, e.g. `feat(core): estimated 1RM suggestion (FR-3.5, AC-25)`. End every commit message with both co-author trailers:
+
+  ```
+  Co-Authored-By: WillMcvicar <dev@willmcvicar.com>
+  Co-Authored-By: Claude <noreply@anthropic.com>
+  ```
 - **Never** push, force-push, merge or submit store builds unless asked.
 - **Dependencies:** adding one needs a permitted licence (MIT, Apache-2.0, BSD, ISC; OFL-1.1 for fonts) and an entry in `THIRD_PARTY_NOTICES.md`. Ask before adding any dependency.
 - **Never bump `expo`, `expo-*`, `react`, `react-native*` or `jest-expo` individually.** The SDK pins them as a set: upgrade the SDK, then `npx expo install --fix`, then `npx expo-doctor`.
