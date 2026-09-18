@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.6 (schema integrity) |
+| **Document version** | 0.7 (schema integrity) |
 | **Date** | 18 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.3 (the SRS) |
@@ -60,6 +60,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-25 | **Import integrity.** Some tables reference each other in cycles, so foreign-key checks are deferred to commit during import. Files with a newer seed version are rejected. | NFR-4, FR-12.7 | AC-69 |
 | D-26 | **Review reference estimate** is the best e1RM from the cycle's qualifying sets only, so `reference_e1rm_kg` has a single meaning. It shows "—" when there are no qualifying sets. | FR-3.5, FR-3.8 | AC-66 |
 | D-27 | **Primary keys are never NULL.** SQLite only implies `NOT NULL` for `INTEGER PRIMARY KEY`, so every `TEXT PRIMARY KEY` is declared `NOT NULL`; otherwise any number of NULL-keyed rows could be inserted. `session.cycle_group_id` deliberately has no foreign key, so history outlives its plan. | DESIGN §4.1, §4.3, §4.4 (physical schema only; no SRS change) | schema test, constraint tests (§9.1) |
+| D-28 | **CHECKs say NOT NULL when a value is required.** A comparison on NULL passes a SQLite CHECK, so the continuation offset (D-1) and a top set's `reps_max` (D-19) could be left empty despite being required. Both CHECKs now say `IS NOT NULL`, and the §4.1 `GLOB` check is declared on every local-date column, as §4.1 already promised. | SRS §4 (top sets); DESIGN §4.1, §4.3 | constraint tests (§9.1) |
 
 ### 1.2 Open design questions
 
@@ -606,7 +607,8 @@ Tests cover month and year ends, 29 February, and the DST-change dates for NZ, t
 - `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;` on open.
 - **IDs:** `TEXT` UUID v4 from `expo-crypto`. Seeded rows use fixed, readable IDs (`skill_back_squat`, `tpl_beginner_strength`).
 - **Primary keys:** every `TEXT PRIMARY KEY` is also `NOT NULL` (D-27). SQLite only implies it for `INTEGER PRIMARY KEY`.
-- **Local dates:** `TEXT` `YYYY-MM-DD`, checked with `CHECK (x GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')`.
+- **NULL in CHECKs:** SQLite passes a CHECK whose result is NULL, so a comparison on a nullable column (`x >= 1`, `x <= 5`) doesn't make `x` required. A CHECK that requires a value says `x IS NOT NULL` explicitly (D-28).
+- **Local dates:** `TEXT` `YYYY-MM-DD`, every such column checked with `CHECK (x GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')`.
 - **Timestamps:** `TEXT` ISO-8601 UTC with `Z`.
 - **Booleans:** `INTEGER` 0/1. **Weights:** `REAL` kg. **Percentages:** `REAL` fractions (0.9, not 90).
 - **Enums:** `TEXT` with `CHECK (... IN (...))`.
@@ -694,11 +696,11 @@ CREATE TABLE plan (
   description         TEXT NOT NULL DEFAULT '',
   source_template_id  TEXT REFERENCES template(id) ON DELETE SET NULL,
   status              TEXT NOT NULL CHECK (status IN ('draft','active','paused','completed','abandoned')),
-  start_date          TEXT,                          -- required before 'active'
+  start_date          TEXT CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- required before 'active'
   default_tm_percent  REAL NOT NULL DEFAULT 0.9,
-  paused_on           TEXT,                          -- local date, v1.1
+  paused_on           TEXT CHECK (paused_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),   -- v1.1
   ended_at            TEXT,
-  ended_on            TEXT,                          -- local date the plan ended (D-24)
+  ended_on            TEXT CHECK (ended_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),    -- the plan ended (D-24)
   created_at          TEXT NOT NULL,
   updated_at          TEXT NOT NULL
 );
@@ -743,7 +745,8 @@ CREATE TABLE phase (
   fallback_increase_value_lb REAL,
   CHECK ((template_id IS NULL) <> (plan_id IS NULL)),
   CHECK (type = 'training' OR (length_weeks <= 2 AND cycle_length_weeks = 1)),   -- C-1
-  CHECK (continues_phase_id IS NULL OR (type = 'training' AND continues_offset_weeks >= 1)),
+  CHECK (continues_phase_id IS NULL OR (type = 'training' AND continues_offset_weeks IS NOT NULL
+                                         AND continues_offset_weeks >= 1)),
   CHECK (has_test_day = 0 OR type = 'taper')
 );
 CREATE INDEX idx_phase_plan ON phase(plan_id, sort_order);
@@ -812,7 +815,8 @@ CREATE TABLE cycle_set (
   CHECK (load_type <> 'percent_tm' OR load_percent IS NOT NULL),
   CHECK (load_type <> 'fixed' OR fixed_load_kg IS NOT NULL),
   CHECK (load_type <> 'top_set' OR (load_percent IS NOT NULL AND target_rpe_max IS NOT NULL
-                                    AND reps_max <= 5 AND is_amrap = 0 AND is_warmup = 0)),   -- D-19
+                                    AND reps_max IS NOT NULL AND reps_max <= 5
+                                    AND is_amrap = 0 AND is_warmup = 0)),   -- D-19
   CHECK (reps_min IS NULL OR reps_max IS NULL OR reps_min <= reps_max),
   UNIQUE (cycle_exercise_id, set_index)
 );
@@ -827,7 +831,7 @@ CREATE TABLE planned_workout (
   cycle_slot_id       TEXT REFERENCES cycle_slot(id),   -- D-20; null for Test Day
   phase_cycle_index   INTEGER NOT NULL,
   week_index          INTEGER NOT NULL,
-  scheduled_date      TEXT NOT NULL,
+  scheduled_date      TEXT NOT NULL CHECK (scheduled_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   status              TEXT NOT NULL DEFAULT 'upcoming'
                         CHECK (status IN ('upcoming','completed','skipped')),  -- 'missed' is derived
   session_id          TEXT REFERENCES session(id) ON DELETE SET NULL,
@@ -925,7 +929,7 @@ CREATE TABLE session (
   name                TEXT NOT NULL,                 -- snapshot of the workout name
   kind                TEXT NOT NULL DEFAULT 'planned'
                         CHECK (kind IN ('planned','ad_hoc','one_rm_estimate','test_day')),
-  local_date          TEXT NOT NULL,                 -- date it counts for (history grouping)
+  local_date          TEXT NOT NULL CHECK (local_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- date it counts for (history grouping)
   started_at          TEXT NOT NULL,
   ended_at            TEXT,
   status              TEXT NOT NULL CHECK (status IN ('in_progress','completed')),
