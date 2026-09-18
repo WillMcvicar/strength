@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Document version** | 0.5 (build-readiness fixes) |
-| **Date** | 17 September 2026 |
+| **Document version** | 0.6 (schema integrity) |
+| **Date** | 18 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.3 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
@@ -59,6 +59,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-24 | **Ending a plan early:** pending reviews are completed first or discarded, and no Final Review is created. Later open workouts show "Not done (plan ended)" and don't affect adherence. | FR-4.14, FR-4.15 | AC-68 |
 | D-25 | **Import integrity.** Some tables reference each other in cycles, so foreign-key checks are deferred to commit during import. Files with a newer seed version are rejected. | NFR-4, FR-12.7 | AC-69 |
 | D-26 | **Review reference estimate** is the best e1RM from the cycle's qualifying sets only, so `reference_e1rm_kg` has a single meaning. It shows "—" when there are no qualifying sets. | FR-3.5, FR-3.8 | AC-66 |
+| D-27 | **Primary keys are never NULL.** SQLite only implies `NOT NULL` for `INTEGER PRIMARY KEY`, so every `TEXT PRIMARY KEY` is declared `NOT NULL`; otherwise any number of NULL-keyed rows could be inserted. `session.cycle_group_id` deliberately has no foreign key, so history outlives its plan. | DESIGN §4.1, §4.3, §4.4 (physical schema only; no SRS change) | schema test, constraint tests (§9.1) |
 
 ### 1.2 Open design questions
 
@@ -604,6 +605,7 @@ Tests cover month and year ends, 29 February, and the DST-change dates for NZ, t
 
 - `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;` on open.
 - **IDs:** `TEXT` UUID v4 from `expo-crypto`. Seeded rows use fixed, readable IDs (`skill_back_squat`, `tpl_beginner_strength`).
+- **Primary keys:** every `TEXT PRIMARY KEY` is also `NOT NULL` (D-27). SQLite only implies it for `INTEGER PRIMARY KEY`.
 - **Local dates:** `TEXT` `YYYY-MM-DD`, checked with `CHECK (x GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')`.
 - **Timestamps:** `TEXT` ISO-8601 UTC with `Z`.
 - **Booleans:** `INTEGER` 0/1. **Weights:** `REAL` kg. **Percentages:** `REAL` fractions (0.9, not 90).
@@ -613,33 +615,14 @@ Tests cover month and year ends, 29 February, and the DST-change dates for NZ, t
 
 ### 4.2 Entity relationships
 
-```
-settings (1 row)          app_meta (key/value)
-
-skill ─────────────┬──────────────────────────────────────────────┐
-                   │                                              │
-template ─┐        │                                              │
-          ├─ phase ─┬─ increase_rule ─ skill                      │
-          │         ├─ cycle_slot ─→ cycle_workout                │
-plan ─────┘         └─ cycle_workout ─ cycle_exercise ─ cycle_set │
-  │                                        │  └ skill ─────────────┤
-  ├─ plan_skill ─ skill                    │                      │
-  ├─ planned_workout ─ phase, slot, workout│                      │
-  ├─ double_progression_state ─────────────┘                      │
-  ├─ cycle_review ─ cycle_review_item ─ skill                     │
-  ├─ schedule_change                                              │
-  └─ one_rep_max_history ─ skill ─────────────────────────────────┤
-                                                                  │
-session ─ session_exercise ─ set_log            personal_record ──┘
-   └ planned_workout? (SET NULL on delete)
-```
+The full entity-relationship diagram, with every foreign key, its cardinality and its delete behaviour, is in [`docs/ERD.md`](ERD.md). The DDL below remains the reviewed reference; if they disagree, the DDL wins.
 
 ### 4.3 DDL
 
 ```sql
 -- ───────────── Meta & settings ─────────────
 CREATE TABLE app_meta (
-  key   TEXT PRIMARY KEY,          -- 'schema_version', 'seed_version'
+  key   TEXT PRIMARY KEY NOT NULL, -- 'schema_version', 'seed_version'
   value TEXT NOT NULL
 );
 
@@ -668,7 +651,7 @@ CREATE TABLE settings (
 
 -- ───────────── Skill Library (FR-1) ─────────────
 CREATE TABLE skill (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   name                TEXT NOT NULL,
   muscle_group        TEXT NOT NULL,              -- see MuscleGroup enum
   secondary_muscles   TEXT NOT NULL DEFAULT '[]', -- JSON array of MuscleGroup
@@ -695,7 +678,7 @@ CREATE INDEX idx_skill_filter ON skill(is_archived, muscle_group, equipment);
 
 -- ───────────── Templates & plans ─────────────
 CREATE TABLE template (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   name                TEXT NOT NULL,
   description         TEXT NOT NULL DEFAULT '',
   default_tm_percent  REAL NOT NULL DEFAULT 0.9,
@@ -706,7 +689,7 @@ CREATE TABLE template (
 );
 
 CREATE TABLE plan (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   name                TEXT NOT NULL,
   description         TEXT NOT NULL DEFAULT '',
   source_template_id  TEXT REFERENCES template(id) ON DELETE SET NULL,
@@ -724,7 +707,7 @@ CREATE UNIQUE INDEX uq_plan_single_active
   ON plan((status IN ('active','paused'))) WHERE status IN ('active','paused');
 
 CREATE TABLE plan_skill (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   tm_percent          REAL,                          -- null = plan default
@@ -734,7 +717,7 @@ CREATE TABLE plan_skill (
 
 -- ───────────── Blueprint (shared) ─────────────
 CREATE TABLE phase (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   template_id               TEXT REFERENCES template(id) ON DELETE CASCADE,
   plan_id                   TEXT REFERENCES plan(id) ON DELETE CASCADE,
   sort_order                INTEGER NOT NULL,
@@ -767,7 +750,7 @@ CREATE INDEX idx_phase_plan ON phase(plan_id, sort_order);
 CREATE INDEX idx_phase_template ON phase(template_id, sort_order);
 
 CREATE TABLE increase_rule (                         -- per-skill override
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   increase_type       TEXT NOT NULL CHECK (increase_type IN ('estimated','percent','fixed','none')),
@@ -780,7 +763,7 @@ CREATE TABLE increase_rule (                         -- per-skill override
 );
 
 CREATE TABLE cycle_workout (                         -- a workout, defined once per phase (D-20)
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   name                TEXT NOT NULL,
   sort_order          INTEGER NOT NULL,
@@ -789,7 +772,7 @@ CREATE TABLE cycle_workout (                         -- a workout, defined once 
 CREATE INDEX idx_cw_phase ON cycle_workout(phase_id, sort_order);
 
 CREATE TABLE cycle_slot (                            -- one weekday appearance of a workout (D-20)
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   cycle_workout_id    TEXT NOT NULL REFERENCES cycle_workout(id) ON DELETE CASCADE,
   cycle_week_index    INTEGER NOT NULL CHECK (cycle_week_index >= 1),
@@ -801,7 +784,7 @@ CREATE INDEX idx_slot_phase ON cycle_slot(phase_id, cycle_week_index, sort_order
 CREATE INDEX idx_slot_workout ON cycle_slot(cycle_workout_id);
 
 CREATE TABLE cycle_exercise (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   cycle_workout_id          TEXT NOT NULL REFERENCES cycle_workout(id) ON DELETE CASCADE,
   skill_id                  TEXT NOT NULL REFERENCES skill(id),
   sort_order                INTEGER NOT NULL,
@@ -813,7 +796,7 @@ CREATE TABLE cycle_exercise (
 CREATE INDEX idx_ce_workout ON cycle_exercise(cycle_workout_id, sort_order);
 
 CREATE TABLE cycle_set (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   cycle_exercise_id   TEXT NOT NULL REFERENCES cycle_exercise(id) ON DELETE CASCADE,
   set_index           INTEGER NOT NULL,
   is_warmup           INTEGER NOT NULL DEFAULT 0,
@@ -836,7 +819,7 @@ CREATE TABLE cycle_set (
 
 -- ───────────── Generated schedule ─────────────
 CREATE TABLE planned_workout (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   cycle_group_id      TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,   -- D-14
@@ -855,7 +838,7 @@ CREATE INDEX idx_pw_cycle ON planned_workout(plan_id, cycle_group_id, phase_cycl
 CREATE INDEX idx_pw_week ON planned_workout(plan_id, week_index);
 
 CREATE TABLE double_progression_state (
-  cycle_exercise_id         TEXT PRIMARY KEY REFERENCES cycle_exercise(id) ON DELETE CASCADE,
+  cycle_exercise_id         TEXT PRIMARY KEY NOT NULL REFERENCES cycle_exercise(id) ON DELETE CASCADE,
   plan_id                   TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   working_load_kg           REAL,
   previous_working_load_kg  REAL,                    -- one-tap revert
@@ -868,7 +851,7 @@ CREATE TABLE double_progression_state (
 
 -- ───────────── Reviews ─────────────
 CREATE TABLE cycle_review (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   kind                TEXT NOT NULL CHECK (kind IN ('cycle','final')),
   cycle_group_id      TEXT REFERENCES phase(id) ON DELETE CASCADE,   -- C-16
@@ -885,7 +868,7 @@ CREATE TABLE cycle_review (
 CREATE UNIQUE INDEX uq_final_review ON cycle_review(plan_id) WHERE kind = 'final';
 
 CREATE TABLE cycle_review_item (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   cycle_review_id     TEXT NOT NULL REFERENCES cycle_review(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   previous_one_rm_kg  REAL NOT NULL,
@@ -902,7 +885,7 @@ CREATE TABLE cycle_review_item (
 );
 
 CREATE TABLE one_rep_max_history (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   skill_id                  TEXT NOT NULL REFERENCES skill(id),
   one_rm_kg                 REAL NOT NULL CHECK (one_rm_kg > 0),
   source                    TEXT NOT NULL CHECK (source IN ('plan_setup','setup_estimate','cycle_review','manual')),
@@ -918,7 +901,7 @@ CREATE INDEX idx_orm_plan ON one_rep_max_history(plan_id, skill_id, effective_fr
 
 -- ───────────── Schedule history (FR-4.13) ─────────────
 CREATE TABLE schedule_change (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   plan_id                   TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   type                      TEXT NOT NULL CHECK (type IN ('shift','move','repin','pause','length','insert_deload')),
   from_planned_workout_id   TEXT REFERENCES planned_workout(id) ON DELETE SET NULL,
@@ -933,7 +916,7 @@ CREATE INDEX idx_sc_plan ON schedule_change(plan_id, created_at DESC);
 
 -- ───────────── Logging ─────────────
 CREATE TABLE session (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT REFERENCES plan(id) ON DELETE SET NULL,
   planned_workout_id  TEXT REFERENCES planned_workout(id) ON DELETE SET NULL,
   phase_id            TEXT REFERENCES phase(id) ON DELETE SET NULL,
@@ -956,7 +939,7 @@ CREATE INDEX idx_session_date ON session(status, started_at DESC);
 CREATE INDEX idx_session_plan ON session(plan_id, started_at DESC);
 
 CREATE TABLE session_exercise (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   session_id          TEXT NOT NULL REFERENCES session(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   cycle_exercise_id   TEXT REFERENCES cycle_exercise(id) ON DELETE SET NULL,
@@ -977,7 +960,7 @@ CREATE INDEX idx_se_session ON session_exercise(session_id, sort_order);
 CREATE INDEX idx_se_skill ON session_exercise(skill_id);
 
 CREATE TABLE set_log (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   session_exercise_id TEXT NOT NULL REFERENCES session_exercise(id) ON DELETE CASCADE,
   set_index           INTEGER NOT NULL,
   is_warmup           INTEGER NOT NULL DEFAULT 0,
@@ -1001,7 +984,7 @@ CREATE INDEX idx_set_completed ON set_log(completed_at);
 
 -- ───────────── PRs (FR-10) ─────────────
 CREATE TABLE personal_record (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   type                TEXT NOT NULL CHECK (type IN ('heaviest','e1rm','reps_at_weight','max_reps',
                         'heaviest_added','reps_at_added','longest_time')),
@@ -1039,6 +1022,7 @@ CREATE INDEX idx_pr_session ON personal_record(session_id);
 | Deloads can only be inserted into draft plans until `activeDeloadInsert` is enabled | `insertDeload` | D-23 |
 | Pending reviews are refreshed or withdrawn after every change that can affect them | `reconcile` → `refreshReviews` | D-21 |
 | Ending a plan completes or discards pending reviews, sets `status = 'abandoned'`, `ended_at` and `ended_on`, and creates no Final Review | `endPlan` | D-24 |
+| `session.cycle_group_id` and `phase_cycle_index` are historical labels with no foreign key, so sessions survive plan deletion. They are meaningless once `phase_id` is null, and nothing may join through them after that | repositories | D-27, SRS §4 |
 
 ### 4.5 `schedule_change.payload` shapes
 
