@@ -1,10 +1,10 @@
-// Scaffold check (DESIGN §11, step 1): proves the better-sqlite3 test driver satisfies the `Db`
-// interface, including the exclusive transaction behaviour that every service depends on (C-15).
+// Proves the better-sqlite3 test driver satisfies the `Db` interface (DESIGN §9.1), including the
+// exclusive transaction behaviour that every service depends on (C-15).
 import type { Db } from '@/data/db';
 
 import { openTestDb } from './betterSqlite3';
 
-describe('scaffold: better-sqlite3 adapter', () => {
+describe('better-sqlite3 adapter', () => {
   let db: Db;
 
   beforeEach(async () => {
@@ -25,6 +25,15 @@ describe('scaffold: better-sqlite3 adapter', () => {
       one_rm_kg: 110,
     });
     expect(await db.getAllAsync('SELECT * FROM skill')).toHaveLength(1);
+  });
+
+  it('reads rows as positional arrays, keeping duplicate column names from a join', async () => {
+    await db.runAsync('INSERT INTO skill VALUES (?, ?)', ['squat', 110]);
+
+    expect(await db.getAllRawAsync('SELECT a.id, b.id FROM skill a JOIN skill b')).toEqual([
+      ['squat', 'squat'],
+    ]);
+    expect(await db.getAllRawAsync('SELECT * FROM skill WHERE id = ?', ['nope'])).toEqual([]);
   });
 
   it('returns null rather than undefined when a row is missing', async () => {

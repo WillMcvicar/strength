@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Document version** | 0.5 (build-readiness fixes) |
-| **Date** | 17 September 2026 |
+| **Document version** | 0.8 (data layer) |
+| **Date** | 18 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.3 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
@@ -59,6 +59,9 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-24 | **Ending a plan early:** pending reviews are completed first or discarded, and no Final Review is created. Later open workouts show "Not done (plan ended)" and don't affect adherence. | FR-4.14, FR-4.15 | AC-68 |
 | D-25 | **Import integrity.** Some tables reference each other in cycles, so foreign-key checks are deferred to commit during import. Files with a newer seed version are rejected. | NFR-4, FR-12.7 | AC-69 |
 | D-26 | **Review reference estimate** is the best e1RM from the cycle's qualifying sets only, so `reference_e1rm_kg` has a single meaning. It shows "—" when there are no qualifying sets. | FR-3.5, FR-3.8 | AC-66 |
+| D-27 | **Primary keys are never NULL.** SQLite only implies `NOT NULL` for `INTEGER PRIMARY KEY`, so every `TEXT PRIMARY KEY` is declared `NOT NULL`; otherwise any number of NULL-keyed rows could be inserted. `session.cycle_group_id` deliberately has no foreign key, so history outlives its plan. | DESIGN §4.1, §4.3, §4.4 (physical schema only; no SRS change) | schema test, constraint tests (§9.1) |
+| D-28 | **CHECKs say NOT NULL when a value is required.** A comparison on NULL passes a SQLite CHECK, so the continuation offset (D-1) and a top set's `reps_max` (D-19) could be left empty despite being required. Both CHECKs now say `IS NOT NULL`, and the §4.1 `GLOB` check is declared on every local-date column, as §4.1 already promised. | SRS §4 (top sets); DESIGN §4.1, §4.3 | constraint tests (§9.1) |
+| D-29 | **Drizzle runs over the `Db` interface, and foreign keys are compiled on.** Repositories use Drizzle's `sqlite-proxy` driver on top of `Db`, so the device and test drivers share one query layer, and transactions stay with `withExclusiveTransactionAsync` (C-15). `expo-sqlite` runs each exclusive transaction on a new connection that the open-time `PRAGMA foreign_keys` never reaches, so SQLite is built with `SQLITE_DEFAULT_FOREIGN_KEYS=1` through the `expo-sqlite` config plugin, and the migration runner refuses to run if foreign keys are off. The app therefore needs a development build, not Expo Go. | DESIGN §2.4, §4.1, §4.6, §9.1 (no SRS change) | migration and adapter tests (§9.1); release checklist |
 
 ### 1.2 Open design questions
 
@@ -87,7 +90,7 @@ These rules sit inside the SRS wording but aren't spelled out there. The design 
 | C-12 | In the weekly volume panel, a session "hits" a muscle if it trains it as a primary or secondary muscle. | FR-2.13 | §3.14 |
 | C-13 | A `plan_setup` 1RM row is written only when the value entered at setup differs from the skill's current 1RM. `plan_skill.starting_one_rm_kg` always holds the starting value. | FR-3.3, SRS §4 | §8.1 |
 | C-14 | If there are missed workouts and a workout today, the Today screen shows the missed card above today's workout rather than hiding it. | FR-7.2, FR-7.6 | §7.2 |
-| C-15 | Service transactions must be exclusive. Use Drizzle's `db.transaction()` or `withExclusiveTransactionAsync`, not `withTransactionAsync`, which may let other queries run inside the transaction. Confirm against the Expo SDK version at scaffold time. | NFR-8, NFR-10 | §2.4 |
+| C-15 | Service transactions must be exclusive. Use `withExclusiveTransactionAsync`, never `withTransactionAsync`, which may let other queries run inside the transaction. Confirmed against Expo SDK 57; Drizzle's own `transaction()` is not used (D-29). | NFR-8, NFR-10 | §2.4 |
 | C-16 | Deleting a phase (allowed only when it has no sessions) also deletes its reviews. Such reviews can only cover missed or skipped cycles. | FR-2.11 | §4.3 |
 
 ---
@@ -602,9 +605,11 @@ Tests cover month and year ends, 29 February, and the DST-change dates for NZ, t
 
 ### 4.1 Conventions
 
-- `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;` on open.
+- `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;` on open. Exclusive transactions run on their own connection, so foreign keys are also compiled on (`SQLITE_DEFAULT_FOREIGN_KEYS=1`, D-29).
 - **IDs:** `TEXT` UUID v4 from `expo-crypto`. Seeded rows use fixed, readable IDs (`skill_back_squat`, `tpl_beginner_strength`).
-- **Local dates:** `TEXT` `YYYY-MM-DD`, checked with `CHECK (x GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')`.
+- **Primary keys:** every `TEXT PRIMARY KEY` is also `NOT NULL` (D-27). SQLite only implies it for `INTEGER PRIMARY KEY`.
+- **NULL in CHECKs:** SQLite passes a CHECK whose result is NULL, so a comparison on a nullable column (`x >= 1`, `x <= 5`) doesn't make `x` required. A CHECK that requires a value says `x IS NOT NULL` explicitly (D-28).
+- **Local dates:** `TEXT` `YYYY-MM-DD`, every such column checked with `CHECK (x GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')`.
 - **Timestamps:** `TEXT` ISO-8601 UTC with `Z`.
 - **Booleans:** `INTEGER` 0/1. **Weights:** `REAL` kg. **Percentages:** `REAL` fractions (0.9, not 90).
 - **Enums:** `TEXT` with `CHECK (... IN (...))`.
@@ -613,33 +618,14 @@ Tests cover month and year ends, 29 February, and the DST-change dates for NZ, t
 
 ### 4.2 Entity relationships
 
-```
-settings (1 row)          app_meta (key/value)
-
-skill ─────────────┬──────────────────────────────────────────────┐
-                   │                                              │
-template ─┐        │                                              │
-          ├─ phase ─┬─ increase_rule ─ skill                      │
-          │         ├─ cycle_slot ─→ cycle_workout                │
-plan ─────┘         └─ cycle_workout ─ cycle_exercise ─ cycle_set │
-  │                                        │  └ skill ─────────────┤
-  ├─ plan_skill ─ skill                    │                      │
-  ├─ planned_workout ─ phase, slot, workout│                      │
-  ├─ double_progression_state ─────────────┘                      │
-  ├─ cycle_review ─ cycle_review_item ─ skill                     │
-  ├─ schedule_change                                              │
-  └─ one_rep_max_history ─ skill ─────────────────────────────────┤
-                                                                  │
-session ─ session_exercise ─ set_log            personal_record ──┘
-   └ planned_workout? (SET NULL on delete)
-```
+The full entity-relationship diagram, with every foreign key, its cardinality and its delete behaviour, is in [`docs/ERD.md`](ERD.md). The DDL below remains the reviewed reference; if they disagree, the DDL wins.
 
 ### 4.3 DDL
 
 ```sql
 -- ───────────── Meta & settings ─────────────
 CREATE TABLE app_meta (
-  key   TEXT PRIMARY KEY,          -- 'schema_version', 'seed_version'
+  key   TEXT PRIMARY KEY NOT NULL, -- 'schema_version', 'seed_version'
   value TEXT NOT NULL
 );
 
@@ -668,7 +654,7 @@ CREATE TABLE settings (
 
 -- ───────────── Skill Library (FR-1) ─────────────
 CREATE TABLE skill (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   name                TEXT NOT NULL,
   muscle_group        TEXT NOT NULL,              -- see MuscleGroup enum
   secondary_muscles   TEXT NOT NULL DEFAULT '[]', -- JSON array of MuscleGroup
@@ -695,7 +681,7 @@ CREATE INDEX idx_skill_filter ON skill(is_archived, muscle_group, equipment);
 
 -- ───────────── Templates & plans ─────────────
 CREATE TABLE template (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   name                TEXT NOT NULL,
   description         TEXT NOT NULL DEFAULT '',
   default_tm_percent  REAL NOT NULL DEFAULT 0.9,
@@ -706,16 +692,16 @@ CREATE TABLE template (
 );
 
 CREATE TABLE plan (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   name                TEXT NOT NULL,
   description         TEXT NOT NULL DEFAULT '',
   source_template_id  TEXT REFERENCES template(id) ON DELETE SET NULL,
   status              TEXT NOT NULL CHECK (status IN ('draft','active','paused','completed','abandoned')),
-  start_date          TEXT,                          -- required before 'active'
+  start_date          TEXT CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- required before 'active'
   default_tm_percent  REAL NOT NULL DEFAULT 0.9,
-  paused_on           TEXT,                          -- local date, v1.1
+  paused_on           TEXT CHECK (paused_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),   -- v1.1
   ended_at            TEXT,
-  ended_on            TEXT,                          -- local date the plan ended (D-24)
+  ended_on            TEXT CHECK (ended_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),    -- the plan ended (D-24)
   created_at          TEXT NOT NULL,
   updated_at          TEXT NOT NULL
 );
@@ -724,7 +710,7 @@ CREATE UNIQUE INDEX uq_plan_single_active
   ON plan((status IN ('active','paused'))) WHERE status IN ('active','paused');
 
 CREATE TABLE plan_skill (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   tm_percent          REAL,                          -- null = plan default
@@ -734,7 +720,7 @@ CREATE TABLE plan_skill (
 
 -- ───────────── Blueprint (shared) ─────────────
 CREATE TABLE phase (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   template_id               TEXT REFERENCES template(id) ON DELETE CASCADE,
   plan_id                   TEXT REFERENCES plan(id) ON DELETE CASCADE,
   sort_order                INTEGER NOT NULL,
@@ -760,14 +746,15 @@ CREATE TABLE phase (
   fallback_increase_value_lb REAL,
   CHECK ((template_id IS NULL) <> (plan_id IS NULL)),
   CHECK (type = 'training' OR (length_weeks <= 2 AND cycle_length_weeks = 1)),   -- C-1
-  CHECK (continues_phase_id IS NULL OR (type = 'training' AND continues_offset_weeks >= 1)),
+  CHECK (continues_phase_id IS NULL OR (type = 'training' AND continues_offset_weeks IS NOT NULL
+                                         AND continues_offset_weeks >= 1)),
   CHECK (has_test_day = 0 OR type = 'taper')
 );
 CREATE INDEX idx_phase_plan ON phase(plan_id, sort_order);
 CREATE INDEX idx_phase_template ON phase(template_id, sort_order);
 
 CREATE TABLE increase_rule (                         -- per-skill override
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   increase_type       TEXT NOT NULL CHECK (increase_type IN ('estimated','percent','fixed','none')),
@@ -780,7 +767,7 @@ CREATE TABLE increase_rule (                         -- per-skill override
 );
 
 CREATE TABLE cycle_workout (                         -- a workout, defined once per phase (D-20)
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   name                TEXT NOT NULL,
   sort_order          INTEGER NOT NULL,
@@ -789,7 +776,7 @@ CREATE TABLE cycle_workout (                         -- a workout, defined once 
 CREATE INDEX idx_cw_phase ON cycle_workout(phase_id, sort_order);
 
 CREATE TABLE cycle_slot (                            -- one weekday appearance of a workout (D-20)
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   cycle_workout_id    TEXT NOT NULL REFERENCES cycle_workout(id) ON DELETE CASCADE,
   cycle_week_index    INTEGER NOT NULL CHECK (cycle_week_index >= 1),
@@ -801,7 +788,7 @@ CREATE INDEX idx_slot_phase ON cycle_slot(phase_id, cycle_week_index, sort_order
 CREATE INDEX idx_slot_workout ON cycle_slot(cycle_workout_id);
 
 CREATE TABLE cycle_exercise (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   cycle_workout_id          TEXT NOT NULL REFERENCES cycle_workout(id) ON DELETE CASCADE,
   skill_id                  TEXT NOT NULL REFERENCES skill(id),
   sort_order                INTEGER NOT NULL,
@@ -813,7 +800,7 @@ CREATE TABLE cycle_exercise (
 CREATE INDEX idx_ce_workout ON cycle_exercise(cycle_workout_id, sort_order);
 
 CREATE TABLE cycle_set (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   cycle_exercise_id   TEXT NOT NULL REFERENCES cycle_exercise(id) ON DELETE CASCADE,
   set_index           INTEGER NOT NULL,
   is_warmup           INTEGER NOT NULL DEFAULT 0,
@@ -829,14 +816,15 @@ CREATE TABLE cycle_set (
   CHECK (load_type <> 'percent_tm' OR load_percent IS NOT NULL),
   CHECK (load_type <> 'fixed' OR fixed_load_kg IS NOT NULL),
   CHECK (load_type <> 'top_set' OR (load_percent IS NOT NULL AND target_rpe_max IS NOT NULL
-                                    AND reps_max <= 5 AND is_amrap = 0 AND is_warmup = 0)),   -- D-19
+                                    AND reps_max IS NOT NULL AND reps_max <= 5
+                                    AND is_amrap = 0 AND is_warmup = 0)),   -- D-19
   CHECK (reps_min IS NULL OR reps_max IS NULL OR reps_min <= reps_max),
   UNIQUE (cycle_exercise_id, set_index)
 );
 
 -- ───────────── Generated schedule ─────────────
 CREATE TABLE planned_workout (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   phase_id            TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,
   cycle_group_id      TEXT NOT NULL REFERENCES phase(id) ON DELETE CASCADE,   -- D-14
@@ -844,7 +832,7 @@ CREATE TABLE planned_workout (
   cycle_slot_id       TEXT REFERENCES cycle_slot(id),   -- D-20; null for Test Day
   phase_cycle_index   INTEGER NOT NULL,
   week_index          INTEGER NOT NULL,
-  scheduled_date      TEXT NOT NULL,
+  scheduled_date      TEXT NOT NULL CHECK (scheduled_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   status              TEXT NOT NULL DEFAULT 'upcoming'
                         CHECK (status IN ('upcoming','completed','skipped')),  -- 'missed' is derived
   session_id          TEXT REFERENCES session(id) ON DELETE SET NULL,
@@ -855,7 +843,7 @@ CREATE INDEX idx_pw_cycle ON planned_workout(plan_id, cycle_group_id, phase_cycl
 CREATE INDEX idx_pw_week ON planned_workout(plan_id, week_index);
 
 CREATE TABLE double_progression_state (
-  cycle_exercise_id         TEXT PRIMARY KEY REFERENCES cycle_exercise(id) ON DELETE CASCADE,
+  cycle_exercise_id         TEXT PRIMARY KEY NOT NULL REFERENCES cycle_exercise(id) ON DELETE CASCADE,
   plan_id                   TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   working_load_kg           REAL,
   previous_working_load_kg  REAL,                    -- one-tap revert
@@ -868,7 +856,7 @@ CREATE TABLE double_progression_state (
 
 -- ───────────── Reviews ─────────────
 CREATE TABLE cycle_review (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   kind                TEXT NOT NULL CHECK (kind IN ('cycle','final')),
   cycle_group_id      TEXT REFERENCES phase(id) ON DELETE CASCADE,   -- C-16
@@ -885,7 +873,7 @@ CREATE TABLE cycle_review (
 CREATE UNIQUE INDEX uq_final_review ON cycle_review(plan_id) WHERE kind = 'final';
 
 CREATE TABLE cycle_review_item (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   cycle_review_id     TEXT NOT NULL REFERENCES cycle_review(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   previous_one_rm_kg  REAL NOT NULL,
@@ -902,7 +890,7 @@ CREATE TABLE cycle_review_item (
 );
 
 CREATE TABLE one_rep_max_history (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   skill_id                  TEXT NOT NULL REFERENCES skill(id),
   one_rm_kg                 REAL NOT NULL CHECK (one_rm_kg > 0),
   source                    TEXT NOT NULL CHECK (source IN ('plan_setup','setup_estimate','cycle_review','manual')),
@@ -918,7 +906,7 @@ CREATE INDEX idx_orm_plan ON one_rep_max_history(plan_id, skill_id, effective_fr
 
 -- ───────────── Schedule history (FR-4.13) ─────────────
 CREATE TABLE schedule_change (
-  id                        TEXT PRIMARY KEY,
+  id                        TEXT PRIMARY KEY NOT NULL,
   plan_id                   TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
   type                      TEXT NOT NULL CHECK (type IN ('shift','move','repin','pause','length','insert_deload')),
   from_planned_workout_id   TEXT REFERENCES planned_workout(id) ON DELETE SET NULL,
@@ -933,7 +921,7 @@ CREATE INDEX idx_sc_plan ON schedule_change(plan_id, created_at DESC);
 
 -- ───────────── Logging ─────────────
 CREATE TABLE session (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   plan_id             TEXT REFERENCES plan(id) ON DELETE SET NULL,
   planned_workout_id  TEXT REFERENCES planned_workout(id) ON DELETE SET NULL,
   phase_id            TEXT REFERENCES phase(id) ON DELETE SET NULL,
@@ -942,7 +930,7 @@ CREATE TABLE session (
   name                TEXT NOT NULL,                 -- snapshot of the workout name
   kind                TEXT NOT NULL DEFAULT 'planned'
                         CHECK (kind IN ('planned','ad_hoc','one_rm_estimate','test_day')),
-  local_date          TEXT NOT NULL,                 -- date it counts for (history grouping)
+  local_date          TEXT NOT NULL CHECK (local_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- date it counts for (history grouping)
   started_at          TEXT NOT NULL,
   ended_at            TEXT,
   status              TEXT NOT NULL CHECK (status IN ('in_progress','completed')),
@@ -956,7 +944,7 @@ CREATE INDEX idx_session_date ON session(status, started_at DESC);
 CREATE INDEX idx_session_plan ON session(plan_id, started_at DESC);
 
 CREATE TABLE session_exercise (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   session_id          TEXT NOT NULL REFERENCES session(id) ON DELETE CASCADE,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   cycle_exercise_id   TEXT REFERENCES cycle_exercise(id) ON DELETE SET NULL,
@@ -977,7 +965,7 @@ CREATE INDEX idx_se_session ON session_exercise(session_id, sort_order);
 CREATE INDEX idx_se_skill ON session_exercise(skill_id);
 
 CREATE TABLE set_log (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   session_exercise_id TEXT NOT NULL REFERENCES session_exercise(id) ON DELETE CASCADE,
   set_index           INTEGER NOT NULL,
   is_warmup           INTEGER NOT NULL DEFAULT 0,
@@ -1001,7 +989,7 @@ CREATE INDEX idx_set_completed ON set_log(completed_at);
 
 -- ───────────── PRs (FR-10) ─────────────
 CREATE TABLE personal_record (
-  id                  TEXT PRIMARY KEY,
+  id                  TEXT PRIMARY KEY NOT NULL,
   skill_id            TEXT NOT NULL REFERENCES skill(id),
   type                TEXT NOT NULL CHECK (type IN ('heaviest','e1rm','reps_at_weight','max_reps',
                         'heaviest_added','reps_at_added','longest_time')),
@@ -1039,6 +1027,7 @@ CREATE INDEX idx_pr_session ON personal_record(session_id);
 | Deloads can only be inserted into draft plans until `activeDeloadInsert` is enabled | `insertDeload` | D-23 |
 | Pending reviews are refreshed or withdrawn after every change that can affect them | `reconcile` → `refreshReviews` | D-21 |
 | Ending a plan completes or discards pending reviews, sets `status = 'abandoned'`, `ended_at` and `ended_on`, and creates no Final Review | `endPlan` | D-24 |
+| `session.cycle_group_id` and `phase_cycle_index` are historical labels with no foreign key, so sessions survive plan deletion. They are meaningless once `phase_id` is null, and nothing may join through them after that | repositories | D-27, SRS §4 |
 
 ### 4.5 `schedule_change.payload` shapes
 
@@ -1059,8 +1048,10 @@ type DeloadPayload  = { deloadPhaseId: string; splitPhase?: { id: string; fromWe
 ### 4.6 Migrations and seeding
 
 - Drizzle migrations are bundled and run in `app/_layout.tsx` before any screen renders. A failed migration shows a blocking error with an "Export raw database" option, and the data is never deleted.
-- `app_meta.schema_version` is the export `schemaVersion`.
+- `src/data/migrate.ts` applies pending migrations in one exclusive transaction (C-15), and refuses a database already migrated by a newer app. An index drizzle-kit can't express (`uq_plan_single_active`) is a hand-written migration.
+- `app_meta.schema_version` is the number of applied migrations, and is the export `schemaVersion`.
 - **Seed data** (`src/data/seed/`) is versioned separately (`seed_version`). Upgrades add new built-in skills and templates (the v1.1 seed adds the periodised template) and update built-in template content. Plans already started from a template are unaffected, because they are copies. They never touch custom skills or user templates.
+- The built-in skill list (`src/data/seed/skills.ts`) is a draft awaiting product-owner review. It can change freely until v1.0 ships, and after that only with a `seed_version` bump.
 - Template exercises remain blocked on SRS Open Question 1, so the seed ships placeholder exercises behind a `TODO(OQ-1)` marker, and a CI check fails a release build while the marker exists.
 
 ### 4.7 Performance (NFR-5)
@@ -1674,7 +1665,7 @@ UI: Program summary (sessions up to ended_on)
 | Contrast | Jest | every text/fill token pair in `tokens.ts` meets 4.5:1 | all pairs |
 | Device (manual, per release) | TestFlight / Play closed test | offline mode, notifications in background (including Android timing, §2.6), OS backup restore, font scaling, VoiceOver/TalkBack | checklist in `docs/RELEASE_CHECKLIST.md` |
 
-`better-sqlite3` is a dev-only dependency (MIT). A small adapter makes it satisfy the same interface as `expo-sqlite`.
+`better-sqlite3` is a dev-only dependency (MIT). A small adapter makes it satisfy the same interface as `expo-sqlite`, and Drizzle's `sqlite-proxy` driver runs over that interface, so repositories are identical on device and in tests (D-29).
 
 ### 9.2 Fixtures
 
