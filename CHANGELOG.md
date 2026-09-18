@@ -18,6 +18,19 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 - ESLint layer boundaries (`import/no-restricted-paths`) and determinism rules that bar clock reads
   and randomness from `src/core` and `src/services`, with `src/services/clock.ts` exempt.
 - Licence gate (`npm run check:licences`) over the production dependency tree; GPL and AGPL fail.
+- Persistence (build-plan step 5, NFR-2, NFR-4): the full DESIGN §4.3 schema for every release in
+  Drizzle, versioned migrations applied in one exclusive transaction, and a test that compares the
+  migrated database with the DDL in the doc. Repositories for settings, skills, templates, plans,
+  blueprints and the schedule. A seeded Skill Library (FR-1.1), draft pending review.
+- The database opens, migrates and seeds before any screen renders, and shows a blocking message
+  if that fails. Android Auto Backup includes the database (DESIGN §2.7).
+
+### Changed
+
+- DESIGN 0.7: every TEXT primary key is `NOT NULL` (D-27); CHECKs require values explicitly, and
+  local dates are format-checked (D-28). `docs/ERD.md` replaces the §4.2 sketch.
+- Foreign keys are compiled on for every SQLite connection, so the app needs a development build
+  rather than Expo Go.
 - `Db` database interface (`src/data/db.ts`) with an Expo device driver and a `better-sqlite3` test
   driver, so data and service tests run in-memory against the same API (DESIGN §9.1).
 - Core primitives (DESIGN §11, build-plan step 2): `units`, `rounding`, `dates`, `loads` and

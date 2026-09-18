@@ -33,8 +33,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite",
-      "expo-sharing"
+      [
+        "expo-sqlite",
+        {
+          "customBuildFlags": "-DSQLITE_DEFAULT_FOREIGN_KEYS=1"
+        }
+      ],
+      "expo-sharing",
+      "./plugins/withAndroidBackup"
     ],
     "experiments": {
       "typedRoutes": true,
