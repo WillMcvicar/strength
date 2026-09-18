@@ -7,6 +7,25 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    # Expo pins react, react-native and every expo-* package as a matched set per SDK.
+    # Bumping one on its own either fails `npm ci` on a peer conflict or, worse, passes CI and
+    # breaks on device. They move together during an SDK upgrade, via `npx expo install --fix`
+    # and `npx expo-doctor` (DESIGN §2.3), so Dependabot must leave them alone.
+    ignore:
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: '@expo/*'
+      - dependency-name: '@expo-google-fonts/*'
+      - dependency-name: react
+      - dependency-name: react-dom
+      - dependency-name: react-native
+      - dependency-name: react-native-*
+      - dependency-name: '@react-native/*'
+      - dependency-name: '@types/react'
+      - dependency-name: '@types/react-dom'
+      # jest-expo tracks the SDK too, and @types/jest must match the jest major.
+      - dependency-name: jest-expo
+      - dependency-name: '@types/jest'
     groups:
       dev-dependencies:
         dependency-type: development
