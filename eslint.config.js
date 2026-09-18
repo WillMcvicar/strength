@@ -77,6 +77,17 @@ module.exports = defineConfig([
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
+    // Tests never ship, so tests under src/ may use the dev-only helpers in test/ (openTestDb,
+    // fixtures). Every other layer boundary still applies to them.
+    files: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        { zones: noRestrictedPaths.zones.filter((zone) => zone.from !== './test') },
+      ],
+    },
+  },
+  {
     ignores: ['node_modules/', '.expo/', 'dist/', 'coverage/', 'android/', 'ios/', 'expo-env.d.ts'],
   },
 ]);
