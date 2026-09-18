@@ -20,3 +20,6 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 - Licence gate (`npm run check:licences`) over the production dependency tree; GPL and AGPL fail.
 - `Db` database interface (`src/data/db.ts`) with an Expo device driver and a `better-sqlite3` test
   driver, so data and service tests run in-memory against the same API (DESIGN §9.1).
+- Core primitives (DESIGN §11, build-plan step 2): `units`, `rounding`, `dates`, `loads` and
+  `e1rm`, with 100% line and branch coverage and table-driven tests run under three time zones
+  (FR-12.1, FR-1.6, FR-3.2, FR-3.5, FR-3.6, FR-3.12; AC-8, AC-10, AC-54, AC-61–63).
