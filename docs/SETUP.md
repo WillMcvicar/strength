@@ -70,13 +70,10 @@ yours, because they need your GitHub account and an interactive terminal.
 
 ### Still to do before build-plan step 2
 
-- The two `scaffold:` tests (`test/scaffold.test.ts`, `src/ui/scaffold.test.tsx`) exist only to prove
-  both Jest projects transform and run. Delete them once real AC-named tests land.
-- The spikes in DESIGN §11 step 1 are not done: exclusive transactions with the Drizzle Expo driver
-  (C-15), `useLiveQuery`, and rest-timer notification timing on a real Android phone (§2.6).
+- `src/ui/scaffold.test.tsx` exists only to prove the `app` Jest project renders components. Delete
+  it once real component tests land. (`test/scaffold.test.ts` went with build-plan step 5.)
 - `app/_layout.tsx` and `app/index.tsx` are placeholders; build-plan step 7 replaces them.
 - The README needs screenshots to satisfy NFR-13; they can only be taken once step 7 has UI.
-- The C-15 spike is done (see below) but not yet recorded in DESIGN §1.3 — that needs `/spec-change`.
 - The remaining step-1 spikes are `useLiveQuery` and Android rest-timer notification timing (§2.6).
 
 ### Spike results (DESIGN §11, step 1)
@@ -87,6 +84,11 @@ yours, because they need your GitHub account and an interactive terminal.
   requires. `Transaction extends SQLiteDatabase`, so the callback satisfies the `Db` interface in
   `src/data/db.ts` unchanged. The better-sqlite3 test driver takes the lock by hand with
   `BEGIN EXCLUSIVE`, and `test/db/adapter.test.ts` proves commit and rollback behaviour.
+  Recorded in DESIGN §1.3 (C-15) and D-29.
+- **Foreign keys inside transactions (found in step 5).** Each exclusive transaction runs on a new
+  connection, which the open-time `PRAGMA foreign_keys = ON` never reaches. `app.json` builds
+  SQLite with `SQLITE_DEFAULT_FOREIGN_KEYS=1`, so **run the app with a development build**
+  (`npx expo run:android` / `run:ios`), not Expo Go, which ignores the flag (D-29).
 
 ## Upgrading dependencies
 

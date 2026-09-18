@@ -22,7 +22,7 @@ A free, offline-first iOS and Android app for following structured strength-trai
 - `npm test`: all Jest projects. `npm run test:core`: pure-logic tests with coverage.
 - `npx jest path/to/file.test.ts`: a single test file
 - `npm run check:ac`: which acceptance criteria for this release still lack a test
-- `npx expo start`: run the app (only when asked; it's interactive)
+- `npx expo run:android` / `npx expo run:ios`: build and run the app (only when asked). It needs a development build, because Expo Go ignores the SQLite foreign-key build flag (D-29)
 
 ## Architecture (DESIGN §2)
 
