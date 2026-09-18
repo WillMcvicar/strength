@@ -88,6 +88,24 @@ yours, because they need your GitHub account and an interactive terminal.
   `src/data/db.ts` unchanged. The better-sqlite3 test driver takes the lock by hand with
   `BEGIN EXCLUSIVE`, and `test/db/adapter.test.ts` proves commit and rollback behaviour.
 
+## Upgrading dependencies
+
+`npx expo-doctor` is the arbiter: it checks every package against what the installed SDK expects.
+
+- **Expo-managed packages** (`expo`, `expo-*`, `react`, `react-native*`, `jest-expo`, `@types/react`)
+  are pinned as a set by the SDK. Never bump one on its own. Upgrade the SDK, then run
+  `npx expo install --fix` to realign the set, then `npx expo-doctor`. `.github/dependabot.yml`
+  ignores these for that reason.
+- **`jest`, `@types/jest` and `typescript`** are ignored for the same reason, one step removed:
+  `jest-expo` is SDK-pinned and built against the Jest 29 line, and `typescript-eslint`
+  peer-requires `typescript >=4.8.4 <6.1.0`. Check both peer ranges before bumping either.
+- **Everything else** (`drizzle-orm`, `zod`, `zustand`, ESLint, Prettier, …) is fair game for
+  Dependabot's monthly grouped PRs.
+- Because those packages are ignored, Dependabot will not raise PRs for them. Watch the repository's
+  **Security** tab for advisories affecting them and handle those through an SDK upgrade.
+- Any new runtime dependency needs a permitted licence and an entry in `THIRD_PARTY_NOTICES.md`
+  (SRS §1.3, NFR-13); `npm run check:licences` enforces the licence half.
+
 ## Working rhythm
 
 - **One build-plan step per branch.** Start a session with `/next-step`, then `/implement <ID>`.
