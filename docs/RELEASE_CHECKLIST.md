@@ -6,6 +6,7 @@ Run on at least one physical iPhone and one physical Android phone, using TestFl
 - [ ] **Rest timer:** the notification fires on time with the app in the background, on iOS and Android (§2.6)
 - [ ] **Workout reminder:** the reminder fires at the chosen time
 - [ ] **Session recovery:** force-quit mid-session, reopen, and the session resumes (AC-7)
+- [ ] **First launch:** a fresh install opens past the database gate, which proves the migrations ran and foreign keys are on inside transactions (`SQLITE_DEFAULT_FOREIGN_KEYS`, D-27)
 - [ ] **OS backup:** back up, reinstall, restore, and the data returns (iCloud device backup; Android Auto Backup)
 - [ ] **JSON backup:** export, then import into a fresh install (AC-69)
 - [ ] **Text size:** the largest system text size (about 200%) leaves no truncated numbers

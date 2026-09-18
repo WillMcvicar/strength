@@ -26,11 +26,13 @@ module.exports = {
       displayName: 'app',
       preset: 'jest-expo',
       testMatch: [
-        '<rootDir>/app/**/*.test.{ts,tsx}',
+        // Screen tests: Expo Router would treat a test file under app/ as a route.
+        '<rootDir>/test/app/**/*.test.tsx',
         '<rootDir>/src/ui/**/*.test.{ts,tsx}',
         '<rootDir>/src/features/**/*.test.{ts,tsx}',
       ],
       moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+      ...sqlMigrations,
     },
   ],
   collectCoverageFrom: ['src/core/**/*.ts', '!src/core/**/*.test.ts'],
