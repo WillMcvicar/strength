@@ -7,6 +7,30 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    # Expo pins react, react-native and every expo-* package as a matched set per SDK.
+    # Bumping one on its own either fails `npm ci` on a peer conflict or, worse, passes CI and
+    # breaks on device. They move together during an SDK upgrade, via `npx expo install --fix`
+    # and `npx expo-doctor` (DESIGN §2.3), so Dependabot must leave them alone.
+    ignore:
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: '@expo/*'
+      - dependency-name: '@expo-google-fonts/*'
+      - dependency-name: react
+      - dependency-name: react-dom
+      - dependency-name: react-native
+      - dependency-name: react-native-*
+      - dependency-name: '@react-native/*'
+      - dependency-name: '@types/react'
+      - dependency-name: '@types/react-dom'
+      # jest-expo is SDK-pinned (~57.0.5) and built against the Jest 29 line, so jest and its
+      # types move with it, not on their own.
+      - dependency-name: jest-expo
+      - dependency-name: jest
+      - dependency-name: '@types/jest'
+      # typescript-eslint peer-requires typescript >=4.8.4 <6.1.0, so a major TypeScript bump
+      # has to wait for typescript-eslint and Expo's tsconfig base to catch up.
+      - dependency-name: typescript
     groups:
       dev-dependencies:
         dependency-type: development

@@ -64,6 +64,7 @@ Rules:
 - **Commits:** Conventional Commits that cite IDs, e.g. `feat(core): estimated 1RM suggestion (FR-3.5, AC-25)`.
 - **Never** push, force-push, merge or submit store builds unless asked.
 - **Dependencies:** adding one needs a permitted licence (MIT, Apache-2.0, BSD, ISC; OFL-1.1 for fonts) and an entry in `THIRD_PARTY_NOTICES.md`. Ask before adding any dependency.
+- **Never bump `expo`, `expo-*`, `react`, `react-native*` or `jest-expo` individually.** The SDK pins them as a set: upgrade the SDK, then `npx expo install --fix`, then `npx expo-doctor`.
 
 ## Definition of done
 
