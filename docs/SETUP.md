@@ -96,6 +96,9 @@ yours, because they need your GitHub account and an interactive terminal.
   are pinned as a set by the SDK. Never bump one on its own. Upgrade the SDK, then run
   `npx expo install --fix` to realign the set, then `npx expo-doctor`. `.github/dependabot.yml`
   ignores these for that reason.
+- **`jest`, `@types/jest` and `typescript`** are ignored for the same reason, one step removed:
+  `jest-expo` is SDK-pinned and built against the Jest 29 line, and `typescript-eslint`
+  peer-requires `typescript >=4.8.4 <6.1.0`. Check both peer ranges before bumping either.
 - **Everything else** (`drizzle-orm`, `zod`, `zustand`, ESLint, Prettier, …) is fair game for
   Dependabot's monthly grouped PRs.
 - Because those packages are ignored, Dependabot will not raise PRs for them. Watch the repository's

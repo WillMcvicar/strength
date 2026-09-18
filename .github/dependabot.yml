@@ -23,9 +23,14 @@ updates:
       - dependency-name: '@react-native/*'
       - dependency-name: '@types/react'
       - dependency-name: '@types/react-dom'
-      # jest-expo tracks the SDK too, and @types/jest must match the jest major.
+      # jest-expo is SDK-pinned (~57.0.5) and built against the Jest 29 line, so jest and its
+      # types move with it, not on their own.
       - dependency-name: jest-expo
+      - dependency-name: jest
       - dependency-name: '@types/jest'
+      # typescript-eslint peer-requires typescript >=4.8.4 <6.1.0, so a major TypeScript bump
+      # has to wait for typescript-eslint and Expo's tsconfig base to catch up.
+      - dependency-name: typescript
     groups:
       dev-dependencies:
         dependency-type: development
