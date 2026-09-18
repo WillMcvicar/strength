@@ -95,7 +95,7 @@ describe('AC-54 e1RM PR without RPE', () => {
   });
 });
 
-describe('AC-61 Back-off sets don’t qualify', () => {
+describe("AC-61 Back-off sets don't qualify", () => {
   // Maths only: the fallback +2.5% rule and its label are proven at service level.
   it('gives back-off 100 kg × 5 @ RPE 8 an e1RM of 123.3 kg but no qualification', () => {
     const backOff = set({ loadKg: 100, reps: 5, rpe: 8, isTopSet: false });
