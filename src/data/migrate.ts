@@ -37,6 +37,16 @@ export async function migrate(db: Db, bundle: MigrationBundle): Promise<void> {
     }
 
     await tx.execAsync(MIGRATIONS_TABLE);
+    // A database migrated by a newer build (a sideloaded downgrade) must not be touched or have
+    // its schema_version rewritten downwards.
+    const applied = await tx.getFirstAsync<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM __drizzle_migrations',
+    );
+    if ((applied?.n ?? 0) > entries.length) {
+      throw new Error(
+        `This database was created by a newer version of the app (schema ${applied?.n}, app ${entries.length}).`,
+      );
+    }
     const last = await tx.getFirstAsync<{ created_at: number }>(
       'SELECT created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1',
     );

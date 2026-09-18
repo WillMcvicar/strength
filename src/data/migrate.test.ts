@@ -82,6 +82,19 @@ describe('migrate (NFR-4)', () => {
     expect(await tableNames(db)).toEqual([]);
   });
 
+  it('refuses a database migrated by a newer app, leaving it untouched', async () => {
+    await migrate(db, bundle);
+    const older: MigrationBundle = {
+      journal: { entries: bundle.journal.entries.slice(0, 1) },
+      migrations: bundle.migrations,
+    };
+
+    await expect(migrate(db, older)).rejects.toThrow(
+      /newer version of the app \(schema 2, app 1\)/,
+    );
+    expect(await schemaVersion(db)).toBe('2');
+  });
+
   it('refuses a bundle whose journal names a missing migration', async () => {
     const missing: MigrationBundle = { journal: bundle.journal, migrations: {} };
     await expect(migrate(db, missing)).rejects.toThrow('Missing migration: 0000_init');
