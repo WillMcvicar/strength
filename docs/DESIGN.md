@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.7 (schema integrity) |
+| **Document version** | 0.8 (data layer) |
 | **Date** | 18 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.3 (the SRS) |
@@ -61,6 +61,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-26 | **Review reference estimate** is the best e1RM from the cycle's qualifying sets only, so `reference_e1rm_kg` has a single meaning. It shows "—" when there are no qualifying sets. | FR-3.5, FR-3.8 | AC-66 |
 | D-27 | **Primary keys are never NULL.** SQLite only implies `NOT NULL` for `INTEGER PRIMARY KEY`, so every `TEXT PRIMARY KEY` is declared `NOT NULL`; otherwise any number of NULL-keyed rows could be inserted. `session.cycle_group_id` deliberately has no foreign key, so history outlives its plan. | DESIGN §4.1, §4.3, §4.4 (physical schema only; no SRS change) | schema test, constraint tests (§9.1) |
 | D-28 | **CHECKs say NOT NULL when a value is required.** A comparison on NULL passes a SQLite CHECK, so the continuation offset (D-1) and a top set's `reps_max` (D-19) could be left empty despite being required. Both CHECKs now say `IS NOT NULL`, and the §4.1 `GLOB` check is declared on every local-date column, as §4.1 already promised. | SRS §4 (top sets); DESIGN §4.1, §4.3 | constraint tests (§9.1) |
+| D-29 | **Drizzle runs over the `Db` interface, and foreign keys are compiled on.** Repositories use Drizzle's `sqlite-proxy` driver on top of `Db`, so the device and test drivers share one query layer, and transactions stay with `withExclusiveTransactionAsync` (C-15). `expo-sqlite` runs each exclusive transaction on a new connection that the open-time `PRAGMA foreign_keys` never reaches, so SQLite is built with `SQLITE_DEFAULT_FOREIGN_KEYS=1` through the `expo-sqlite` config plugin, and the migration runner refuses to run if foreign keys are off. The app therefore needs a development build, not Expo Go. | DESIGN §2.4, §4.1, §4.6, §9.1 (no SRS change) | migration and adapter tests (§9.1); release checklist |
 
 ### 1.2 Open design questions
 
@@ -89,7 +90,7 @@ These rules sit inside the SRS wording but aren't spelled out there. The design 
 | C-12 | In the weekly volume panel, a session "hits" a muscle if it trains it as a primary or secondary muscle. | FR-2.13 | §3.14 |
 | C-13 | A `plan_setup` 1RM row is written only when the value entered at setup differs from the skill's current 1RM. `plan_skill.starting_one_rm_kg` always holds the starting value. | FR-3.3, SRS §4 | §8.1 |
 | C-14 | If there are missed workouts and a workout today, the Today screen shows the missed card above today's workout rather than hiding it. | FR-7.2, FR-7.6 | §7.2 |
-| C-15 | Service transactions must be exclusive. Use Drizzle's `db.transaction()` or `withExclusiveTransactionAsync`, not `withTransactionAsync`, which may let other queries run inside the transaction. Confirm against the Expo SDK version at scaffold time. | NFR-8, NFR-10 | §2.4 |
+| C-15 | Service transactions must be exclusive. Use `withExclusiveTransactionAsync`, never `withTransactionAsync`, which may let other queries run inside the transaction. Confirmed against Expo SDK 57; Drizzle's own `transaction()` is not used (D-29). | NFR-8, NFR-10 | §2.4 |
 | C-16 | Deleting a phase (allowed only when it has no sessions) also deletes its reviews. Such reviews can only cover missed or skipped cycles. | FR-2.11 | §4.3 |
 
 ---
@@ -604,7 +605,7 @@ Tests cover month and year ends, 29 February, and the DST-change dates for NZ, t
 
 ### 4.1 Conventions
 
-- `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;` on open.
+- `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;` on open. Exclusive transactions run on their own connection, so foreign keys are also compiled on (`SQLITE_DEFAULT_FOREIGN_KEYS=1`, D-29).
 - **IDs:** `TEXT` UUID v4 from `expo-crypto`. Seeded rows use fixed, readable IDs (`skill_back_squat`, `tpl_beginner_strength`).
 - **Primary keys:** every `TEXT PRIMARY KEY` is also `NOT NULL` (D-27). SQLite only implies it for `INTEGER PRIMARY KEY`.
 - **NULL in CHECKs:** SQLite passes a CHECK whose result is NULL, so a comparison on a nullable column (`x >= 1`, `x <= 5`) doesn't make `x` required. A CHECK that requires a value says `x IS NOT NULL` explicitly (D-28).
@@ -1047,8 +1048,10 @@ type DeloadPayload  = { deloadPhaseId: string; splitPhase?: { id: string; fromWe
 ### 4.6 Migrations and seeding
 
 - Drizzle migrations are bundled and run in `app/_layout.tsx` before any screen renders. A failed migration shows a blocking error with an "Export raw database" option, and the data is never deleted.
-- `app_meta.schema_version` is the export `schemaVersion`.
+- `src/data/migrate.ts` applies pending migrations in one exclusive transaction (C-15), and refuses a database already migrated by a newer app. An index drizzle-kit can't express (`uq_plan_single_active`) is a hand-written migration.
+- `app_meta.schema_version` is the number of applied migrations, and is the export `schemaVersion`.
 - **Seed data** (`src/data/seed/`) is versioned separately (`seed_version`). Upgrades add new built-in skills and templates (the v1.1 seed adds the periodised template) and update built-in template content. Plans already started from a template are unaffected, because they are copies. They never touch custom skills or user templates.
+- The built-in skill list (`src/data/seed/skills.ts`) is a draft awaiting product-owner review. It can change freely until v1.0 ships, and after that only with a `seed_version` bump.
 - Template exercises remain blocked on SRS Open Question 1, so the seed ships placeholder exercises behind a `TODO(OQ-1)` marker, and a CI check fails a release build while the marker exists.
 
 ### 4.7 Performance (NFR-5)
@@ -1662,7 +1665,7 @@ UI: Program summary (sessions up to ended_on)
 | Contrast | Jest | every text/fill token pair in `tokens.ts` meets 4.5:1 | all pairs |
 | Device (manual, per release) | TestFlight / Play closed test | offline mode, notifications in background (including Android timing, §2.6), OS backup restore, font scaling, VoiceOver/TalkBack | checklist in `docs/RELEASE_CHECKLIST.md` |
 
-`better-sqlite3` is a dev-only dependency (MIT). A small adapter makes it satisfy the same interface as `expo-sqlite`.
+`better-sqlite3` is a dev-only dependency (MIT). A small adapter makes it satisfy the same interface as `expo-sqlite`, and Drizzle's `sqlite-proxy` driver runs over that interface, so repositories are identical on device and in tests (D-29).
 
 ### 9.2 Fixtures
 

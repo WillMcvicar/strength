@@ -4,7 +4,7 @@
 |---|---|
 | **Document version** | 1.1 |
 | **Date** | 18 September 2026 |
-| **Status** | Verified against DESIGN 0.7 §4.3, cross-checked against SRS 1.3 §4 |
+| **Status** | Verified against DESIGN 0.8 §4.3, cross-checked against SRS 1.3 §4 |
 | **Describes** | `docs/DESIGN.md` §4.3 DDL (22 tables, 46 foreign keys) |
 | **Location** | `docs/ERD.md` |
 
