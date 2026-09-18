@@ -4,6 +4,7 @@
 import Database from 'better-sqlite3';
 
 import type { Db, RunResult, SqlValue } from '@/data/db';
+import { initDatabase } from '@/data/init';
 
 function wrap(handle: Database.Database): Db {
   const db: Db = {
@@ -18,6 +19,13 @@ function wrap(handle: Database.Database): Db {
 
     async getAllAsync<T>(sql: string, params: SqlValue[] = []): Promise<T[]> {
       return handle.prepare(sql).all(...params) as T[];
+    },
+
+    async getAllRawAsync(sql: string, params: SqlValue[] = []): Promise<SqlValue[][]> {
+      return handle
+        .prepare(sql)
+        .raw(true)
+        .all(...params) as SqlValue[][];
     },
 
     async getFirstAsync<T>(sql: string, params: SqlValue[] = []): Promise<T | null> {
@@ -49,4 +57,14 @@ export function openTestDb(): Db {
   const handle = new Database(':memory:');
   handle.pragma('foreign_keys = ON');
   return wrap(handle);
+}
+
+/** The fixed `now` test databases are seeded with. */
+export const SEEDED_AT = '2026-09-14T08:00:00.000Z';
+
+/** Opens an in-memory database with the real migrations and seed applied (DESIGN §9.1). */
+export async function openMigratedTestDb(): Promise<Db> {
+  const db = openTestDb();
+  await initDatabase(db, SEEDED_AT);
+  return db;
 }

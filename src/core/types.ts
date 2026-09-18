@@ -73,3 +73,234 @@ export interface LoadContext {
   dpState?: DoubleProgressionState | null;
   lastLoadKg?: number | null;
 }
+
+// ───────────── Stored rows (DESIGN §4.3) ─────────────
+// The camelCase shapes repositories return. Booleans are `boolean`, JSON columns are parsed, and
+// dates are `LocalDate` or ISO-8601 UTC strings as the DDL comments say.
+
+export type MuscleGroup =
+  | 'chest'
+  | 'upper_back'
+  | 'lats'
+  | 'shoulders'
+  | 'biceps'
+  | 'triceps'
+  | 'forearms'
+  | 'quads'
+  | 'hamstrings'
+  | 'glutes'
+  | 'calves'
+  | 'abs'
+  | 'lower_back'
+  | 'cardio';
+
+export type Equipment =
+  | 'barbell'
+  | 'dumbbell'
+  | 'kettlebell'
+  | 'machine'
+  | 'cable'
+  | 'bodyweight'
+  | 'band'
+  | 'cardio_machine'
+  | 'other';
+
+/** FR-1.2 */
+export type TrackingType =
+  'weight_reps' | 'reps_only' | 'bodyweight_plus_load' | 'time' | 'completion_only';
+
+/** FR-1.8 */
+export type LoadConvention = 'total' | 'per_side';
+
+export type Theme = 'light' | 'dark' | 'system';
+export type PlanStatus = 'draft' | 'active' | 'paused' | 'completed' | 'abandoned';
+export type TemplateLevel = 'beginner' | 'intermediate';
+export type ReviewMode = 'every_cycle' | 'end_of_phase' | 'none';
+export type IncreaseType = 'estimated' | 'percent' | 'fixed' | 'none';
+export type FallbackIncreaseType = 'percent' | 'fixed' | 'none';
+export type WorkoutKind = 'normal' | 'test_day';
+/** Stored status only; "missed" is derived (DESIGN §3.7). */
+export type PlannedStatus = 'upcoming' | 'completed' | 'skipped';
+
+export interface Skill {
+  id: string;
+  name: string;
+  muscleGroup: MuscleGroup;
+  secondaryMuscles: MuscleGroup[];
+  equipment: Equipment;
+  trackingType: TrackingType;
+  loadConvention: LoadConvention;
+  isUnilateral: boolean;
+  isMainLift: boolean;
+  loadIncrementKg: number | null;
+  loadIncrementLb: number | null;
+  isCustom: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Settings {
+  id: number;
+  unit: Unit;
+  defaultRestSec: number;
+  /** 0 Sunday, 1 Monday (FR-12.3). */
+  weekStart: 0 | 1;
+  weightIncrementKg: number;
+  weightIncrementLb: number;
+  reminderEnabled: boolean;
+  /** 'HH:MM' local. */
+  reminderTime: string | null;
+  restTimerAlerts: boolean;
+  keepAwake: boolean;
+  theme: Theme;
+  disclaimerAckAt: string | null;
+  tipsEnabled: boolean;
+  seenTips: string[];
+  onboardingCompletedAt: string | null;
+  lastExportAt: string | null;
+  backupReminderDismissedAt: string | null;
+  autoBackupEnabled: boolean;
+  lastAutoBackupAt: string | null;
+  lastAutoBackupError: string | null;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  defaultTmPercent: number;
+  sessionsPerWeek: number;
+  level: TemplateLevel | null;
+  isBuiltIn: boolean;
+  createdAt: string;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  sourceTemplateId: string | null;
+  status: PlanStatus;
+  startDate: LocalDate | null;
+  defaultTmPercent: number;
+  pausedOn: LocalDate | null;
+  endedAt: string | null;
+  endedOn: LocalDate | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlanSkill {
+  id: string;
+  planId: string;
+  skillId: string;
+  /** null = the plan default. */
+  tmPercent: number | null;
+  startingOneRmKg: number | null;
+}
+
+/** A blueprint phase, owned by exactly one template or one plan. */
+export interface Phase {
+  id: string;
+  templateId: string | null;
+  planId: string | null;
+  sortOrder: number;
+  name: string;
+  type: PhaseType;
+  reviewMode: ReviewMode;
+  lengthWeeks: number;
+  cycleLengthWeeks: number;
+  volumeFactor: number | null;
+  loadFactor: number | null;
+  rpeCap: number | null;
+  restDaysAtEnd: number | null;
+  hasTestDay: boolean;
+  generatedFromPhaseId: string | null;
+  /** D-1, D-14: the cycle group is `continuesPhaseId ?? id`. */
+  continuesPhaseId: string | null;
+  continuesOffsetWeeks: number | null;
+  defaultIncreaseType: IncreaseType;
+  defaultIncreaseValue: number | null;
+  defaultIncreaseValueLb: number | null;
+  fallbackIncreaseType: FallbackIncreaseType | null;
+  fallbackIncreaseValue: number | null;
+  fallbackIncreaseValueLb: number | null;
+}
+
+export interface IncreaseRule {
+  id: string;
+  phaseId: string;
+  skillId: string;
+  increaseType: IncreaseType;
+  increaseValue: number | null;
+  increaseValueLb: number | null;
+  fallbackType: FallbackIncreaseType | null;
+  fallbackValue: number | null;
+  fallbackValueLb: number | null;
+}
+
+/** A workout, defined once per phase (D-20). */
+export interface CycleWorkout {
+  id: string;
+  phaseId: string;
+  name: string;
+  sortOrder: number;
+  kind: WorkoutKind;
+}
+
+/** One weekday appearance of a workout (D-20). */
+export interface CycleSlot {
+  id: string;
+  phaseId: string;
+  cycleWorkoutId: string;
+  cycleWeekIndex: number;
+  /** 0 Sunday … 6 Saturday. */
+  weekday: number;
+  sortOrder: number;
+  /** C-5: not generated from this week of the cycle group on. */
+  retiredFromGroupWeek: number | null;
+}
+
+export interface CycleExercise {
+  id: string;
+  cycleWorkoutId: string;
+  skillId: string;
+  sortOrder: number;
+  supersetGroup: string | null;
+  restSec: number | null;
+  notes: string | null;
+  sourceCycleExerciseId: string | null;
+}
+
+export interface CycleSet {
+  id: string;
+  cycleExerciseId: string;
+  setIndex: number;
+  isWarmup: boolean;
+  repsMin: number | null;
+  repsMax: number | null;
+  isAmrap: boolean;
+  targetRpeMin: number | null;
+  targetRpeMax: number | null;
+  loadType: LoadType;
+  loadPercent: number | null;
+  fixedLoadKg: number | null;
+  targetTimeSec: number | null;
+}
+
+export interface PlannedWorkout {
+  id: string;
+  planId: string;
+  phaseId: string;
+  cycleGroupId: string;
+  cycleWorkoutId: string;
+  /** null for Test Day. */
+  cycleSlotId: string | null;
+  phaseCycleIndex: number;
+  weekIndex: number;
+  scheduledDate: LocalDate;
+  status: PlannedStatus;
+  sessionId: string | null;
+  skippedAt: string | null;
+}
