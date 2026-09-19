@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Document version** | 1.1 |
-| **Date** | 18 September 2026 |
-| **Status** | Verified against DESIGN 0.8 §4.3, cross-checked against SRS 1.3 §4 |
-| **Describes** | `docs/DESIGN.md` §4.3 DDL (22 tables, 46 foreign keys) |
+| **Document version** | 1.2 |
+| **Date** | 19 September 2026 |
+| **Status** | Verified against DESIGN 0.9 §4.3, cross-checked against SRS 1.4 §4 |
+| **Describes** | `docs/DESIGN.md` §4.3 DDL (22 tables, 47 foreign keys) |
 | **Location** | `docs/ERD.md` |
 
 This diagram is the visual companion to the DDL in `DESIGN.md` §4.3, and `DESIGN.md` §4.2 links here in place of its old ASCII sketch. The DDL remains the reviewed reference and `src/data/schema.ts` remains the code source of truth; if they disagree with this document, they win.
@@ -101,6 +101,7 @@ erDiagram
         INTEGER weekday "0-6"
         INTEGER sort_order
         INTEGER retired_from_group_week "C-5"
+        TEXT source_cycle_slot_id FK "D-30, deload copies"
     }
     cycle_exercise {
         TEXT id PK
@@ -308,6 +309,7 @@ erDiagram
     cycle_slot |o--o{ planned_workout : "generates"
     cycle_exercise ||--o{ cycle_set : "prescribes"
     cycle_exercise |o--o{ cycle_exercise : "copied into deload as"
+    cycle_slot |o--o{ cycle_slot : "copied into deload as"
     cycle_exercise ||--o| double_progression_state : "has state"
     cycle_exercise |o--o{ session_exercise : "logged as"
 
@@ -347,7 +349,7 @@ erDiagram
 
 ## 3. Relationships, cardinality and delete behaviour
 
-Generated from the DDL: 46 foreign keys over 22 tables. "1" on the parent side means the FK column is `NOT NULL`.
+Generated from the DDL: 47 foreign keys over 22 tables. "1" on the parent side means the FK column is `NOT NULL`.
 
 | Parent | Child | FK column | Cardinality | On delete |
 |---|---|---|---|---|
@@ -357,6 +359,7 @@ Generated from the DDL: 46 foreign keys over 22 tables. "1" on the parent side m
 | `cycle_exercise` | `session_exercise` | `cycle_exercise_id` | 0..1 → 0..N | SET NULL |
 | `cycle_review` | `cycle_review_item` | `cycle_review_id` | 1 → 0..N | CASCADE |
 | `cycle_review` | `one_rep_max_history` | `cycle_review_id` | 0..1 → 0..N | SET NULL |
+| `cycle_slot` | `cycle_slot` | `source_cycle_slot_id` | 0..1 → 0..N | SET NULL |
 | `cycle_slot` | `planned_workout` | `cycle_slot_id` [^f4] | 0..1 → 0..N | NO ACTION |
 | `cycle_workout` | `cycle_exercise` | `cycle_workout_id` | 1 → 0..N | CASCADE |
 | `cycle_workout` | `cycle_slot` | `cycle_workout_id` | 1 → 0..N | CASCADE |
