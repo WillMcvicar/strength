@@ -130,9 +130,9 @@ describe('schema: migrated database matches DESIGN §4.3', () => {
     await reference.closeAsync();
   });
 
-  it('has the 22 tables and 46 foreign keys the ERD documents', () => {
+  it('has the 22 tables and 47 foreign keys the ERD documents', () => {
     expect(expected.tables).toHaveLength(22);
-    expect(Object.values(expected.foreignKeys).flat()).toHaveLength(46);
+    expect(Object.values(expected.foreignKeys).flat()).toHaveLength(47);
     expect(Object.keys(expected.indexes)).toHaveLength(24);
     expect(actual.tables).toEqual(expected.tables);
   });

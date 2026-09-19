@@ -12,9 +12,9 @@ export interface StartPlanInput {
   planId: string;
   startDate: LocalDate;
   /**
-   * Weekday (0 Sunday … 6 Saturday) by slot id, for any slot of any phase of the plan, including
-   * a generated deload's own slots (DESIGN §7.5: one row per slot). Slots left out keep their
-   * stored weekday. Continuations have no slots, so pinning the original moves them too.
+   * Weekday (0 Sunday … 6 Saturday) by slot id (DESIGN §7.5: one row per slot). Slots left out
+   * keep their stored weekday. A generated deload slot has no row of its own: it takes its
+   * source slot's day (D-30). Continuations have no slots, so pinning the original moves them too.
    */
   weekdayPins?: Readonly<Record<string, number>>;
 }
@@ -53,13 +53,18 @@ export async function startPlanTx(
   const pins = Object.entries(input.weekdayPins ?? {});
   const valid = pins.every(
     ([slotId, weekday]) =>
-      slots.some((s) => s.id === slotId) &&
+      slots.some((s) => s.id === slotId && s.sourceCycleSlotId === null) &&
       Number.isInteger(weekday) &&
       weekday >= 0 &&
       weekday <= 6,
   );
   if (!valid) return { ok: false, reason: 'bad_pin' };
-  const pinned = slots.map((s) => ({ ...s, weekday: input.weekdayPins?.[s.id] ?? s.weekday }));
+  const dayOf = new Map(slots.map((s) => [s.id, input.weekdayPins?.[s.id] ?? s.weekday]));
+  // D-30: a deload copy takes its source slot's day. Once its source is gone it keeps its own.
+  const pinned = slots.map((s) => ({
+    ...s,
+    weekday: dayOf.get(s.sourceCycleSlotId ?? s.id) ?? s.weekday,
+  }));
 
   // Step 4: generate the schedule (FR-4.3).
   const phases = await r.blueprints.phasesOfPlan(plan.id);

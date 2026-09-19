@@ -29,6 +29,7 @@ const slot = (id: string, cycleWorkoutId: string, week: number, weekday: number)
   weekday,
   sortOrder: weekday,
   retiredFromGroupWeek: null,
+  sourceCycleSlotId: null,
 });
 
 const exercise = (
@@ -142,6 +143,8 @@ describe('generateDeload (FR-2.12)', () => {
       [5, 'Full body A', 1, 'deload'],
     ]);
     expect(out.slots.every((s) => s.retiredFromGroupWeek === null)).toBe(true);
+    // D-30: each copy remembers its source slot, so it can follow that slot's pin at start.
+    expect(out.slots.map((s) => s.sourceCycleSlotId)).toEqual(['a-mon', 'a-wed', 'a-fri']);
   });
 
   it('links each copied exercise to its source, so double-progression state can be read', () => {
@@ -201,6 +204,27 @@ describe('generateDeload (FR-2.12)', () => {
       counter(),
     );
     expect(low.sets.map((s) => [s.targetRpeMin, s.targetRpeMax])).toEqual([[6.5, 7]]);
+  });
+
+  it('D-30: an AMRAP set becomes a fixed-rep set at its minimum reps; warm-ups stay as they are', () => {
+    const amrap = generateDeload(
+      {
+        ...source,
+        sets: [
+          set('w', 'squat', 1, { isWarmup: true, isAmrap: false, targetRpeMax: null }),
+          set('plus', 'squat', 2, { isAmrap: true, repsMin: 5, repsMax: null, targetRpeMax: 9.5 }),
+        ],
+      },
+      'deload',
+      factors,
+      counter(),
+    );
+    expect(
+      amrap.sets.map((s) => [s.isWarmup, s.isAmrap, s.repsMin, s.repsMax, s.targetRpeMax]),
+    ).toEqual([
+      [true, false, 8, 8, null],
+      [false, false, 5, 5, 7],
+    ]);
   });
 
   it('moves a top set that is not first to the front of what is kept', () => {
@@ -361,6 +385,7 @@ describe('planDraftDeloadInsert (FR-2.12, FR-2.11, D-1, C-1)', () => {
     ${2.5}    | ${1}   | ${[block1]}                                                                                    | ${'bad_week'}
     ${6}      | ${1}   | ${[{ ...block1, lengthWeeks: 52 }]}                                                            | ${'too_long'}
     ${13}     | ${1}   | ${[block1, phase('d', { sortOrder: 2, type: 'deload', lengthWeeks: 1, cycleLengthWeeks: 1 })]} | ${'no_training_phase_before'}
+    ${12}     | ${1}   | ${[block1, phase('d', { sortOrder: 2, type: 'deload', lengthWeeks: 1, cycleLengthWeeks: 1 })]} | ${'next_to_deload'}
   `(
     'rejects: $reason (after week $afterWeek, $length weeks)',
     ({ afterWeek, length, phases, reason }) => {

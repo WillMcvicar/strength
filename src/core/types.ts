@@ -260,6 +260,8 @@ export interface CycleSlot {
   sortOrder: number;
   /** C-5: not generated from this week of the cycle group on. */
   retiredFromGroupWeek: number | null;
+  /** D-30: on a generated deload slot, the slot it was copied from; it takes that slot's pin. */
+  sourceCycleSlotId: string | null;
 }
 
 export interface CycleExercise {

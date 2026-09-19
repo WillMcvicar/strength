@@ -66,6 +66,7 @@ const slot = (
   weekday,
   sortOrder: weekday,
   retiredFromGroupWeek: null,
+  sourceCycleSlotId: null,
   ...over,
 });
 

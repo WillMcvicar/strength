@@ -10,6 +10,9 @@ const tableNames = (db: Db) =>
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
   );
 
+/** The schema version once every bundled migration has run. */
+const latest = String(bundle.journal.entries.length);
+
 const schemaVersion = async (db: Db) =>
   (
     await db.getFirstAsync<{ value: string }>(
@@ -59,7 +62,7 @@ describe('migrate (NFR-4)', () => {
     ).toBeNull();
 
     await migrate(db, bundle);
-    expect(await schemaVersion(db)).toBe('2');
+    expect(await schemaVersion(db)).toBe(latest);
     expect(
       await db.getFirstAsync(
         "SELECT 1 AS found FROM sqlite_master WHERE name = 'uq_plan_single_active'",
@@ -90,9 +93,9 @@ describe('migrate (NFR-4)', () => {
     };
 
     await expect(migrate(db, older)).rejects.toThrow(
-      /newer version of the app \(schema 2, app 1\)/,
+      new RegExp(`newer version of the app \\(schema ${latest}, app 1\\)`),
     );
-    expect(await schemaVersion(db)).toBe('2');
+    expect(await schemaVersion(db)).toBe(latest);
   });
 
   it('refuses a bundle whose journal names a missing migration', async () => {

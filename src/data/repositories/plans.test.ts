@@ -72,6 +72,7 @@ const slot = (id: string, cycleWorkoutId: string, week: number, weekday: number)
   weekday,
   sortOrder: weekday,
   retiredFromGroupWeek: null,
+  sourceCycleSlotId: null,
 });
 
 const exercise = (id: string, cycleWorkoutId: string, sortOrder: number): CycleExercise => ({

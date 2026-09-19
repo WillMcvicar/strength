@@ -15,6 +15,13 @@
       "when": 1789702984395,
       "tag": "0001_plan_single_active",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789777407663,
+      "tag": "0002_slot_source",
+      "breakpoints": true
     }
   ]
 }

@@ -186,7 +186,7 @@ describe('FR-4.2 weekday pins', () => {
     [b.slotIds.B!.Fri!]: 6,
   });
 
-  it('pins every slot of the original phase, moving Block 1 and Block 2 together', async () => {
+  it('AC-70 Deload follows training days: pinning Tue/Thu/Sat moves Block 1, the deload and Block 2', async () => {
     const built = await beginnerDraft();
     await insertDeload(db, { planId: built.planId, afterWeek: 6 }, ctx);
     const result = await startPlan(
@@ -198,26 +198,31 @@ describe('FR-4.2 weekday pins', () => {
 
     const rows = await repos.plannedWorkouts.listByPlan(built.planId);
     expect(dates(week(rows, 1))).toEqual(['2026-09-15', '2026-09-17', '2026-09-19']);
+    // The deload's slots have no rows of their own: they take their source slots' days (D-30).
+    expect(dates(week(rows, 7))).toEqual(['2026-10-27', '2026-10-29', '2026-10-31']);
     expect(dates(week(rows, 8))).toEqual(['2026-11-03', '2026-11-05', '2026-11-07']);
-    // The deload's own slots were not pinned, so they keep the weekdays they were copied with.
-    expect(dates(week(rows, 7))).toEqual(['2026-10-26', '2026-10-28', '2026-10-30']);
+    expect((await repos.blueprints.slotsOfPlan(built.planId)).map((s) => s.weekday)).toEqual([
+      2, 4, 6, 2, 4, 6, 2, 4, 6,
+    ]);
   });
 
-  it('pins a generated deload’s own slots too (DESIGN §7.5: one row per slot)', async () => {
+  it('D-30: a generated deload slot cannot be pinned on its own', async () => {
     const built = await beginnerDraft();
     const inserted = await insertDeload(db, { planId: built.planId, afterWeek: 6 }, ctx);
     if (!inserted.ok) throw new Error(inserted.reason);
-    const deloadSlots = (await repos.blueprints.slotsOfPlan(built.planId)).filter(
+    const deloadSlot = (await repos.blueprints.slotsOfPlan(built.planId)).find(
       (s) => s.phaseId === inserted.deloadPhaseId,
-    );
-    const pins = { ...tueThuSat(built) };
-    for (const s of deloadSlots) pins[s.id] = s.weekday + 1;
+    )!;
 
-    await startPlan(db, { planId: built.planId, startDate: START, weekdayPins: pins }, ctx);
-    const rows = await repos.plannedWorkouts.listByPlan(built.planId);
-    expect(dates(week(rows, 7))).toEqual(['2026-10-27', '2026-10-29', '2026-10-31']);
+    const result = await startPlan(
+      db,
+      { planId: built.planId, startDate: START, weekdayPins: { [deloadSlot.id]: 2 } },
+      ctx,
+    );
+    expect(result).toEqual({ ok: false, reason: 'bad_pin' });
+    expect(await count(db, 'planned_workout')).toBe(0);
     expect((await repos.blueprints.slotsOfPlan(built.planId)).map((s) => s.weekday)).toEqual([
-      2, 4, 6, 2, 4, 6, 2, 4, 6,
+      1, 3, 5, 1, 3, 5, 1, 3, 5,
     ]);
   });
 
