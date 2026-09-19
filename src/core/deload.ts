@@ -48,6 +48,8 @@ function deloadSets(
 ): CycleSet[] {
   const ordered = [...sets].sort((a, b) => a.setIndex - b.setIndex);
   const working = ordered.filter((s) => !s.isWarmup);
+  // FR-2.12's "minimum of 1 per skill" is applied per exercise: the same thing unless a
+  // workout lists one skill twice.
   const keepCount = Math.max(1, Math.ceil(working.length * factors.volumeFactor));
   const priority = [
     ...working.filter((s) => s.loadType === 'top_set'),
@@ -185,6 +187,8 @@ export function planDraftDeloadInsert(
     rpeCap: DELOAD_DEFAULTS.rpeCap,
     restDaysAtEnd: null,
     hasTestDay: false,
+    // DESIGN §3.9: P itself, which may be a continuation with no blueprint of its own. Anything
+    // that regenerates from it must go through `rootOf`, as `sourcePhaseId` below does.
     generatedFromPhaseId: p.id,
     continuesPhaseId: null,
     continuesOffsetWeeks: null,
