@@ -38,7 +38,8 @@ const bySortOrder = <T extends { sortOrder: number }>(a: T, b: T) => a.sortOrder
 /**
  * Sets for one deload exercise: warm-ups as they are, then the first `ceil(n × volumeFactor)`
  * working sets (at least 1), with any top set kept first and turned into a normal %-of-TM set
- * at its starting % (D-19). Every kept working set has its RPE capped.
+ * at its starting % (D-19). Every kept working set has its RPE capped, and an AMRAP set becomes
+ * a fixed-rep set at its minimum reps, since an all-out set contradicts the cap (D-30).
  */
 function deloadSets(
   sets: readonly CycleSet[],
@@ -71,6 +72,7 @@ function deloadSets(
             loadType: s.loadType === 'top_set' ? 'percent_tm' : s.loadType,
             targetRpeMin: s.targetRpeMin === null ? null : Math.min(s.targetRpeMin, cap),
             targetRpeMax: Math.min(s.targetRpeMax ?? cap, cap),
+            ...(s.isAmrap ? { isAmrap: false, repsMax: s.repsMin } : {}),
           }),
     }));
 }
@@ -121,13 +123,14 @@ export function generateDeload(
       cycleWorkoutId: copyOf.get(s.cycleWorkoutId)!,
       cycleWeekIndex: 1,
       retiredFromGroupWeek: null,
+      sourceCycleSlotId: s.id,
     });
   }
   return out;
 }
 
 export type DeloadInsertRejection =
-  'length_out_of_range' | 'bad_week' | 'too_long' | 'no_training_phase_before';
+  'length_out_of_range' | 'bad_week' | 'too_long' | 'no_training_phase_before' | 'next_to_deload';
 
 export type DeloadInsertPlan =
   | {
@@ -174,6 +177,10 @@ export function planDraftDeloadInsert(
   if (p.type !== 'training') return { ok: false, reason: 'no_training_phase_before' };
 
   const weeksOfP = afterWeek - start + 1;
+  // D-30: two deloads in a row; the user lengthens the existing one instead (up to 2 weeks).
+  if (weeksOfP === p.lengthWeeks && ordered[index + 1]?.type === 'deload') {
+    return { ok: false, reason: 'next_to_deload' };
+  }
   const deload: Phase = {
     ...p,
     id: newId(),

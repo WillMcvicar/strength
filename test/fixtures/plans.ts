@@ -234,6 +234,7 @@ class PlanBuilder {
           weekday: WEEKDAY[day],
           sortOrder: WEEKDAY[day],
           retiredFromGroupWeek: null,
+          sourceCycleSlotId: null,
         });
       }
     }

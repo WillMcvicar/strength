@@ -82,6 +82,13 @@ describe('insertDeload (FR-2.12)', () => {
       [5, 1],
     ]);
 
+    // D-30: each copy is linked to the week-A slot it came from.
+    expect(deload.slots.map((s) => s.sourceCycleSlotId)).toEqual([
+      built.slotIds.A!.Mon,
+      built.slotIds.A!.Wed,
+      built.slotIds.A!.Fri,
+    ]);
+
     const squat = deload.workouts[0].exercises[0];
     expect(squat.exercise.sourceCycleExerciseId).toBe(built.exerciseIds['Full body A'][0]);
     // AC-30 figures: 4 × 8 @ 70% TM, RPE 8 → 2 × 8 with an RPE cap of 7.
@@ -193,12 +200,17 @@ describe('insertDeload rejections', () => {
     },
   );
 
-  it('no_training_phase_before when the week before is already a deload', async () => {
+  it('no_training_phase_before after a deload, and next_to_deload before one', async () => {
     const built = await draft();
     await insertDeload(db, { planId: built.planId, afterWeek: 12 }, ctx);
     expect(await insertDeload(db, { planId: built.planId, afterWeek: 13 }, ctx)).toEqual({
       ok: false,
       reason: 'no_training_phase_before',
+    });
+    // D-30: nor directly before one; the existing deload is lengthened instead.
+    expect(await insertDeload(db, { planId: built.planId, afterWeek: 12 }, ctx)).toEqual({
+      ok: false,
+      reason: 'next_to_deload',
     });
     expect(await count(db, 'phase', `plan_id = '${built.planId}'`)).toBe(2);
   });

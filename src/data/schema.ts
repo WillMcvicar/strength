@@ -321,6 +321,11 @@ export const cycleSlot = sqliteTable(
     sortOrder: integer('sort_order').notNull(),
     // C-5: not generated from this week of the cycle group on
     retiredFromGroupWeek: integer('retired_from_group_week'),
+    // D-30: a deload copy follows this slot's weekday pin
+    sourceCycleSlotId: text('source_cycle_slot_id').references(
+      (): AnySQLiteColumn => cycleSlot.id,
+      { onDelete: 'set null' },
+    ),
   },
   () => [
     check('cycle_slot_week_index', sql`cycle_week_index >= 1`),
