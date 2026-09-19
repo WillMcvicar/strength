@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 1.3 (build-readiness fixes) |
+| **Document version** | 1.4 (deload details) |
 | **Date** | 17 September 2026 |
 | **Status** | Approved for the design phase |
 | **Platform** | iOS + Android (React Native, Expo) |
@@ -192,11 +192,14 @@ The app goes beyond the Notion version by letting the user choose from plan temp
 - **FR-2.12** **Deload phases.** Evidence basis: deloads are typically about a week long, every ~4–6 weeks.
   - **Adding one:** the user can insert a deload phase (1–2 weeks, default 1) between phases or **inside** a training phase at a week boundary. Inserting inside a phase splits it into the original part and a continuation (FR-2.11).
     - **Active plans:** in v1.0, a deload can only be inserted while the plan is a draft. Inserting one into an active plan shifts later workouts and renumbers weeks (FR-4.9), so it arrives in v1.1 together with "Deload now" (FR-4.6a).
+    - **Placement:** a deload must directly follow a training week, and can't sit directly before another deload. To rest longer, the user lengthens the existing deload (up to 2 weeks) instead.
   - **Generated content:** the app builds it from the workouts scheduled in the preceding training phase's first cycle week. It copies them as the deload's own workouts, on the same weekdays, with these defaults (all editable):
-    - **volume factor** 50%: sets are rounded up, with a minimum of 1 per skill
+    - **weekdays follow the training days:** each copied workout stays linked to the appearance it was copied from, and takes that appearance's weekday when the user sets training days at plan start (FR-4.2). The user sets training days once, and the deload trains on the same days.
+    - **volume factor** 50% of the **working sets**: sets are rounded up, with a minimum of 1 per skill. Warm-up sets are kept unchanged.
     - **load factor** 90% of normal prescribed load, applied to **every loaded set**: %-based, double-progression and fixed loads. Bodyweight sets are unchanged.
-    - **RPE cap** 7
+    - **RPE cap** 7 on every working set
     - **top sets** become normal %-of-TM sets at their starting load %, so the load factor and RPE cap apply as usual. There are no top sets in a deload.
+    - **AMRAP sets** become fixed-rep sets at their minimum reps. An all-out set contradicts the RPE cap and the deload's purpose of shedding fatigue. There are no AMRAP sets in a deload.
   - **Behaviour:**
     - Deload loads use the current TM.
     - Deloads don't trigger a Cycle Review.
@@ -535,7 +538,8 @@ PlanTemplate                            (read-only built-ins + user-saved)
        │                         loadPercent?,                  ← for top_set: starting % of TM
        │                         fixedLoadKg?,
        │                         targetTimeSec?)
-       └─ TemplateSlot (cycleWeekIndex, weekday, workoutId, order)    ← each appearance of a workout
+       └─ TemplateSlot (cycleWeekIndex, weekday, workoutId, order,
+                        sourceSlotId?)                           ← each appearance of a workout
 
 Plan
   id, name, description, sourceTemplateId?, status,
@@ -552,7 +556,8 @@ Plan
   │    │    └─ CycleExercise (same shape as TemplateExercise)
   │    │         └─ CycleSet (same shape as TemplateSet)
   │    └─ CycleSlot (id, cycleWeekIndex, weekday, cycleWorkoutId, order,
-  │                  retiredFromGroupWeek?)                        ← weekday appearances
+  │                  retiredFromGroupWeek?,
+  │                  sourceSlotId?)                                ← weekday appearances; set on deload copies
   ├─ PlannedWorkout (id, phaseId, cycleGroupId, cycleWorkoutId, cycleSlotId?, phaseCycleIndex, weekIndex,  ← generated
   │                  scheduledDate, status: upcoming|completed|skipped,   ← missed is derived
   │                  sessionId?)
@@ -619,7 +624,7 @@ Settings (singleton)
 - **Review timing:** a `CycleReview` is created as `pending` when the cycle's last session is resolved (completed, skipped or missed), but only if the phase's `reviewMode` requires one and the cycle doesn't end the program. A `final` review is always created when the program ends. Pending reviews are completed oldest first, recalculated whenever their inputs change, and withdrawn if their cycle stops being resolved (FR-3.8).
 - **e1RM:** `load × (1 + (reps + RIR)/30)`, where `RIR = 10 − rpe`. AMRAP sets without an RPE use RIR 0, and `reps + RIR = 1` gives `load`. Only top sets with RPE ≥ 7 and AMRAP sets, with 1–5 reps, qualify for suggestions (FR-3.5). For PRs, sets of 1–10 reps count, and a missing RPE uses RIR 0 (FR-10.1).
 - **Volume:** `reps × load × multiplier`, where the multiplier is 2 for `per_side` or unilateral skills and 1 otherwise (FR-1.8).
-- **Deload generation:** a generated deload copies the workouts scheduled in the source phase's cycle week 1 (or the current cycle week for "Deload now") as its own workouts and slots. Sets become `ceil(sets × volumeFactor)`, `targetRpeMax` becomes `min(target, rpeCap)`, and top sets become `percent_tm` sets at their starting %. Generated exercises keep a link to their source exercise, so double-progression state can be read (not written) during the deload. After generation it is a normal editable phase.
+- **Deload generation:** a generated deload copies the workouts scheduled in the source phase's cycle week 1 (or the current cycle week for "Deload now") as its own workouts and slots. Working sets become `ceil(workingSets × volumeFactor)` (minimum 1) and warm-ups are kept unchanged. On working sets, `targetRpeMax` becomes `min(target, rpeCap)`, top sets become `percent_tm` sets at their starting %, and AMRAP sets become fixed-rep sets at their minimum reps. Generated exercises keep a link to their source exercise, so double-progression state can be read (not written) during the deload. Generated slots keep a link to their source slot and take its weekday pin at plan start. After generation it is a normal editable phase.
 - **Taper rest days:** `restDaysAtEnd ≤ (lengthWeeks × 7) − 2` (FR-2.14).
 - **Blueprint edits:** editing a `CycleWorkout` affects every open appearance of it (all its slots). Editing slots re-dates or regenerates only `PlannedWorkout`s that are not yet completed or in progress.
 - **Dates and times:**
@@ -1074,6 +1079,10 @@ Suggested bottom tabs: **Today · Week · Plans · Progress · More** (More hold
   - **Then** every plan, session, review, 1RM and PR is restored, and the database passes an integrity check
   - **When** the user imports a file whose `seedVersion` is newer than the app's
   - **Then** it is rejected with a message
+- **AC-70 Deload follows training days**
+  - **Given** the Beginner Strength template, whose week-7 deload was generated on Mon/Wed/Fri
+  - **When** the user starts it on Monday 14 Sep 2026 and pins Tue/Thu/Sat
+  - **Then** the week-7 deload workouts fall on Tue 27, Thu 29 and Sat 31 Oct 2026, with no separate deload rows to pin
 
 ---
 
@@ -1180,7 +1189,7 @@ Each release is shippable on its own. Build only what is tagged for the current 
   - FR-3.9 (Final Review without Test Day)
   - FR-3.10–3.12 and FR-3.14–3.15
 - **Engineering:** all NFRs
-- **Acceptance tests:** AC-1 to AC-12, AC-14 to AC-17, AC-19, AC-20, AC-23 to AC-31, AC-35 to AC-45, AC-47 to AC-51, AC-53 to AC-57, AC-60 to AC-66, AC-68, AC-69
+- **Acceptance tests:** AC-1 to AC-12, AC-14 to AC-17, AC-19, AC-20, AC-23 to AC-31, AC-35 to AC-45, AC-47 to AC-51, AC-53 to AC-57, AC-60 to AC-66, AC-68 to AC-70
 
 ### v1.1 — Periodisation
 **Goal:** support real blocks and peaking.
@@ -1245,3 +1254,9 @@ See §8 Future Considerations.
 | | | • Start date defaults to today when today is the week-start day (FR-2.3, AC-51) |
 | | | • Privacy policy page and Google Play closed testing added (NFR-13, NFR-15) |
 | | | • New acceptance criteria AC-64 to AC-69; NFR-9 test list, glossary and release plan updated |
+| 1.4 | 19 Sep 2026 | Deload details found while building the schedule engine (design decision D-30): |
+| | | • Deload slots stay linked to their source slot and follow its weekday pin at plan start (FR-2.12, FR-4.2, §4) |
+| | | • The volume factor applies to working sets; warm-ups are kept unchanged (FR-2.12, §4) |
+| | | • AMRAP sets become fixed-rep sets at their minimum reps in a deload (FR-2.12, §4) |
+| | | • A deload must follow a training week and can't sit directly before another deload (FR-2.12) |
+| | | • New acceptance criterion AC-70; release plan updated |
