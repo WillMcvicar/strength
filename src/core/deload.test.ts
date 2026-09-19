@@ -156,7 +156,7 @@ describe('generateDeload (FR-2.12)', () => {
     expect(ids.size).toBe(2 + 3 + 3 + 3 + 3 + 1);
   });
 
-  it('AC-30 figures: 4 × 8 @ 70% TM, RPE 8 → 2 × 8 @ 62.5 kg with an RPE cap of 7', () => {
+  it('uses the AC-30 figures: 4 × 8 @ 70% TM, RPE 8 → 2 × 8 @ 62.5 kg with an RPE cap of 7', () => {
     const squat = setsOf('squat');
     expect(squat.map((s) => [s.setIndex, s.isWarmup, s.targetRpeMin, s.targetRpeMax])).toEqual([
       [1, true, null, null],
@@ -172,7 +172,7 @@ describe('generateDeload (FR-2.12)', () => {
     expect(load).toBe(62.5);
   });
 
-  it('AC-63 figures: a top set becomes a normal set at 97.5% → 87.5 kg, kept first (D-19)', () => {
+  it('uses the AC-63 figures: a top set becomes a normal set at 97.5% → 87.5 kg, kept first (D-19)', () => {
     const bench = setsOf('bench');
     // 5 working sets × 0.5 → 3: the top set plus two back-off sets.
     expect(bench.map((s) => [s.setIndex, s.loadType, s.loadPercent, s.targetRpeMax])).toEqual([
