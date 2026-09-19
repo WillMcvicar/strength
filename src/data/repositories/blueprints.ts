@@ -73,6 +73,22 @@ export function blueprintRepository(o: Orm) {
       await o.insert(cycleSlot).values(row);
     },
 
+    /** Pins a slot to a weekday (FR-4.2). */
+    async updateSlot(id: string, patch: Pick<CycleSlot, 'weekday'>): Promise<void> {
+      await o.update(cycleSlot).set(patch).where(eq(cycleSlot.id, id));
+    },
+
+    /** Every slot of every phase of a plan, in phase then cycle-week order. */
+    async slotsOfPlan(planId: string): Promise<CycleSlot[]> {
+      const rows = await o
+        .select({ slot: cycleSlot })
+        .from(cycleSlot)
+        .innerJoin(phase, eq(phase.id, cycleSlot.phaseId))
+        .where(eq(phase.planId, planId))
+        .orderBy(asc(phase.sortOrder), asc(cycleSlot.cycleWeekIndex), asc(cycleSlot.sortOrder));
+      return rows.map((r) => r.slot);
+    },
+
     async insertExercise(row: CycleExercise): Promise<void> {
       await o.insert(cycleExercise).values(row);
     },
