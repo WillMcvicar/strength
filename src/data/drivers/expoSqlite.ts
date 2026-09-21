@@ -5,7 +5,14 @@ import * as SQLite from 'expo-sqlite';
 
 import type { Db, RunResult, SqlValue } from '../db';
 
-function wrap(handle: SQLite.SQLiteDatabase): Db {
+/**
+ * `transaction` is how exclusive transactions reach the connection: the main connection opens a
+ * new one, and a connection already inside a transaction refuses to open another.
+ */
+function wrap(
+  handle: SQLite.SQLiteDatabase,
+  transaction: (task: (tx: Db) => Promise<void>) => Promise<void>,
+): Db {
   return {
     execAsync: (sql: string): Promise<void> => handle.execAsync(sql),
 
@@ -28,10 +35,7 @@ function wrap(handle: SQLite.SQLiteDatabase): Db {
     getFirstAsync: <T>(sql: string, params: SqlValue[] = []): Promise<T | null> =>
       handle.getFirstAsync<T>(sql, params),
 
-    // C-15: exclusive, never withTransactionAsync. `Transaction extends SQLiteDatabase`, so the
-    // callback argument is wrapped the same way.
-    withExclusiveTransactionAsync: (task: (tx: Db) => Promise<void>): Promise<void> =>
-      handle.withExclusiveTransactionAsync((txn) => task(wrap(txn))),
+    withExclusiveTransactionAsync: transaction,
 
     closeAsync: (): Promise<void> => handle.closeAsync(),
   };
@@ -43,9 +47,42 @@ function wrap(handle: SQLite.SQLiteDatabase): Db {
 export async function openDeviceDb(databaseName: string): Promise<Db> {
   // No change listening: its events fire before commit, so live reads use `liveDb` instead (D-32).
   const handle = await SQLite.openDatabaseAsync(databaseName);
-  // Exclusive transactions run on their own connection, where this pragma never reaches, so
-  // foreign keys are also compiled on with SQLITE_DEFAULT_FOREIGN_KEYS (app.json, D-27 note in
-  // §4.1); `migrate` checks it. WAL is stored in the file, so it covers every connection (§4.1).
+  // WAL is stored in the file, so it covers every connection (§4.1). Transactions set foreign
+  // keys on their own connection (D-35).
   await handle.execAsync('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL');
-  return wrap(handle);
+  return wrap(handle, (task) => exclusiveTransaction(databaseName, task));
+}
+
+/**
+ * C-15, D-35: one exclusive transaction on its own connection, as expo-sqlite's
+ * `withExclusiveTransactionAsync` does, but opened here so foreign keys can be switched on before
+ * the transaction begins (the pragma is a no-op inside one). That makes it independent of the
+ * SQLITE_DEFAULT_FOREIGN_KEYS build flag, which Expo Go ignores; the flag stays as a backstop, and
+ * `migrate` still checks. The busy timeout makes a second writer wait rather than fail at once.
+ */
+async function exclusiveTransaction(
+  databaseName: string,
+  task: (tx: Db) => Promise<void>,
+): Promise<void> {
+  const connection = await SQLite.openDatabaseAsync(databaseName, { useNewConnection: true });
+  try {
+    await connection.execAsync('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000');
+    await connection.execAsync('BEGIN EXCLUSIVE');
+    try {
+      await task(wrap(connection, refuseNested));
+      await connection.execAsync('COMMIT');
+    } catch (error) {
+      // A failed rollback mustn't hide why the work failed; closing discards the transaction.
+      await connection.execAsync('ROLLBACK').catch(() => {});
+      throw error;
+    }
+  } finally {
+    await connection.closeAsync();
+  }
+}
+
+function refuseNested(): Promise<void> {
+  return Promise.reject(
+    new Error('Already inside an exclusive transaction: pass `tx` on instead of opening another.'),
+  );
 }

@@ -103,9 +103,9 @@ describe('migrate (NFR-4)', () => {
     await expect(migrate(db, missing)).rejects.toThrow('Missing migration: 0000_init');
   });
 
-  it('fails at launch when foreign keys are off on the connection (device build-flag guard)', async () => {
+  it('fails at launch when foreign keys are off on the connection (D-35 guard)', async () => {
     await db.execAsync('PRAGMA foreign_keys = OFF');
-    await expect(migrate(db, bundle)).rejects.toThrow(/SQLITE_DEFAULT_FOREIGN_KEYS/);
+    await expect(migrate(db, bundle)).rejects.toThrow(/Foreign keys are off/);
     expect(await tableNames(db)).toEqual([]);
   });
 });

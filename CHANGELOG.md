@@ -10,6 +10,10 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Added
 
+- The app runs in Expo Go: exclusive transactions open their own connection and switch foreign
+  keys on before `BEGIN EXCLUSIVE`, instead of relying on a SQLite build flag Expo Go ignores
+  (D-35).
+
 - Specifications (`docs/REQUIREMENTS.md`, `docs/DESIGN.md`), CI, and the Claude Code configuration.
 - Expo app scaffold (build plan Slice 0): Expo SDK 57, React Native 0.86, React 19,
   strict TypeScript, Expo Router, and the §2.2 folder layers.

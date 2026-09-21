@@ -98,8 +98,8 @@ reads live data, so confirm it works with the Drizzle Expo driver before buildin
 
 Tokens, typography, the DESIGN §6.5 components, tab navigation, the first-launch disclaimer,
 `content/explanations.json` and the ⓘ component. Then Today, plus its empty state when there is
-no plan. On a device, Today's empty state offers **Load sample plan (dev)** in development builds
-only: a `src/services/dev` service builds the Beginner Strength shape (app code can't import
+no plan. On a device, Today's empty state offers **Load sample plan (dev)** in development mode
+only (`__DEV__`, which includes Expo Go): a `src/services/dev` service builds the Beginner Strength shape (app code can't import
 `test/fixtures`, and production bundles drop the service). This is where the visual direction
 gets validated, before there are twelve screens to redo.
 

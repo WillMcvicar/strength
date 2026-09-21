@@ -93,8 +93,10 @@ yours, because they need your GitHub account and an interactive terminal.
   Recorded in DESIGN §1.3 (C-15) and D-29.
 - **Foreign keys inside transactions (found in Slice 2).** Each exclusive transaction runs on a new
   connection, which the open-time `PRAGMA foreign_keys = ON` never reaches. `app.json` builds
-  SQLite with `SQLITE_DEFAULT_FOREIGN_KEYS=1`, so **run the app with a development build**
-  (`npx expo run:android` / `run:ios`), not Expo Go, which ignores the flag (D-29).
+  SQLite with `SQLITE_DEFAULT_FOREIGN_KEYS=1` (D-29). Expo Go ignores that flag, so the device
+  driver now opens each transaction's connection itself and switches foreign keys on before
+  `BEGIN EXCLUSIVE` (D-35). **The app runs in Expo Go:** `npx expo start`, then scan the QR code.
+  A development build (`npx expo run:android` / `run:ios`) also works.
 
 ## Upgrading dependencies
 

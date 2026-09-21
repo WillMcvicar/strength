@@ -1,4 +1,4 @@
-// Development builds only: load the sample plan from Today's empty state (docs/BUILD_PLAN.md
+// Development mode only (`__DEV__`, including Expo Go): load the sample plan from Today's empty state (docs/BUILD_PLAN.md
 // Slice 4). Writes go through the service, as everywhere else.
 import { useCallback, useState } from 'react';
 
