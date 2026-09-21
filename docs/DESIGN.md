@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Document version** | 0.8 (data layer) |
-| **Date** | 18 September 2026 |
+| **Document version** | 0.9 (deload details) |
+| **Date** | 19 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
-| **Implements** | `docs/REQUIREMENTS.md` document version 1.3 (the SRS) |
+| **Implements** | `docs/REQUIREMENTS.md` document version 1.4 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
 
 **Contents:**
@@ -62,6 +62,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-27 | **Primary keys are never NULL.** SQLite only implies `NOT NULL` for `INTEGER PRIMARY KEY`, so every `TEXT PRIMARY KEY` is declared `NOT NULL`; otherwise any number of NULL-keyed rows could be inserted. `session.cycle_group_id` deliberately has no foreign key, so history outlives its plan. | DESIGN §4.1, §4.3, §4.4 (physical schema only; no SRS change) | schema test, constraint tests (§9.1) |
 | D-28 | **CHECKs say NOT NULL when a value is required.** A comparison on NULL passes a SQLite CHECK, so the continuation offset (D-1) and a top set's `reps_max` (D-19) could be left empty despite being required. Both CHECKs now say `IS NOT NULL`, and the §4.1 `GLOB` check is declared on every local-date column, as §4.1 already promised. | SRS §4 (top sets); DESIGN §4.1, §4.3 | constraint tests (§9.1) |
 | D-29 | **Drizzle runs over the `Db` interface, and foreign keys are compiled on.** Repositories use Drizzle's `sqlite-proxy` driver on top of `Db`, so the device and test drivers share one query layer, and transactions stay with `withExclusiveTransactionAsync` (C-15). `expo-sqlite` runs each exclusive transaction on a new connection that the open-time `PRAGMA foreign_keys` never reaches, so SQLite is built with `SQLITE_DEFAULT_FOREIGN_KEYS=1` through the `expo-sqlite` config plugin, and the migration runner refuses to run if foreign keys are off. The app therefore needs a development build, not Expo Go. | DESIGN §2.4, §4.1, §4.6, §9.1 (no SRS change) | migration and adapter tests (§9.1); release checklist |
+| D-30 | **Deload details.** Building the schedule engine found four gaps in FR-2.12. (1) Deload slots were copied "on the same weekdays", but pins are set per slot at start, so a plan could train Tue/Thu/Sat and deload Mon/Wed/Fri. Each generated slot now keeps `source_cycle_slot_id` and takes its source slot's pin at start, and Plan setup lists only unlinked slots. (2) The volume factor counts working sets only; warm-ups are kept unchanged and uncapped. (3) A kept AMRAP set becomes a fixed-rep set at its minimum reps, since an all-out set contradicts the RPE cap. (4) A deload must follow a training week and can't sit directly before another deload. Core may also take new IDs through a caller-supplied `newId` generator (§2.1). | FR-2.12, FR-4.2, SRS §4 (SRS 1.4) | AC-70; core and service tests (§3.9, §8.1) |
 
 ### 1.2 Open design questions
 
@@ -120,7 +121,7 @@ These rules sit inside the SRS wording but aren't spelled out there. The design 
 ```
 
 **Dependency rules** (enforced by ESLint `no-restricted-imports` / `import/no-restricted-paths`):
-- `src/core` imports nothing outside itself (no React, Expo or SQLite) and never reads the clock or generates IDs. "Today", "now" and new IDs are passed in as arguments, so every function is deterministic.
+- `src/core` imports nothing outside itself (no React, Expo or SQLite) and never reads the clock or generates IDs. "Today", "now" and new IDs are passed in as arguments, so every function is deterministic. New IDs arrive either as values or, when the number of rows depends on the input, as a caller-supplied `newId: () => string` generator (D-30).
 - `src/data` imports `src/core` types only.
 - `src/features` may use **read** hooks from `src/data` repositories (for live queries), but all **writes** go through `src/services`.
 - `src/services` orchestrates: load with repositories → compute with `core` → write with repositories, all in one transaction.
@@ -323,7 +324,7 @@ validateEstimateSet({ reps, rpe }):
 ```ts
 type PhaseGroup = { rootId, phases: PlanPhase[] }  // a phase plus its continuations (D-1, D-14)
 
-generatePlannedWorkouts(plan, phases, cycleWorkouts): PlannedWorkoutDraft[]
+generatePlannedWorkouts(plan, phases, slots, newId): PlannedWorkout[]   // rows ready to insert (D-30)
   week = 0
   for phase in phases (ordered):
     offset = phase.continuesOffsetWeeks ?? 0         // weeks the group had before this part
@@ -407,12 +408,15 @@ planShift(workouts, anchorId, offsetDays, today): ShiftResult
 ### 3.9 Deload generation (FR-2.12) and "Deload now" (FR-4.6a)
 
 ```ts
-generateDeload(sourceWeekSlots: CycleSlot[], factors) → { workouts: CycleWorkout[], slots: CycleSlot[] }
+generateDeload(sourceWeek, deloadPhaseId, factors, newId) → { workouts, slots, exercises, sets }
   // one copy per distinct workout used in the week (A/B/A → 2 workouts, 3 slots), slots on the same weekdays, cycleWeekIndex 1
-  for each exercise: keep the first ceil(workingSets × volumeFactor) working sets (min 1),
-                     keep warm-ups,
-                     targetRpeMax = min(targetRpeMax ?? cap, rpeCap), targetRpeMin = min(targetRpeMin, rpeCap),
-                     top_set → percent_tm at the same loadPercent (D-19),
+  // each slot copy: sourceCycleSlotId = original slot id (D-30: it follows that slot's pin at start)
+  for each exercise: keep warm-ups unchanged (D-30),
+                     keep the first ceil(workingSets × volumeFactor) working sets (min 1), top sets first,
+                     on each kept working set:
+                       targetRpeMax = min(targetRpeMax ?? cap, rpeCap), targetRpeMin = min(targetRpeMin, rpeCap),
+                       top_set → percent_tm at the same loadPercent (D-19),
+                       isAmrap → false, repsMax = repsMin (D-30),
                      sourceCycleExerciseId = original id
 ```
 
@@ -445,7 +449,7 @@ planDeloadNow(plan, today, startDate, lengthWeeks):
 
 Undo restores the snapshot: it deletes D and P2, restores P's length, and restores the original week indices, phase IDs, dates and 1RM effective weeks (AC-34, AC-58).
 
-**Inserting a deload in the builder (FR-2.12)** uses the same split logic at a chosen week boundary. In v1.0 this is only offered for draft plans (D-23), so there are no dates to shift. Inserting into an active plan arrives in v1.1 and uses the full `planDeloadNow` logic (shift, renumbering, D-2 and undo) behind the `activeDeloadInsert` flag.
+**Inserting a deload in the builder (FR-2.12)** uses the same split logic at a chosen week boundary. The week before the boundary must be a training week, and the phase after it can't be a deload (D-30). In v1.0 this is only offered for draft plans (D-23), so there are no dates to shift. Inserting into an active plan arrives in v1.1 and uses the full `planDeloadNow` logic (shift, renumbering, D-2 and undo) behind the `activeDeloadInsert` flag.
 
 ### 3.10 Taper (FR-2.14)
 
@@ -782,7 +786,8 @@ CREATE TABLE cycle_slot (                            -- one weekday appearance o
   cycle_week_index    INTEGER NOT NULL CHECK (cycle_week_index >= 1),
   weekday             INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
   sort_order          INTEGER NOT NULL,
-  retired_from_group_week INTEGER                    -- C-5: not generated from this week of the cycle group on
+  retired_from_group_week INTEGER,                   -- C-5: not generated from this week of the cycle group on
+  source_cycle_slot_id TEXT REFERENCES cycle_slot(id) ON DELETE SET NULL  -- D-30: deload copies follow its pin
 );
 CREATE INDEX idx_slot_phase ON cycle_slot(phase_id, cycle_week_index, sort_order);
 CREATE INDEX idx_slot_workout ON cycle_slot(cycle_workout_id);
@@ -1305,7 +1310,7 @@ The Today screen shows one main card, chosen in this order: in-progress session 
 A three-step flow with a progress indicator, used after choosing a template, after building, and in onboarding.
 
 1. **Start date:** date picker, defaulting to the next week-start day, or today if today is the week-start day (FR-2.3). Shows the end date as it changes.
-2. **Training days:** one row per slot (e.g. "Week A · Full body A"), each with a `WeekdayPicker`. Warns if two workouts share a day, and shows "Tip: leave a day between full-body sessions".
+2. **Training days:** one row per slot (e.g. "Week A · Full body A"), each with a `WeekdayPicker`. Generated deload slots aren't listed: they take their source slot's day (D-30). Warns if two workouts share a day, and shows "Tip: leave a day between full-body sessions".
 3. **1RMs:** one row per %-based skill.
 
 ```
@@ -1578,7 +1583,8 @@ createDraftFromTemplate(templateId)          // on "Use this template"
 
 startPlan(planId, startDate, weekdayPins, oneRms, today)   // on "Start plan"
   1. if an active/paused plan exists and the user confirmed → endPlan(it, choice, today, now)   // §8.6
-  2. apply weekday pins to the plan's cycle_slots; set start_date
+  2. apply weekday pins to the plan's cycle_slots; a slot with source_cycle_slot_id takes its
+     source's pinned weekday instead of its own row (D-30); set start_date
   3. set plan_skill.starting_one_rm_kg; write a 'plan_setup' history row (week 1) only
      where the value differs from the current 1RM (C-13); estimate rows already exist
   4. core.generatePlannedWorkouts → insert planned_workout rows
@@ -1704,7 +1710,7 @@ The schema in §4 ships complete in v1.0. Later releases add screens and service
 | Core module | units, rounding, dates, loads (incl. top-set pre-fill), e1RM and top-set qualifying rule, generation (single training phase + deloads + continuations, D-1), shift (both-direction validation)/move/undo (C-3), status, reviews (`every_cycle`, `none`, ordered, final without Test Day, final replaces last cycle review), double progression, PRs, deload generation and in-phase insertion, estimate validation, skill locks, workout slots (D-20), review refresh and withdrawal (D-21), Final Review sources (D-22), ending a plan (D-24) | multi-phase, active-plan deload insertion (D-23), `end_of_phase`, taper + Test Day, deload now, re-pin, pause, phase length | volume |
 | Data | full schema (including `cycle_slot`), migrations, seed (2 templates), export/import (deferred foreign keys, seed-version check) | periodised template seed (with week B top sets), cloud backup module (D-17) | — |
 | Screens | Disclaimer, Onboarding, Today, Week + overview grid, Plans, Template detail, Plan setup + estimate flow, Builder (single phase + deloads, top sets), Plan detail (no load table) with End plan sheet, Session, Summary, Cycle/Final review, Program summary, PR board, Exercise detail (v1.0 scope, §7.11), History + session detail, Skill Library, Settings | Builder phases UI, Deload now / re-pin / pause / length sheets, Save as template, Test Day mode, ended plans in History, restore offer, backup settings | Volume panel, deload hint, load table, charts, manual PR, history filters |
-| Tests | AC-1–12, 14–17, 19, 20, 23–31, 35–45, 47–51, 53–57, 60–66, 68, 69 | AC-13, 18, 21, 22, 32, 34, 46, 52, 58, 59, 67 | AC-33 |
+| Tests | AC-1–12, 14–17, 19, 20, 23–31, 35–45, 47–51, 53–57, 60–66, 68–70 | AC-13, 18, 21, 22, 32, 34, 46, 52, 58, 59, 67 | AC-33 |
 
 **Feature flags:** `src/config/release.ts` exports the current release (`'1.0'`). Screens and actions check `isEnabled('deloadNow')`, `isEnabled('activeDeloadInsert')` and similar flags, so v1.1 work can merge to `main` hidden behind a flag, keeping `main` releasable (NFR-14, NFR-15).
 

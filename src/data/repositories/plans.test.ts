@@ -72,6 +72,7 @@ const slot = (id: string, cycleWorkoutId: string, week: number, weekday: number)
   weekday,
   sortOrder: weekday,
   retiredFromGroupWeek: null,
+  sourceCycleSlotId: null,
 });
 
 const exercise = (id: string, cycleWorkoutId: string, sortOrder: number): CycleExercise => ({
@@ -234,6 +235,22 @@ describe('blueprint repository (D-20)', () => {
       continuesOffsetWeeks: 6,
     });
     expect(await repos.blueprints.phasesOfTemplate('tpl')).toEqual([]);
+  });
+
+  it('FR-4.2: lists every slot of a plan across phases, and pins one to a weekday', async () => {
+    await repos.plans.insert({ ...plan, id: 'other' });
+    await repos.blueprints.insertPhase({ ...block1, id: 'otherPhase', planId: 'other' });
+    await repos.blueprints.insertWorkout({ ...workout('x', 1), phaseId: 'otherPhase' });
+    await repos.blueprints.insertSlot({ ...slot('elsewhere', 'x', 1, 1), phaseId: 'otherPhase' });
+    await repos.blueprints.insertPhase({ ...block1, id: 'later', sortOrder: 2 });
+    await repos.blueprints.insertWorkout({ ...workout('c', 1), phaseId: 'later' });
+    await repos.blueprints.insertSlot({ ...slot('later1', 'c', 1, 0), phaseId: 'later' });
+
+    await repos.blueprints.updateSlot('mon1', { weekday: 2 });
+
+    const slots = await repos.blueprints.slotsOfPlan('plan');
+    expect(slots.map((s) => s.id)).toEqual(['mon1', 'wed1', 'wed2', 'later1']);
+    expect(slots[0]).toEqual({ ...slot('mon1', 'a', 1, 1), weekday: 2 });
   });
 
   it('keeps a per-skill increase rule (FR-3.5)', async () => {
