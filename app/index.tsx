@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-// Placeholder for the Today screen (FR-7). Build-plan step 7 (DESIGN §11).
+// Placeholder for the Today screen (FR-7). Slice 4 replaces it (docs/BUILD_PLAN.md).
 export default function TodayScreen() {
   return (
     <View style={styles.container}>

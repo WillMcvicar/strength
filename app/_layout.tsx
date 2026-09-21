@@ -3,9 +3,9 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { DatabaseProvider, useOpenDatabase } from '@/features/database';
 
-// DESIGN §4.6, §7.1: open, migrate and seed before any screen renders. Build-plan step 7 adds
-// the design tokens, the disclaimer gate (FR-5) and the "Export raw database" option to the
-// failure screen.
+// DESIGN §4.6, §7.1: open, migrate and seed before any screen renders. Slice 4
+// (docs/BUILD_PLAN.md) adds the design tokens and the disclaimer gate (FR-5); Slice 14 adds the
+// "Export raw database" option to the failure screen (§4.6).
 export default function RootLayout() {
   const database = useOpenDatabase();
 

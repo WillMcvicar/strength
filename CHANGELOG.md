@@ -39,3 +39,11 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 - Core primitives (build plan Slice 1): `units`, `rounding`, `dates`, `loads` and
   `e1rm`, with 100% line and branch coverage and table-driven tests run under three time zones
   (FR-12.1, FR-1.6, FR-3.2, FR-3.5, FR-3.6, FR-3.12; AC-8, AC-10, AC-54, AC-61–63).
+- Schedule engine (build plan Slice 3): schedule generation from phase blueprints with
+  week, cycle and cycle-group numbering, partial cycles and continuations; derived missed status
+  and progress; deload generation whose slots follow the training-day pins (D-30). The
+  `startPlan` core steps and `insertDeload` services, tested in-memory with no UI (FR-2.5, FR-2.11,
+  FR-2.12, FR-2.15, FR-4.2, FR-4.3, FR-4.9, FR-4.11, FR-8.3; AC-2, AC-57, AC-70).
+- Live reads (D-32): `useLiveQuery` in `src/features` re-runs a repository read after every
+  committed exclusive transaction, using a post-commit signal from `liveDb` in `src/data`. It
+  replaces Drizzle's `useLiveQuery`, whose change events fire before commit.
