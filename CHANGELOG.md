@@ -11,14 +11,14 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 ### Added
 
 - Specifications (`docs/REQUIREMENTS.md`, `docs/DESIGN.md`), CI, and the Claude Code configuration.
-- Expo app scaffold (DESIGN §11, build-plan step 1): Expo SDK 57, React Native 0.86, React 19,
+- Expo app scaffold (build plan Slice 0): Expo SDK 57, React Native 0.86, React 19,
   strict TypeScript, Expo Router, and the §2.2 folder layers.
 - Two Jest projects — `core` (plain Node) and `app` (`jest-expo`) — with a 100% coverage threshold
   on `src/core`, and CI runs them under three time zones (NFR-12).
 - ESLint layer boundaries (`import/no-restricted-paths`) and determinism rules that bar clock reads
   and randomness from `src/core` and `src/services`, with `src/services/clock.ts` exempt.
 - Licence gate (`npm run check:licences`) over the production dependency tree; GPL and AGPL fail.
-- Persistence (build-plan step 5, NFR-2, NFR-4): the full DESIGN §4.3 schema for every release in
+- Persistence (build plan Slice 2, NFR-2, NFR-4): the full DESIGN §4.3 schema for every release in
   Drizzle, versioned migrations applied in one exclusive transaction, and a test that compares the
   migrated database with the DDL in the doc. Repositories for settings, skills, templates, plans,
   blueprints and the schedule. A seeded Skill Library (FR-1.1), draft pending review.
@@ -28,7 +28,7 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 ### Changed
 
 - The build order is now `docs/BUILD_PLAN.md`: 16 vertical slices, each with its IDs, exit check
-  and status. It replaces the layered steps in DESIGN §11.
+  and status. DESIGN §11 now points there (D-31).
 
 - DESIGN 0.7: every TEXT primary key is `NOT NULL` (D-27); CHECKs require values explicitly, and
   local dates are format-checked (D-28). `docs/ERD.md` replaces the §4.2 sketch.
@@ -36,6 +36,6 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   rather than Expo Go.
 - `Db` database interface (`src/data/db.ts`) with an Expo device driver and a `better-sqlite3` test
   driver, so data and service tests run in-memory against the same API (DESIGN §9.1).
-- Core primitives (DESIGN §11, build-plan step 2): `units`, `rounding`, `dates`, `loads` and
+- Core primitives (build plan Slice 1): `units`, `rounding`, `dates`, `loads` and
   `e1rm`, with 100% line and branch coverage and table-driven tests run under three time zones
   (FR-12.1, FR-1.6, FR-3.2, FR-3.5, FR-3.6, FR-3.12; AC-8, AC-10, AC-54, AC-61–63).

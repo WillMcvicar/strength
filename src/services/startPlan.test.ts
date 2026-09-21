@@ -76,7 +76,7 @@ describe('AC-2 Cycle repetition', () => {
   });
 });
 
-// TODO(OQ-1): once templates are seeded (DESIGN §11 step 10), also run this against the seeded
+// TODO(OQ-1): once templates are seeded (build plan Slice 5), also run this against the seeded
 // Beginner Strength template. Until then the template's shape is built by inserting its deload.
 describe('AC-57 Template continuation numbering', () => {
   let built: BuiltPlan;

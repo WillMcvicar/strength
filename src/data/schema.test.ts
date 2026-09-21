@@ -1,4 +1,4 @@
-// The migrated schema must match DESIGN §4.3 exactly (DESIGN §4.1, §11 step 5). The reference is
+// The migrated schema must match DESIGN §4.3 exactly (DESIGN §4.1; build plan Slice 2). The reference is
 // the ```sql block in docs/DESIGN.md itself, so the doc and the code can't drift apart silently.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Document version** | 0.9 (deload details) |
-| **Date** | 19 September 2026 |
+| **Document version** | 0.10 (build plan moved to docs/BUILD_PLAN.md) |
+| **Date** | 21 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.4 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
@@ -63,6 +63,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-28 | **CHECKs say NOT NULL when a value is required.** A comparison on NULL passes a SQLite CHECK, so the continuation offset (D-1) and a top set's `reps_max` (D-19) could be left empty despite being required. Both CHECKs now say `IS NOT NULL`, and the §4.1 `GLOB` check is declared on every local-date column, as §4.1 already promised. | SRS §4 (top sets); DESIGN §4.1, §4.3 | constraint tests (§9.1) |
 | D-29 | **Drizzle runs over the `Db` interface, and foreign keys are compiled on.** Repositories use Drizzle's `sqlite-proxy` driver on top of `Db`, so the device and test drivers share one query layer, and transactions stay with `withExclusiveTransactionAsync` (C-15). `expo-sqlite` runs each exclusive transaction on a new connection that the open-time `PRAGMA foreign_keys` never reaches, so SQLite is built with `SQLITE_DEFAULT_FOREIGN_KEYS=1` through the `expo-sqlite` config plugin, and the migration runner refuses to run if foreign keys are off. The app therefore needs a development build, not Expo Go. | DESIGN §2.4, §4.1, §4.6, §9.1 (no SRS change) | migration and adapter tests (§9.1); release checklist |
 | D-30 | **Deload details.** Building the schedule engine found four gaps in FR-2.12. (1) Deload slots were copied "on the same weekdays", but pins are set per slot at start, so a plan could train Tue/Thu/Sat and deload Mon/Wed/Fri. Each generated slot now keeps `source_cycle_slot_id` and takes its source slot's pin at start, and Plan setup lists only unlinked slots. (2) The volume factor counts working sets only; warm-ups are kept unchanged and uncapped. (3) A kept AMRAP set becomes a fixed-rep set at its minimum reps, since an all-out set contradicts the RPE cap. (4) A deload must follow a training week and can't sit directly before another deload. Core may also take new IDs through a caller-supplied `newId` generator (§2.1). | FR-2.12, FR-4.2, SRS §4 (SRS 1.4) | AC-70; core and service tests (§3.9, §8.1) |
+| D-31 | **The build plan lives in `docs/BUILD_PLAN.md`.** §11 listed layered steps (core, then data, then services, then UI). Once the UI-free foundations had landed, the remaining work was re-cut into vertical slices, each ending in something that runs on a phone and each with its own IDs, exit check and status. Keeping a second copy here would drift, so §11 now points to that file and records only the ordering rules. No requirement changes. | `docs/BUILD_PLAN.md` (no SRS change) | every v1.0 AC and FR in SRS §11 is placed in a slice |
 
 ### 1.2 Open design questions
 
@@ -217,7 +218,7 @@ It is idempotent: running it twice changes nothing. It also runs at the end of `
 - **Rest timer (FR-9.6):** when a set is completed and rest timer alerts are on (FR-12.5), schedule a local notification for `now + restSec` and store its ID. Skipping or adjusting the timer cancels and reschedules it. The in-app countdown is computed from the stored end time, so it stays correct after backgrounding.
 - **Workout reminder (FR-12.5):** one scheduled notification for the next workout date at the chosen time, rescheduled by `reconcile` and after any schedule change.
 - Permission is requested the first time it is needed (the first rest timer, or turning on reminders), not at launch.
-- **Android timing risk:** recent Android versions restrict exact alarms, which can delay time-based notifications. Test rest-timer notifications on real devices during scaffolding (§11, step 1). If they fire late, keep the in-app countdown authoritative, and request the exact-alarm permission only if it is really needed.
+- **Android timing risk:** recent Android versions restrict exact alarms, which can delay time-based notifications. Test rest-timer notifications on a real Android phone before logging is built (`docs/BUILD_PLAN.md`, Slice 6). If they fire late, keep the in-app countdown authoritative, and request the exact-alarm permission only if it is really needed.
 
 ### 2.7 Storage location and OS backup (NFR-4)
 
@@ -1718,20 +1719,13 @@ The schema in §4 ships complete in v1.0. Later releases add screens and service
 
 ## 11. Build Plan
 
-The order puts the riskiest, UI-free work first. Each step has an exit check that must pass before the next step starts. The design-system work in step 7 can start alongside steps 2–6.
+The build order is in **`docs/BUILD_PLAN.md`** (**D-31**). It splits v1.0 into vertical slices, each with its requirement IDs, a "Done when" check and a status. This document keeps no copy, so the two can't drift. `/next-step` reads that file.
 
-| Step | Work | Done when |
-|---|---|---|
-| 0. Pre-build | Create the public GitHub repo (MIT) and the Apple and Google developer accounts. Publish the privacy policy page (NFR-13). Start recruiting 12+ Android testers for the closed test (NFR-15). Give OQ-1 (template exercises) and the `explanations.json` copy review an owner and a date. | Accounts exist; OQ-1 has an owner and date |
-| 1. Scaffold and spikes | Set up the Expo app: strict TypeScript, Expo Router, the §2.2 folders, lint import boundaries, Prettier, and Jest (node and jest-expo projects). Add the full CI pipeline (§9.5), `THIRD_PARTY_NOTICES.md` and `src/config/release.ts`. **Spikes:** exclusive transactions with the Drizzle Expo driver (C-15); `useLiveQuery`; rest-timer notification timing on a real Android phone (§2.6). | CI is green on an empty app; spike results are recorded in §1.3 |
-| 2. Core maths | `dates`, `units`, `rounding`, `e1rm`, `loads`, with table tests covering the §9.4 dates and every rounding example | 100% coverage; AC-8, AC-10 and AC-35 pass as unit tests |
-| 3. Core scheduling | `schedule/generate` (slots, continuations, partial cycles), `status`, `progress`, shift, move and undo, and deload generation (draft insertion) | AC-1, 2, 11, 12, 15, 19, 30, 47, 48, 51, 57 and 63 pass at core level |
-| 4. Core progression | `doubleProgression`, `reviews` (suggest, reference, refresh rules, Final Review sources), `prs`, `volume` | AC-4, 25–29, 53–56, 61, 64 and 66 pass at core level |
-| 5. Data layer | Drizzle schema matching §4.3 (a test compares it with `sqlite_master`), migrations, the `better-sqlite3` adapter, repositories, the seed (placeholder exercises marked `TODO(OQ-1)`), export and import | AC-41 and AC-69 pass; migration and constraint tests pass |
-| 6. Services | `startPlan`, `startSession`, `completeSet`, `finishSession`, `reconcile` with `refreshReviews`, `completeReview`, `shiftSchedule`, `moveWorkout`, `skipWorkout`, `doMissedNow`, `endPlan`, `editSession`, `deleteSession`, `updateSkill`, `estimateOneRm` | Every v1.0 AC has a passing service test (the §9.3 script is green) |
-| 7. Walking skeleton | Design tokens (with the contrast test), fonts and core components. Then Disclaimer → Onboarding → Today → Workout session → Summary, running on real data | A workout can be logged on a physical phone in airplane mode |
-| 8. Gym test | The owner trains with the skeleton for 1–2 weeks | Findings are logged, and §6 and §7 are updated |
-| 9. Remaining v1.0 screens | Week and overview grid, Plans, Template detail, Plan setup with the estimate flow, Builder, Plan detail, reviews and Program summary, Progress, History, Skill Library, Settings, explanations and tips | Every §10 v1.0 screen exists, and the §7.17 accessibility checklist passes |
-| 10. Seed and beta | Resolve OQ-1, finish the seed and remove `TODO(OQ-1)`. Run the device checklist (`docs/RELEASE_CHECKLIST.md`). Ship to TestFlight and the Play closed test | The closed-test period is complete, with no open P1 bugs |
-| 11. Release 1.0 | Store listings ("Data Not Collected"), screenshots, README, CHANGELOG | v1.0.0 is live in both stores |
-| 12. Prepare v1.1 | Run the OQ-2 cloud-backup spike before any FR-12.9 work | OQ-2 is resolved |
+The ordering rules behind it:
+
+- **Riskiest, UI-free work first.** Core maths, the schema and the schedule engine are built and tested in Jest before any screen.
+- **Core loop next.** Today, starting a plan and logging a session come before keeping a plan alive (missed workouts, reviews) and before the builder.
+- **Gym test before the rest of the UI.** The owner trains with the core loop for 1–2 weeks, and the findings update §6 and §7 before the remaining screens are built.
+- **Spikes before the slice that needs them:** `useLiveQuery` before Today, rest-timer notification timing on Android (§2.6) before logging, and OQ-2 before any FR-12.9 work.
+- **Long lead times start on day one:** developer accounts, the privacy policy page (NFR-13), recruiting the Play closed-test group (NFR-15), and an owner and date for OQ-1.
+- **Scope stays gated by SRS §11.** A slice never enables work tagged for a later release (§10).

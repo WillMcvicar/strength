@@ -414,7 +414,7 @@ Generated from the DDL: 47 foreign keys over 22 tables. "1" on the parent side m
 
 1. The `sql` block of `DESIGN.md` §4.3 was extracted and run through SQLite 3.53 (`better-sqlite3`) with `PRAGMA foreign_keys = ON`. It executes cleanly: 22 tables, all indexes and all `CHECK` constraints are valid, and no primary key column accepts NULL.
 2. Every relationship in the diagram was compared against `PRAGMA foreign_key_list` for each table (the §3 table is generated from it), in both directions, so the diagram has no edge the schema lacks and the schema has no FK the diagram misses.
-3. A small fixture (one skill, template, plan, two phases with a continuation, blueprint, planned workout, session, sets, PR, review and 1RM row) was inserted and the delete and uniqueness rules from SRS §4 and DESIGN §4.4 were exercised against it. This fixture run was done against DESIGN 0.4. From build-plan step 5 it is automated: `src/data/constraints.test.ts` runs every row below against the migrated schema, and `src/data/schema.test.ts` checks that the migration matches §4.3.
+3. A small fixture (one skill, template, plan, two phases with a continuation, blueprint, planned workout, session, sets, PR, review and 1RM row) was inserted and the delete and uniqueness rules from SRS §4 and DESIGN §4.4 were exercised against it. This fixture run was done against DESIGN 0.4. From build plan Slice 2 it is automated: `src/data/constraints.test.ts` runs every row below against the migrated schema, and `src/data/schema.test.ts` checks that the migration matches §4.3.
 
 ### 4.2 Results
 

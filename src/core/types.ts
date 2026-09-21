@@ -1,5 +1,5 @@
 // Shared types for the pure domain layer (DESIGN §2.2). These mirror the §4 tables, in the
-// camelCase shape repositories return, and are extended as later build-plan steps land.
+// camelCase shape repositories return, and are extended as later build-plan slices land.
 
 /** Display unit. Weights are always stored in kg (FR-12.1). */
 export type Unit = 'kg' | 'lb';
