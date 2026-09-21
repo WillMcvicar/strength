@@ -7,7 +7,7 @@
 <!-- IDs this PR implements or changes, e.g. FR-3.5, D-22, AC-25, AC-66 -->
 
 - Implements:
-- Build-plan step (DESIGN §11):
+- Build-plan slice (`docs/BUILD_PLAN.md`):
 
 ## Checklist
 

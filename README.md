@@ -10,9 +10,9 @@ No accounts, no backend, no tracking, no ads, no paywalls. All data lives on the
 
 ## Status
 
-Scaffolded, no features yet — build-plan step 1 of 12 (DESIGN §11). The specifications, tooling,
-CI and the Expo app shell are in place and `npm run check` passes; none of the training logic is
-built. See [docs/SETUP.md](docs/SETUP.md) for what remains.
+Slices 0–3 of 15 are done ([docs/BUILD_PLAN.md](docs/BUILD_PLAN.md)): tooling and CI, the core
+training maths, the SQLite schema and repositories, and the schedule engine, all tested with no UI.
+The screens start at Slice 4.
 
 ## Why I built this
 
@@ -30,7 +30,7 @@ be green (SRS §1.4).
 
 ## Screenshots
 
-_Pending — the UI lands at build-plan step 7 (DESIGN §11)._
+_Pending — the UI starts at Slice 4 ([docs/BUILD_PLAN.md](docs/BUILD_PLAN.md))._
 
 ## Stack
 
@@ -42,7 +42,8 @@ Drizzle · Jest (Node + jest-expo projects) · Node 22 · MIT licensed.
 | File | What it is |
 |---|---|
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | The SRS — **what** to build (FR-*, NFR-*, AC-*). Source of truth. |
-| [docs/DESIGN.md](docs/DESIGN.md) | The design — **how** it is built (D-*, C-*), including the build plan (§11). |
+| [docs/DESIGN.md](docs/DESIGN.md) | The design — **how** it is built (D-*, C-*). |
+| [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) | The build order — **when**, as 16 vertical slices with exit checks and status. |
 | [docs/SETUP.md](docs/SETUP.md) | One-time repository setup and the working rhythm. |
 | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) | Manual on-device checks before a store build. |
 | [CLAUDE.md](CLAUDE.md) | Always-loaded instructions for Claude Code. |

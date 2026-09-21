@@ -27,6 +27,9 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Changed
 
+- The build order is now `docs/BUILD_PLAN.md`: 16 vertical slices, each with its IDs, exit check
+  and status. It replaces the layered steps in DESIGN §11.
+
 - DESIGN 0.7: every TEXT primary key is `NOT NULL` (D-27); CHECKs require values explicitly, and
   local dates are format-checked (D-28). `docs/ERD.md` replaces the §4.2 sketch.
 - Foreign keys are compiled on for every SQLite connection, so the app needs a development build
