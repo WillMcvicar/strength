@@ -47,3 +47,7 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 - Live reads (D-32): `useLiveQuery` in `src/features` re-runs a repository read after every
   committed exclusive transaction, using a post-commit signal from `liveDb` in `src/data`. It
   replaces Drizzle's `useLiveQuery`, whose change events fire before commit.
+- Design tokens (build plan Slice 4, DESIGN §6.2–6.4): light and dark colours, the Barlow type
+  roles, spacing, radii and touch sizes, and the fonts loaded at launch. A contrast test checks
+  every text colour on every surface in both themes (NFR-7). Adds `plateRedText` for red text,
+  because plate red on set-row wells fell below WCAG AA (D-33).

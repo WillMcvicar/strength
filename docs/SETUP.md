@@ -70,8 +70,6 @@ yours, because they need your GitHub account and an interactive terminal.
 
 ### Still outstanding
 
-- `src/ui/scaffold.test.tsx` exists only to prove the `app` Jest project renders components. Delete
-  it once real component tests land. (`test/scaffold.test.ts` went with Slice 2.)
 - `app/_layout.tsx` and `app/index.tsx` are placeholders; Slice 4 replaces them.
 - The README needs screenshots to satisfy NFR-13; they can only be taken once Slice 4 has UI.
 - The remaining Slice 0 spike is Android rest-timer notification timing (§2.6, before Slice 6).
