@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.11 (live reads re-run after commit) |
+| **Document version** | 0.12 (red text token) |
 | **Date** | 21 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.4 (the SRS) |
@@ -65,6 +65,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-30 | **Deload details.** Building the schedule engine found four gaps in FR-2.12. (1) Deload slots were copied "on the same weekdays", but pins are set per slot at start, so a plan could train Tue/Thu/Sat and deload Mon/Wed/Fri. Each generated slot now keeps `source_cycle_slot_id` and takes its source slot's pin at start, and Plan setup lists only unlinked slots. (2) The volume factor counts working sets only; warm-ups are kept unchanged and uncapped. (3) A kept AMRAP set becomes a fixed-rep set at its minimum reps, since an all-out set contradicts the RPE cap. (4) A deload must follow a training week and can't sit directly before another deload. Core may also take new IDs through a caller-supplied `newId` generator (§2.1). | FR-2.12, FR-4.2, SRS §4 (SRS 1.4) | AC-70; core and service tests (§3.9, §8.1) |
 | D-31 | **The build plan lives in `docs/BUILD_PLAN.md`.** §11 listed layered steps (core, then data, then services, then UI). Once the UI-free foundations had landed, the remaining work was re-cut into vertical slices, each ending in something that runs on a phone and each with its own IDs, exit check and status. Keeping a second copy here would drift, so §11 now points to that file and records only the ordering rules. No requirement changes. | `docs/BUILD_PLAN.md` (no SRS change) | every v1.0 AC and FR in SRS §11 is placed in a slice |
 | D-32 | **Live reads re-run after each commit.** The `useLiveQuery` spike found that Drizzle's hook doesn't fit. `expo-sqlite`'s change events come from `sqlite3_update_hook`, which fires once per row while the transaction is still open. A re-read on the main connection can therefore see the pre-commit snapshot (WAL), and no event follows the commit. A service that writes N rows also triggers N re-reads. Drizzle's hook watches only the query's own table, so joins are missed, and its types reject `sqlite-proxy` relational queries. Instead, `liveDb(db)` wraps `withExclusiveTransactionAsync` and signals once each transaction commits, and `useLiveQuery` in `src/features` re-runs a repository read on that signal. The `Db` interface and the drivers don't change, and change listening is turned off. | DESIGN §2.4 (no SRS change) | live-read hook and decorator tests (§9.1) |
+| D-33 | **Red text has its own token.** Building the tokens found that light `plateRed` text on `surfaceSunk` (set rows, input wells) is 4.38:1, below WCAG AA. `plateRedText` (`#B0352B` light, `#E8726A` dark) is used for red text and icons, as `plateYellowText` is for yellow; `plateRed` stays the fill. A contrast test checks every text token on `bg`, `surface` and `surfaceSunk` in both themes; it also corrected ink on yellow from 6.7 to 6.6 (6.65 had been rounded twice). | DESIGN §6.2, NFR-7 (no SRS change) | contrast test (§9) |
 
 ### 1.2 Open design questions
 
@@ -1127,11 +1128,12 @@ The app is used between sets, one-handed, by lifters who may be tired and sweaty
 | `plateYellow` | `#D69E12` | `#EDC04F` | taper phase, PR and pending-review fills |
 | `plateYellowText` | `#7F5C05` | `#EDC04F` | yellow text and icons on `bg`/`surface` |
 | `plateRed` | `#BE3A2F` | `#E8726A` | missed, destructive |
+| `plateRedText` | `#B0352B` | `#E8726A` | red text and icons on `bg`/`surface`/`surfaceSunk` (D-33) |
 | `onPlate` | `#FFFFFF` | `#0F161C` | text on blue, green and red fills |
 | `onPlateYellow` | `#18232D` | `#0F161C` | text on yellow fills |
 
 - Phase colours: training → blue; deload → green; taper → yellow. Consecutive training phases alternate between full and 70% tint of blue so the ribbon still shows the boundary. Red is reserved for missed and destructive states, so it never means two things.
-- Contrast (WCAG AA, 4.5:1), checked for these values: white on blue 6.4, white on green 5.8, white on red 5.5, ink on yellow 6.7, yellow text 5.4, green text 5.1, red text 4.8 (light theme); dark-theme pairs are all 4.8 or higher. White on yellow (2.4) is not allowed. Re-check whenever a token changes.
+- Contrast (WCAG AA, 4.5:1), checked for these values: white on blue 6.4, white on green 5.8, white on red 5.5, ink on yellow 6.6, yellow text 5.4, green text 5.1, red text (`plateRedText`) 5.4 (light theme, on `bg`); dark-theme pairs are all 4.8 or higher. On `surfaceSunk`, the weakest light pairs are `inkMuted` 4.6, green text 4.7 and red text 5.0. White on yellow (2.4) is not allowed. A contrast test re-checks every pair whenever a token changes (D-33).
 - Status chips use icon + label: `✓ Done` (green), `! Missed` (red), `↷ Skipped` (inkMuted), `● Today` (blue), `○ Upcoming` (outline), `– Not done` (inkMuted, for workouts left when a plan was ended early, D-24).
 
 ### 6.3 Typography
