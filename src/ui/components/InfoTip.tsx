@@ -1,9 +1,11 @@
 // InfoTip (DESIGN §6.5, FR-6.1): the ⓘ beside a term. It opens a TermSheet with the term's
-// plain-language explanation from content/explanations.json.
-import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+// plain-language explanation from content/explanations.json, and returns screen-reader focus to
+// the ⓘ when the sheet closes (§7.17).
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { explanation, type TermKey } from '../explanations';
+import { useReduceMotion } from '../motion';
 import { useColors } from '../theme';
 import { radius, spacing, touch } from '../tokens';
 import { useTypography } from '../typography';
@@ -13,10 +15,21 @@ export function InfoTip({ term }: { term: TermKey }) {
   const c = useColors();
   const type = useTypography();
   const [open, setOpen] = useState(false);
+  const tip = useRef<View>(null);
+  const wasOpen = useRef(false);
   const { title } = explanation(term);
+
+  useEffect(() => {
+    if (wasOpen.current && !open && tip.current) {
+      AccessibilityInfo.sendAccessibilityEvent(tip.current, 'focus');
+    }
+    wasOpen.current = open;
+  }, [open]);
+
   return (
     <>
       <Pressable
+        ref={tip}
         accessibilityRole="button"
         accessibilityLabel={`What is ${title}?`}
         onPress={() => setOpen(true)}
@@ -29,7 +42,10 @@ export function InfoTip({ term }: { term: TermKey }) {
   );
 }
 
-/** A bottom sheet with one explanation. It traps screen-reader focus while open (§7.17). */
+/**
+ * A bottom sheet with one explanation. It traps screen-reader focus while open (§7.17), and
+ * appears without sliding when the OS asks to reduce motion (§6.4).
+ */
 export function TermSheet({
   term,
   visible,
@@ -41,10 +57,17 @@ export function TermSheet({
 }) {
   const c = useColors();
   const type = useTypography();
+  const reduceMotion = useReduceMotion();
   const { title, body } = explanation(term);
   if (!visible) return null;
   return (
-    <Modal transparent animationType="slide" visible onRequestClose={onClose}>
+    <Modal
+      testID="term-sheet"
+      transparent
+      animationType={reduceMotion ? 'none' : 'slide'}
+      visible
+      onRequestClose={onClose}
+    >
       <View style={styles.backdrop}>
         <View
           accessibilityViewIsModal

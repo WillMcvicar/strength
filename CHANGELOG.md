@@ -61,4 +61,6 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   single "I understand" that is stored with a timestamp and never shown again (FR-5.1–5.3), and
   the ⓘ term explanations read from `content/explanations.json` (FR-6.1, FR-6.3). The copy is
   a draft awaiting the product owner's review.
+- Term sheets appear without sliding when the OS asks to reduce motion (DESIGN §6.4), and return
+  screen-reader focus to the ⓘ when they close (§7.17).
 - Only the four font weights in use ship in the app bundle, not every weight of both families.

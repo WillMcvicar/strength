@@ -105,10 +105,12 @@ the visual direction gets validated, before there are twelve screens to redo.
 
 ### Slice 5 — Start a plan from a template
 
-The Plans tab, template detail, plan setup (start date, weekdays, 1RMs), the "Estimate it for me"
-flow, and the two beginner template seeds.
+The onboarding stack after the disclaimer (units, the "your data" note, and Get started: pick a
+template, build a plan or skip; DESIGN §7.15 steps 3–5 and §7.1 launch rule 3), the Plans tab,
+template detail, plan setup (start date, weekdays, 1RMs), the "Estimate it for me" flow, and the
+two beginner template seeds.
 
-- **IDs:** FR-2.1–2.3, FR-3.3, FR-3.3a, FR-3.3b, FR-4.1, FR-4.4. AC-1.
+- **IDs:** FR-2.1–2.3, FR-3.3, FR-3.3a, FR-3.3b, FR-4.1, FR-4.4, DESIGN §7.15. AC-1.
 - **Blocked by OQ-1** for the final exercise lists. Seed with `TODO(OQ-1)` placeholders and keep the
   release-branch check that fails on them.
 - **Done when:** install → disclaimer → pick Beginner Strength → Today shows Monday's workout.
@@ -225,7 +227,8 @@ About → Disclaimer, and the "Export raw database" option on the launch failure
 ### Slice 15 — Release hardening and v1.0
 
 An accessibility pass, the cold-start budget, an airplane-mode run-through, a device backup restore
-test, OQ-1 resolved with the seeds finalised and every `TODO(OQ-1)` removed, and the device
+test, OQ-1 resolved with the seeds finalised and every `TODO(OQ-1)` removed, the product owner's
+review of the `content/explanations.json` copy (§7.16), and the device
 checklist (`docs/RELEASE_CHECKLIST.md`). Then TestFlight and the Play closed test, followed by the
 release: store listings ("Data Not Collected") and privacy labels, screenshots, README and
 CHANGELOG. Run `/release-check 1.0` before each store build.
