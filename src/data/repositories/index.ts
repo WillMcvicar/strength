@@ -5,6 +5,7 @@ import type { Db } from '../db';
 import { orm } from '../orm';
 import { appMetaRepository } from './appMeta';
 import { blueprintRepository } from './blueprints';
+import { oneRepMaxRepository } from './oneRepMax';
 import { plannedWorkoutRepository } from './plannedWorkouts';
 import { planRepository } from './plans';
 import { settingsRepository } from './settings';
@@ -21,6 +22,7 @@ export function repositories(db: Db) {
     plans: planRepository(o),
     blueprints: blueprintRepository(o),
     plannedWorkouts: plannedWorkoutRepository(o),
+    oneRepMax: oneRepMaxRepository(o),
   };
 }
 

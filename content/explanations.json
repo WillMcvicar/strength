@@ -1,0 +1,78 @@
+{
+  "one_rm": {
+    "title": "One-rep max (1RM)",
+    "body": "The heaviest weight you can lift once with good form. You set it for each exercise, and your working weights are worked out from it. It only changes when you confirm a new one."
+  },
+  "tm": {
+    "title": "Training max (TM)",
+    "body": "A slightly reduced version of your 1RM that your working weights are based on. Using 90% of your true max leaves room to build up without grinding every set."
+  },
+  "tm_percent": {
+    "title": "TM %",
+    "body": "The share of your 1RM used as your training max. The default is 90%. A lower figure makes every working weight lighter."
+  },
+  "rpe": {
+    "title": "RPE (rating of perceived exertion)",
+    "body": "How hard a set felt, from 6 to 10. RPE 10 means you couldn't have done another rep; RPE 8 means you had about two left. Rating honestly helps the app suggest your next weights."
+  },
+  "rir": {
+    "title": "RIR (reps in reserve)",
+    "body": "How many more reps you could have done at the end of a set. It is the other side of RPE: RIR = 10 − RPE, so RPE 8 is 2 reps in reserve."
+  },
+  "cycle": {
+    "title": "Cycle",
+    "body": "A block of 1 to 8 weeks that repeats until its phase is complete. At the end of each cycle, a review suggests whether to raise your 1RMs."
+  },
+  "phase": {
+    "title": "Phase",
+    "body": "A part of your plan with one purpose, such as building strength, a deload or a taper. Phases run one after another, each with its own cycle and rules."
+  },
+  "deload": {
+    "title": "Deload",
+    "body": "A short, easier stretch, usually a week, with fewer sets and lighter weights. It lets fatigue clear so you can keep making progress afterwards."
+  },
+  "taper": {
+    "title": "Taper",
+    "body": "The final phase before testing your maxes. Volume is cut while the weights stay heavy, so you arrive fresh but still sharp."
+  },
+  "double_progression": {
+    "title": "Double progression",
+    "body": "First add reps within a range, such as 8 to 12. Once every set reaches the top of the range, the weight goes up and the reps start again from the bottom."
+  },
+  "amrap": {
+    "title": "AMRAP (as many reps as possible)",
+    "body": "A set where you do as many good reps as you can. The count shows how strong you are right now, and can be used to estimate your 1RM."
+  },
+  "e1rm": {
+    "title": "Estimated 1RM (e1RM)",
+    "body": "A one-rep max worked out from a heavier set's weight, reps and effort, so you don't have to test a true max. The app only suggests it; you decide whether to use it."
+  },
+  "test_day": {
+    "title": "Test day",
+    "body": "A session where you work up to heavy singles to find a new 1RM. The warm-ups and attempts are set out for you, and you can adjust them."
+  },
+  "top_set": {
+    "title": "Top set",
+    "body": "One heavy set of 1 to 5 reps where you pick the weight on the day to hit a target RPE. Top sets are used to estimate how your strength is moving."
+  },
+  "back_off_set": {
+    "title": "Back-off set",
+    "body": "A lighter working set done after a top set, based on a percentage of your training max. It adds practice and volume without the strain of another heavy set."
+  },
+  "tip_rpe_picker": {
+    "title": "Rate each set",
+    "body": "After a set, tap how hard it felt. 10 means nothing left; 8 means about two reps left. It's quick, and it's what the app uses to suggest your next weights."
+  },
+  "tip_first_review": {
+    "title": "Your first cycle review",
+    "body": "A cycle is finished, so the app suggests new 1RMs based on how it went. Accept, edit or keep each one; nothing changes until you confirm."
+  },
+  "tip_first_deload": {
+    "title": "Deload week",
+    "body": "This week is lighter on purpose. Fewer sets and easier weights let you recover, so the next block goes better."
+  },
+  "tip_top_set": {
+    "title": "Top sets",
+    "body": "Pick a weight that lands on the target RPE, then log it honestly. These sets drive your 1RM suggestions."
+  }
+}

@@ -2,6 +2,7 @@
 import type { CycleSlot, Phase } from '../types';
 import {
   builderSections,
+  cycleFirstWeek,
   generatePlannedWorkouts,
   phaseGroups,
   phaseStartWeeks,
@@ -324,5 +325,37 @@ describe('generatePlannedWorkouts (DESIGN §3.6, FR-4.3)', () => {
       sortOrder: 2,
     });
     expect(() => generate([block1, taper], trainingSlots)).toThrow(/taper/i);
+  });
+});
+
+describe('cycleFirstWeek (§3.3, D-14)', () => {
+  // Beginner Strength: Block 1 (6 wk) → Deload → Block 2 continuing as cycles 4–6.
+  const beginner = [
+    phase('block1', { sortOrder: 1 }),
+    deload('dl', { sortOrder: 2 }),
+    phase('block2', { sortOrder: 3, continuesPhaseId: 'block1', continuesOffsetWeeks: 6 }),
+  ];
+
+  it.each([
+    [1, 1],
+    [2, 1],
+    [6, 5],
+    [7, 7], // the deload is its own 1-week cycle (C-1)
+    [8, 8], // cycle 4 starts after the deload
+    [9, 8],
+    [13, 12],
+  ])('week %i belongs to the cycle starting in week %i', (week, first) => {
+    expect(cycleFirstWeek(beginner, week)).toBe(first);
+  });
+
+  it('puts a cycle split by a deload at its first part (D-14)', () => {
+    // 2-week cycles, the deload after week 5: cycle 3 is weeks 5 and 7.
+    const split = [
+      phase('a', { sortOrder: 1, lengthWeeks: 5 }),
+      deload('dl', { sortOrder: 2 }),
+      phase('b', { sortOrder: 3, lengthWeeks: 3, continuesPhaseId: 'a', continuesOffsetWeeks: 5 }),
+    ];
+    expect(cycleFirstWeek(split, 7)).toBe(5);
+    expect(cycleFirstWeek(split, 8)).toBe(8);
   });
 });

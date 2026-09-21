@@ -51,3 +51,21 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   roles, spacing, radii and touch sizes, and the fonts loaded at launch. A contrast test checks
   every text colour on every surface in both themes (NFR-7). Adds `plateRedText` for red text,
   because plate red on set-row wells fell below WCAG AA (D-33).
+- Today's components (build plan Slice 4, DESIGN §6.5): Button, BottomBar, StatusChip, LoadText,
+  EmptyState, ExerciseCard, WeekStrip, ProgressMeter, PlanRibbon and Banner. Each has a spoken
+  form for screen readers and 48 dp touch targets, and none caps text scaling (NFR-7, §7.17). If
+  the fonts fail to load, text falls back to the system font.
+- Status chips for in-progress and paused workouts, so every status the schedule engine derives
+  can be shown (D-34).
+- App shell (build plan Slice 4): the five tabs (DESIGN §7.1), the first-launch disclaimer with a
+  single "I understand" that is stored with a timestamp and never shown again (FR-5.1–5.3), and
+  the ⓘ term explanations read from `content/explanations.json` (FR-6.1, FR-6.3). The copy is
+  a draft awaiting the product owner's review.
+- Term sheets appear without sliding when the OS asks to reduce motion (DESIGN §6.4), and return
+  screen-reader focus to the ⓘ when they close (§7.17).
+- Today (build plan Slice 4, FR-7.1–7.5, FR-7.7, FR-7.8): today's workout with calculated loads
+  and estimated duration, the rest-day card with the next workout, a done card, and the no-plan
+  empty state, under the plan ribbon, progress meter and week strip. Loads use each cycle's 1RM
+  (C-9). "Start workout" stays disabled until logging arrives in Slice 6. Development builds
+  offer a sample plan from the empty state.
+- Only the four font weights in use ship in the app bundle, not every weight of both families.
