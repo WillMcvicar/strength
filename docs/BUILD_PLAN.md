@@ -216,10 +216,11 @@ snapshots and field locks surfaced in the editor.
 ### Slice 14 — Settings and data safety
 
 Units, rest default, week start, increments, notifications, theme, JSON export and import with
-validation and a pre-import backup, backup status and the 30-day reminder, the tips toggle, and
-About → Disclaimer.
+validation and a pre-import backup, backup status and the 30-day reminder, the tips toggle,
+About → Disclaimer, and the "Export raw database" option on the launch failure screen.
 
-- **IDs:** FR-12.1–12.8, FR-5.3, FR-6.2, NFR-4 import rules. AC-41, AC-42, AC-69.
+- **IDs:** FR-12.1–12.8, FR-5.3, FR-6.2, NFR-4 import rules, DESIGN §4.6 (raw export). AC-41,
+  AC-42, AC-69.
 
 ### Slice 15 — Release hardening and v1.0
 

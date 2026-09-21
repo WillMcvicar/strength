@@ -3,9 +3,10 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import type { Db } from '@/data/db';
+import { liveDb } from '@/data/live';
 import { DatabaseProvider, useDb, useOpenDatabase } from '@/features/database';
 
-const fakeDb = { closeAsync: jest.fn() } as unknown as Db;
+const fakeDb = liveDb({ closeAsync: jest.fn() } as unknown as Db);
 
 describe('useOpenDatabase', () => {
   it('reports opening, then ready with the database', async () => {
@@ -33,12 +34,12 @@ describe('useOpenDatabase', () => {
 });
 
 describe('useDb', () => {
-  it('returns the provided database', async () => {
+  it('returns the provided database, wrapped for live reads (D-32)', async () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <DatabaseProvider value={fakeDb}>{children}</DatabaseProvider>
     );
     const { result } = await renderHook(() => useDb(), { wrapper });
-    expect(result.current).toBe(fakeDb);
+    expect(result.current).toBe(fakeDb.db);
   });
 
   it('fails clearly outside the provider', async () => {

@@ -74,10 +74,17 @@ yours, because they need your GitHub account and an interactive terminal.
   it once real component tests land. (`test/scaffold.test.ts` went with Slice 2.)
 - `app/_layout.tsx` and `app/index.tsx` are placeholders; Slice 4 replaces them.
 - The README needs screenshots to satisfy NFR-13; they can only be taken once Slice 4 has UI.
-- The remaining Slice 0 spikes are `useLiveQuery` (before Slice 4) and Android rest-timer
-  notification timing (§2.6, before Slice 6).
+- The remaining Slice 0 spike is Android rest-timer notification timing (§2.6, before Slice 6).
 
 ### Spike results (Slice 0)
+
+- **`useLiveQuery` (before Slice 4).** Drizzle's hook doesn't fit, found by reading the
+  `drizzle-orm/expo-sqlite` and `expo-sqlite` sources for SDK 57. `expo-sqlite`'s change events come
+  from `sqlite3_update_hook`, which fires once per row before `COMMIT`, so a re-read can see the old
+  WAL snapshot and nothing fires after the commit. The hook also watches only one table. Live reads
+  therefore use `useLiveQuery` in `src/features`, which re-runs on a post-commit signal from
+  `liveDb` in `src/data`, and change listening is off (D-32). No device run was needed: the signal
+  doesn't depend on native event timing. Today (Slice 4) is the first on-device check.
 
 - **C-15, exclusive transactions.** Confirmed against Expo SDK 57: `expo-sqlite` exposes
   `withExclusiveTransactionAsync(task: (txn: Transaction) => Promise<void>)`, and its own API docs

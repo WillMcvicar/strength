@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.10 (build plan moved to docs/BUILD_PLAN.md) |
+| **Document version** | 0.11 (live reads re-run after commit) |
 | **Date** | 21 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.4 (the SRS) |
@@ -64,6 +64,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-29 | **Drizzle runs over the `Db` interface, and foreign keys are compiled on.** Repositories use Drizzle's `sqlite-proxy` driver on top of `Db`, so the device and test drivers share one query layer, and transactions stay with `withExclusiveTransactionAsync` (C-15). `expo-sqlite` runs each exclusive transaction on a new connection that the open-time `PRAGMA foreign_keys` never reaches, so SQLite is built with `SQLITE_DEFAULT_FOREIGN_KEYS=1` through the `expo-sqlite` config plugin, and the migration runner refuses to run if foreign keys are off. The app therefore needs a development build, not Expo Go. | DESIGN §2.4, §4.1, §4.6, §9.1 (no SRS change) | migration and adapter tests (§9.1); release checklist |
 | D-30 | **Deload details.** Building the schedule engine found four gaps in FR-2.12. (1) Deload slots were copied "on the same weekdays", but pins are set per slot at start, so a plan could train Tue/Thu/Sat and deload Mon/Wed/Fri. Each generated slot now keeps `source_cycle_slot_id` and takes its source slot's pin at start, and Plan setup lists only unlinked slots. (2) The volume factor counts working sets only; warm-ups are kept unchanged and uncapped. (3) A kept AMRAP set becomes a fixed-rep set at its minimum reps, since an all-out set contradicts the RPE cap. (4) A deload must follow a training week and can't sit directly before another deload. Core may also take new IDs through a caller-supplied `newId` generator (§2.1). | FR-2.12, FR-4.2, SRS §4 (SRS 1.4) | AC-70; core and service tests (§3.9, §8.1) |
 | D-31 | **The build plan lives in `docs/BUILD_PLAN.md`.** §11 listed layered steps (core, then data, then services, then UI). Once the UI-free foundations had landed, the remaining work was re-cut into vertical slices, each ending in something that runs on a phone and each with its own IDs, exit check and status. Keeping a second copy here would drift, so §11 now points to that file and records only the ordering rules. No requirement changes. | `docs/BUILD_PLAN.md` (no SRS change) | every v1.0 AC and FR in SRS §11 is placed in a slice |
+| D-32 | **Live reads re-run after each commit.** The `useLiveQuery` spike found that Drizzle's hook doesn't fit. `expo-sqlite`'s change events come from `sqlite3_update_hook`, which fires once per row while the transaction is still open. A re-read on the main connection can therefore see the pre-commit snapshot (WAL), and no event follows the commit. A service that writes N rows also triggers N re-reads. Drizzle's hook watches only the query's own table, so joins are missed, and its types reject `sqlite-proxy` relational queries. Instead, `liveDb(db)` wraps `withExclusiveTransactionAsync` and signals once each transaction commits, and `useLiveQuery` in `src/features` re-runs a repository read on that signal. The `Db` interface and the drivers don't change, and change listening is turned off. | DESIGN §2.4 (no SRS change) | live-read hook and decorator tests (§9.1) |
 
 ### 1.2 Open design questions
 
@@ -198,7 +199,7 @@ No analytics, ads or crash-reporting SDKs (NFR-11). Dates use a small in-house `
 
 ### 2.4 Data flow and state
 
-- **Source of truth:** SQLite. Screens read through view-model hooks built on Drizzle's `useLiveQuery`, so they re-render when the tables they read change. Live queries need the database opened with change listening enabled (`enableChangeListener: true`).
+- **Source of truth:** SQLite. Screens read through view-model hooks built on `useLiveQuery` in `src/features`, which re-runs a repository read whenever an exclusive transaction commits (**D-32**). The signal comes from `liveDb(db)` in `src/data`, which wraps `withExclusiveTransactionAsync`, so it fires only after `COMMIT` and never after a rollback. Commits that finish in the same tick cause a single re-read.
 - **Derived values are never stored** unless noted: prescribed loads (until snapshotted), TM, missed status, progress %, adherence, volume.
 - **Active session:** every set change writes to SQLite immediately (NFR-8). A Zustand store holds UI-only state (focused set, open RPE picker, rest-timer end time) and is rebuilt from the DB on launch (FR-9.10).
 - **Transactions:** every service runs inside one **exclusive** transaction (C-15). A service either fully applies or leaves nothing behind.

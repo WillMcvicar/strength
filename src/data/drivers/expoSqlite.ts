@@ -41,8 +41,8 @@ function wrap(handle: SQLite.SQLiteDatabase): Db {
 // iOS, which iCloud device backups include, and `filesDir/SQLite` on Android, which the backup
 // rules in plugins/withAndroidBackup.js include (DESIGN §2.7, NFR-4).
 export async function openDeviceDb(databaseName: string): Promise<Db> {
-  // Change listening drives live queries (DESIGN §2.4).
-  const handle = await SQLite.openDatabaseAsync(databaseName, { enableChangeListener: true });
+  // No change listening: its events fire before commit, so live reads use `liveDb` instead (D-32).
+  const handle = await SQLite.openDatabaseAsync(databaseName);
   // Exclusive transactions run on their own connection, where this pragma never reaches, so
   // foreign keys are also compiled on with SQLITE_DEFAULT_FOREIGN_KEYS (app.json, D-27 note in
   // §4.1); `migrate` checks it. WAL is stored in the file, so it covers every connection (§4.1).
