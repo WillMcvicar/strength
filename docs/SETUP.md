@@ -110,7 +110,7 @@ yours, because they need your GitHub account and an interactive terminal.
 
 ## Working rhythm
 
-- **One build-plan step per branch.** Start a session with `/next-step`, then `/implement <ID>`.
+- **One build-plan slice per branch** (`docs/BUILD_PLAN.md`). Start a session with `/next-step`, then `/implement <ID>`.
 - **Plan first** for anything bigger than a small fix: use plan mode (Shift+Tab) and approve the
   plan before any edits.
 - **Review before committing:** "Use the spec-reviewer agent on this change." For work that crosses

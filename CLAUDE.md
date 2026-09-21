@@ -12,7 +12,7 @@ A free, offline-first iOS and Android app for following structured strength-trai
 - **Open questions:** anything marked Open (SRS §9, DESIGN §1.2) is undecided. Ask; don't assume an answer.
 - **Evidence-based training rules** (deloads, RPE, double progression, 1RM estimation, tapering) are deliberate. Don't simplify them; flag concerns instead.
 - **Release scope:** build only what SRS §11 tags for the current release (`src/config/release.ts`). Work for later releases goes behind `isEnabled('<flag>')`.
-- **Build order:** DESIGN §11 lists the build steps. Run `/next-step` to see where things stand.
+- **Build order:** `docs/BUILD_PLAN.md` lists the slices, their IDs, their "Done when" checks and their status. It replaces the layered steps in DESIGN §11. Run `/next-step` to see where things stand, and mark a slice **Done** there when it's finished.
 - **Setup state:** `docs/SETUP.md` lists the one-time steps and which are still outstanding. Check it before assuming a toolchain command exists.
 
 ## Commands
@@ -60,7 +60,7 @@ Rules:
 
 ## Git and PRs
 
-- **Branches:** one build-plan step or feature per branch, named `feat/<short-name>` or `fix/<short-name>`.
+- **Branches:** one build-plan slice (or part of one) per branch, named `feat/<short-name>` or `fix/<short-name>`.
 - **Commits:** Conventional Commits that cite IDs, e.g. `feat(core): estimated 1RM suggestion (FR-3.5, AC-25)`. End every commit message with both co-author trailers:
 
   ```
