@@ -36,8 +36,7 @@ can be checked. Its "Done when" check must pass before the next slice starts.
 
 ## Before and alongside the slices
 
-These aren't code, but they have long lead times, so they run in parallel from the start
-(DESIGN §11, step 0).
+These aren't code, but they have long lead times, so they run in parallel from the start.
 
 - Apple and Google developer accounts.
 - The privacy policy page (NFR-13), needed for both store listings.
@@ -132,8 +131,7 @@ recovery, ad-hoc sessions, and the session summary with total volume.
 
 ### Checkpoint — Gym test
 
-Train with the app for 1–2 weeks as soon as Slice 6 is on a phone (DESIGN §11, step 8). Slices 7–9
-carry on meanwhile.
+Train with the app for 1–2 weeks as soon as Slice 6 is on a phone. Slices 7–9 carry on meanwhile.
 
 - **Done when:** findings are logged, and DESIGN §6 and §7 are updated through `/spec-change`
   before Slice 10 starts. Screens built after this point follow the updated design.
@@ -239,5 +237,5 @@ CHANGELOG. Run `/release-check 1.0` before each store build.
 
 ## After v1.0
 
-- Run the OQ-2 cloud-backup spike before any FR-12.9 work (DESIGN §11, step 12).
+- Run the OQ-2 cloud-backup spike before any FR-12.9 work.
 - v1.1 scope is in SRS §11. Plan its slices here once v1.0 ships.

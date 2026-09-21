@@ -1,7 +1,7 @@
 # Repository setup
 
 This was the `workout-planner-repo-kit` starting layout. **The kit is installed** and the Expo app
-is **scaffolded** (DESIGN §11, build-plan step 1). What follows records what is in place and what is
+is **scaffolded** (`docs/BUILD_PLAN.md`, Slice 0). What follows records what is in place and what is
 still outstanding.
 
 ## What's in place
@@ -68,15 +68,16 @@ yours, because they need your GitHub account and an interactive terminal.
    - `/agents` lists the two reviewers.
    - `/hooks` shows the three hooks. The first run asks you to trust the project.
 
-### Still to do before build-plan step 2
+### Still outstanding
 
 - `src/ui/scaffold.test.tsx` exists only to prove the `app` Jest project renders components. Delete
-  it once real component tests land. (`test/scaffold.test.ts` went with build-plan step 5.)
-- `app/_layout.tsx` and `app/index.tsx` are placeholders; build-plan step 7 replaces them.
-- The README needs screenshots to satisfy NFR-13; they can only be taken once step 7 has UI.
-- The remaining step-1 spikes are `useLiveQuery` and Android rest-timer notification timing (§2.6).
+  it once real component tests land. (`test/scaffold.test.ts` went with Slice 2.)
+- `app/_layout.tsx` and `app/index.tsx` are placeholders; Slice 4 replaces them.
+- The README needs screenshots to satisfy NFR-13; they can only be taken once Slice 4 has UI.
+- The remaining Slice 0 spikes are `useLiveQuery` (before Slice 4) and Android rest-timer
+  notification timing (§2.6, before Slice 6).
 
-### Spike results (DESIGN §11, step 1)
+### Spike results (Slice 0)
 
 - **C-15, exclusive transactions.** Confirmed against Expo SDK 57: `expo-sqlite` exposes
   `withExclusiveTransactionAsync(task: (txn: Transaction) => Promise<void>)`, and its own API docs
@@ -85,7 +86,7 @@ yours, because they need your GitHub account and an interactive terminal.
   `src/data/db.ts` unchanged. The better-sqlite3 test driver takes the lock by hand with
   `BEGIN EXCLUSIVE`, and `test/db/adapter.test.ts` proves commit and rollback behaviour.
   Recorded in DESIGN §1.3 (C-15) and D-29.
-- **Foreign keys inside transactions (found in step 5).** Each exclusive transaction runs on a new
+- **Foreign keys inside transactions (found in Slice 2).** Each exclusive transaction runs on a new
   connection, which the open-time `PRAGMA foreign_keys = ON` never reaches. `app.json` builds
   SQLite with `SQLITE_DEFAULT_FOREIGN_KEYS=1`, so **run the app with a development build**
   (`npx expo run:android` / `run:ios`), not Expo Go, which ignores the flag (D-29).

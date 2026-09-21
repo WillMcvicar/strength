@@ -19,4 +19,4 @@ paths:
 - **Copy (§6.6):** plain words. Every jargon term has an `InfoTip` (ⓘ) whose text comes from `content/explanations.json`. Buttons say what happens.
 - **Data flow:** screens use `src/features` hooks. They never import `src/data`, and all writes go through `src/services`.
 - **Release gating:** features for later releases are hidden with `isEnabled(...)` from `src/config/release.ts`.
-- **Sketches:** match the §7 sketches for content and order. Visual polish can differ once the gym test (DESIGN §11, step 8) has fed back.
+- **Sketches:** match the §7 sketches for content and order. Visual polish can differ once the gym test (`docs/BUILD_PLAN.md`, after Slice 6) has fed back.

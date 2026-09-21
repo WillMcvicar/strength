@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implements a requirement (FR-x), acceptance criterion (AC-x), design decision (D-x) or build-plan step from docs/REQUIREMENTS.md and docs/DESIGN.md, test-first. Use when asked to build, add or fix a feature that has a requirement ID.
+description: Implements a requirement (FR-x), acceptance criterion (AC-x), design decision (D-x) or build-plan slice (docs/BUILD_PLAN.md) from docs/REQUIREMENTS.md and docs/DESIGN.md, test-first. Use when asked to build, add or fix a feature that has a requirement ID.
 allowed-tools: Bash(grep *), Bash(npm run *), Bash(npx jest *), Bash(head *), Bash(echo *), Read, Glob, Grep, Edit, Write
 argument-hint: <FR-x | AC-x | D-x>
 ---
