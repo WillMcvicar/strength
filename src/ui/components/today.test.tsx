@@ -31,6 +31,13 @@ describe('ExerciseCard (§6.5, §7.2)', () => {
     expect(card).toHaveTextContent(new RegExp(shown));
   });
 
+  it('shows just the name for an exercise with no target, e.g. completion only', async () => {
+    await render(<ExerciseCard name="Bike" sets={1} target={null} />);
+    const card = screen.getByLabelText('Bike');
+    expect(card).toHaveTextContent('Bike');
+    expect(card).not.toHaveTextContent(/×/);
+  });
+
   it('adds the load to the text and the spoken summary', async () => {
     await render(
       <ExerciseCard name="Squat" sets={5} target={{ reps: [5] }} load={{ kg: 90, unit: 'kg' }} />,

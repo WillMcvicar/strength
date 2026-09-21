@@ -63,4 +63,9 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   a draft awaiting the product owner's review.
 - Term sheets appear without sliding when the OS asks to reduce motion (DESIGN §6.4), and return
   screen-reader focus to the ⓘ when they close (§7.17).
+- Today (build plan Slice 4, FR-7.1–7.5, FR-7.7, FR-7.8): today's workout with calculated loads
+  and estimated duration, the rest-day card with the next workout, a done card, and the no-plan
+  empty state, under the plan ribbon, progress meter and week strip. Loads use each cycle's 1RM
+  (C-9). "Start workout" stays disabled until logging arrives in Slice 6. Development builds
+  offer a sample plan from the empty state.
 - Only the four font weights in use ship in the app bundle, not every weight of both families.

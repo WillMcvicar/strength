@@ -1,5 +1,5 @@
 // The Skill Library (FR-1). Locks and snapshots (D-16) are service rules, not repository ones.
-import { and, asc, eq, type SQL, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 
 import type { Equipment, MuscleGroup, Skill } from '@/core/types';
 
@@ -24,6 +24,14 @@ export function skillRepository(o: Orm) {
   return {
     async get(id: string): Promise<Skill | null> {
       return (await o.query.skill.findFirst({ where: eq(skill.id, id) })) ?? null;
+    },
+
+    async getMany(ids: readonly string[]): Promise<Skill[]> {
+      if (ids.length === 0) return [];
+      return o
+        .select()
+        .from(skill)
+        .where(inArray(skill.id, [...ids]));
     },
 
     async search(filter: SkillSearch = {}): Promise<Skill[]> {

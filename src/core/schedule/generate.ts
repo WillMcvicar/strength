@@ -157,6 +157,22 @@ export function weekPosition(phases: readonly Phase[], weekIndex: number): WeekP
   };
 }
 
+/**
+ * The plan week a cycle starts in, for the week given (§3.3). Cycles belong to the cycle group
+ * (D-14), so a cycle split by a deload starts in its first part.
+ */
+export function cycleFirstWeek(phases: readonly Phase[], weekIndex: number): number {
+  const target = weekPosition(phases, weekIndex);
+  let first = weekIndex;
+  for (let w = weekIndex - 1; w >= 1; w--) {
+    const pos = weekPosition(phases, w);
+    if (pos.cycleGroupId !== target.cycleGroupId) continue;
+    if (pos.phaseCycleIndex !== target.phaseCycleIndex) break;
+    first = w;
+  }
+  return first;
+}
+
 export interface GenerateInput {
   planId: string;
   startDate: LocalDate;

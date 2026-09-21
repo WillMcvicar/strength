@@ -97,11 +97,16 @@ deload generation, derived missed status and progress.
 reads live data, so confirm it works with the Drizzle Expo driver before building on it.
 
 Tokens, typography, the DESIGN §6.5 components, tab navigation, the first-launch disclaimer,
-`content/explanations.json` and the ⓘ component. Then Today, rendering a plan injected from
-`test/fixtures` behind a dev flag, plus Today's empty state when there is no plan. This is where
-the visual direction gets validated, before there are twelve screens to redo.
+`content/explanations.json` and the ⓘ component. Then Today, plus its empty state when there is
+no plan. On a device, Today's empty state offers **Load sample plan (dev)** in development builds
+only: a `src/services/dev` service builds the Beginner Strength shape (app code can't import
+`test/fixtures`, and production bundles drop the service). This is where the visual direction
+gets validated, before there are twelve screens to redo.
 
 - **IDs:** FR-5, FR-6.1, FR-6.3, FR-7.1–7.5, FR-7.7, FR-7.8, NFR-7 checklist, contrast tests.
+- **Done when:** on a phone, a fresh install shows the disclaimer; after "I understand", Today
+  shows the empty state; "Load sample plan (dev)" then shows this week's workout with loads, the
+  ribbon, the progress meter and the week strip, in light and dark and at 200% text.
 
 ### Slice 5 — Start a plan from a template
 

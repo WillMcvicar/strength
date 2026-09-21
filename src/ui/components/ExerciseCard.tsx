@@ -13,7 +13,8 @@ export type SetTarget =
 export interface ExerciseCardProps {
   name: string;
   sets: number;
-  target: SetTarget;
+  /** null for an exercise with no reps or time, e.g. completion only. */
+  target: SetTarget | null;
   load?: LoadTextProps;
   inSuperset?: boolean;
 }
@@ -34,10 +35,10 @@ function prescription(target: SetTarget): { shown: string; spoken: string } {
 export function ExerciseCard({ name, sets, target, load, inSuperset = false }: ExerciseCardProps) {
   const c = useColors();
   const type = useTypography();
-  const { shown, spoken } = prescription(target);
+  const shown = target ? `${sets} × ${prescription(target).shown}` : null;
   const summary = [
     `${inSuperset ? 'Superset: ' : ''}${name}`,
-    `${count(sets, 'set', 'sets')} of ${spoken}`,
+    ...(target ? [`${count(sets, 'set', 'sets')} of ${prescription(target).spoken}`] : []),
     ...(load ? [spokenLoad(load.kg, load.unit, load.perSide, load.added)] : []),
   ].join(', ');
 
@@ -48,9 +49,7 @@ export function ExerciseCard({ name, sets, target, load, inSuperset = false }: E
       style={[styles.row, inSuperset && [styles.superset, { borderLeftColor: c.plateBlue }]]}
     >
       <Text style={[type.body, styles.name, { color: c.ink }]}>{name}</Text>
-      <Text style={[type.body, { color: c.inkMuted }]}>
-        {sets} × {shown}
-      </Text>
+      {shown && <Text style={[type.body, { color: c.inkMuted }]}>{shown}</Text>}
       {load && <LoadText {...load} />}
     </View>
   );

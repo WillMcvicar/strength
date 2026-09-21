@@ -291,6 +291,20 @@ export interface CycleSet {
   targetTimeSec: number | null;
 }
 
+/** One confirmed 1RM (SRS §4). The effective week is derived and cached (D-2). */
+export interface OneRepMaxHistory {
+  id: string;
+  skillId: string;
+  oneRmKg: number;
+  source: 'plan_setup' | 'setup_estimate' | 'cycle_review' | 'manual';
+  planId: string | null;
+  effectiveFromWeekIndex: number | null;
+  cycleReviewId: string | null;
+  estimateSessionId: string | null;
+  note: string | null;
+  setAt: string;
+}
+
 export interface PlannedWorkout {
   id: string;
   planId: string;
