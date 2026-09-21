@@ -178,7 +178,7 @@ describe('PlanRibbon (§6.1, §6.5, §7.17)', () => {
     const ribbon = screen.getByRole('button', { name: 'Phase 3 of 5, Strength, week 9 of 17' });
 
     expect(flat(ribbon.props.style).minHeight).toBeGreaterThanOrEqual(touch.min);
-    fireEvent.press(ribbon);
+    await fireEvent.press(ribbon);
     expect(onPress).toHaveBeenCalled();
   });
 
@@ -204,7 +204,7 @@ describe('Banner (§6.5, §7.2)', () => {
     expect(screen.queryByText('⚑')).toBeNull();
     const action = screen.getByRole('button', { name: 'Export' });
     expect(flat(action.props.style).minHeight).toBeGreaterThanOrEqual(touch.min);
-    fireEvent.press(action);
+    await fireEvent.press(action);
     expect(onPress).toHaveBeenCalled();
   });
 

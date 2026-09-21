@@ -57,3 +57,8 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   the fonts fail to load, text falls back to the system font.
 - Status chips for in-progress and paused workouts, so every status the schedule engine derives
   can be shown (D-34).
+- App shell (build plan Slice 4): the five tabs (DESIGN §7.1), the first-launch disclaimer with a
+  single "I understand" that is stored with a timestamp and never shown again (FR-5.1–5.3), and
+  the ⓘ term explanations read from `content/explanations.json` (FR-6.1, FR-6.3). The copy is
+  a draft awaiting the product owner's review.
+- Only the four font weights in use ship in the app bundle, not every weight of both families.

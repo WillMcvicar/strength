@@ -3,14 +3,15 @@ import { Stack } from 'expo-router';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { DatabaseProvider, useOpenDatabase } from '@/features/database';
+import { useDisclaimer } from '@/features/disclaimer';
 import { fontSources } from '@/ui/fonts';
 import { useColors } from '@/ui/theme';
 import { spacing } from '@/ui/tokens';
 import { FontsLoadedProvider, useTypography } from '@/ui/typography';
 
 // DESIGN §4.6, §7.1: open, migrate and seed before any screen renders, and load the §6.3 fonts.
-// Slice 4 (docs/BUILD_PLAN.md) adds the disclaimer gate (FR-5); Slice 14 adds the "Export raw
-// database" option to the failure screen (§4.6).
+// Then the launch rules: the disclaimer until it is acknowledged (FR-5), then the tabs. Slice 14
+// adds the "Export raw database" option to the failure screen (§4.6).
 export default function RootLayout() {
   const database = useOpenDatabase();
   const [fontsLoaded, fontError] = useFonts(fontSources);
@@ -24,10 +25,31 @@ export default function RootLayout() {
         <DatabaseFailed message={database.error.message} />
       ) : (
         <DatabaseProvider value={database.db}>
-          <Stack />
+          <AppStack />
         </DatabaseProvider>
       )}
     </FontsLoadedProvider>
+  );
+}
+
+/** §7.1 launch rules. Each screen exists only while its guard holds, so there is no way back. */
+function AppStack() {
+  const disclaimer = useDisclaimer();
+  if (disclaimer.status === 'loading') return null;
+  if (disclaimer.status === 'failed') {
+    return <DatabaseFailed message={disclaimer.error?.message ?? 'Unknown error'} />;
+  }
+  const acknowledged = disclaimer.status === 'acknowledged';
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!acknowledged}>
+        <Stack.Screen name="disclaimer" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={acknowledged}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+    </Stack>
   );
 }
 

@@ -16,7 +16,7 @@ describe('Button (§6.5)', () => {
     const onPress = jest.fn();
     await render(<Button label="Start workout" onPress={onPress} />);
 
-    fireEvent.press(screen.getByRole('button', { name: 'Start workout' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Start workout' }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
@@ -48,7 +48,7 @@ describe('Button (§6.5)', () => {
     const button = screen.getByRole('button', { name: 'Apply' });
 
     expect(button).toBeDisabled();
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(onPress).not.toHaveBeenCalled();
   });
 
@@ -140,7 +140,7 @@ describe('EmptyState (§6.5)', () => {
     );
 
     expect(screen.getByText('No plan yet. Pick a ready-made plan or build your own.')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Browse templates' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Browse templates' }));
     expect(browse).toHaveBeenCalled();
   });
 
