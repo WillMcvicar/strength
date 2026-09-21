@@ -51,3 +51,9 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   roles, spacing, radii and touch sizes, and the fonts loaded at launch. A contrast test checks
   every text colour on every surface in both themes (NFR-7). Adds `plateRedText` for red text,
   because plate red on set-row wells fell below WCAG AA (D-33).
+- Today's components (build plan Slice 4, DESIGN §6.5): Button, BottomBar, StatusChip, LoadText,
+  EmptyState, ExerciseCard, WeekStrip, ProgressMeter, PlanRibbon and Banner. Each has a spoken
+  form for screen readers and 48 dp touch targets, and none caps text scaling (NFR-7, §7.17). If
+  the fonts fail to load, text falls back to the system font.
+- Status chips for in-progress and paused workouts, so every status the schedule engine derives
+  can be shown (D-34).
