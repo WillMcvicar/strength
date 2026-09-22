@@ -1,15 +1,29 @@
 // Template detail (FR-2.2, DESIGN §7.4), rendered from view-model states.
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import TemplateScreen from '../../app/template/[id]';
 import { useTemplate, type TemplateDetailView, type TemplateScreenView } from '@/features/plans';
+import { useCreatePlanFromTemplate } from '@/features/planSetup';
 
-jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ id: 'tpl_beginner_strength' }) }));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  router: { push: (href: string) => mockPush(href) },
+  useLocalSearchParams: () => ({ id: 'tpl_beginner_strength' }),
+}));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View };
 });
 jest.mock('@/features/plans', () => ({ useTemplate: jest.fn() }));
+jest.mock('@/features/planSetup', () => ({ useCreatePlanFromTemplate: jest.fn() }));
+
+const create = jest.fn(async () => 'plan-1');
+
+beforeEach(() => {
+  mockPush.mockClear();
+  create.mockClear();
+  jest.mocked(useCreatePlanFromTemplate).mockReturnValue({ create, busy: false });
+});
 
 const show = (view: TemplateScreenView) => jest.mocked(useTemplate).mockReturnValue(view);
 
@@ -95,10 +109,23 @@ describe('FR-2.2 template detail', () => {
     });
   });
 
-  it('offers "Use this template", which Plan setup enables', async () => {
+  it('FR-2.3 "Use this template" creates a draft and opens Plan setup (§8.1)', async () => {
     show({ status: 'ready', template: TEMPLATE });
     await render(<TemplateScreen />);
-    expect(screen.getByText('Use this template')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByText('Use this template'));
+    expect(create).toHaveBeenCalledWith('tpl_beginner_strength');
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/plan/plan-1/setup'));
+  });
+
+  it('stays put when the draft cannot be created', async () => {
+    create.mockResolvedValueOnce(null as never);
+    show({ status: 'ready', template: TEMPLATE });
+    await render(<TemplateScreen />);
+
+    await fireEvent.press(screen.getByText('Use this template'));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('hides the week tabs when the cycle is one week long', async () => {

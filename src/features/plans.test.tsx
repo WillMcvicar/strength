@@ -28,16 +28,20 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <DatabaseProvider value={live}>{children}</DatabaseProvider>
 );
 
+let newId: () => string;
+
 beforeEach(async () => {
   db = await openMigratedTestDb();
   live = liveDb(db);
+  // One sequence per test, so two service calls never mint the same id.
+  newId = idSequence();
 });
 
 afterEach(async () => {
   await db.closeAsync();
 });
 
-const ctx = () => ({ today: TODAY, now: `${TODAY}T09:00:00.000Z`, newId: idSequence() });
+const ctx = () => ({ today: TODAY, now: `${TODAY}T09:00:00.000Z`, newId });
 
 async function startBeginnerStrength(): Promise<string> {
   const created = await createPlanFromTemplate(db, { templateId: 'tpl_beginner_strength' }, ctx());

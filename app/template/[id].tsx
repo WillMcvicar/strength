@@ -1,9 +1,10 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTemplate, type TemplateCycleWeekView, type TemplatePhaseView } from '@/features/plans';
+import { useCreatePlanFromTemplate } from '@/features/planSetup';
 import { BottomBar } from '@/ui/components/BottomBar';
 import { Button } from '@/ui/components/Button';
 import { ExerciseCard } from '@/ui/components/ExerciseCard';
@@ -19,7 +20,14 @@ export default function TemplateScreen() {
   const type = useTypography();
   const { id } = useLocalSearchParams<{ id: string }>();
   const view = useTemplate(id);
+  const { create, busy } = useCreatePlanFromTemplate();
   const [week, setWeek] = useState(0);
+
+  // §8.1: the draft gives Plan setup a plan id to write to.
+  const use = async (templateId: string) => {
+    const planId = await create(templateId);
+    if (planId !== null) router.push(`/plan/${planId}/setup`);
+  };
 
   if (view.status === 'loading') return null;
   if (view.status === 'failed' || view.template === null) {
@@ -77,8 +85,7 @@ export default function TemplateScreen() {
         )}
       </ScrollView>
       <BottomBar>
-        {/* Enabled by Plan setup (DESIGN §7.5, §8.1). */}
-        <Button label="Use this template" disabled onPress={() => {}} />
+        <Button label="Use this template" disabled={busy} onPress={() => void use(t.id)} />
       </BottomBar>
     </SafeAreaView>
   );
