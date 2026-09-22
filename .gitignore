@@ -30,6 +30,9 @@ CLAUDE.local.md
 # Scaffolding kit archive (its contents are now the repository)
 workout-planner-repo-kit.zip
 
+# Personal Notion export, kept locally as reference (not part of the repo)
+notion/
+
 # OS / editor
 .DS_Store
 *.log
