@@ -46,6 +46,9 @@ const beginnerDraft = (id = 'plan') =>
       { skill: 'skill_bench_press', sets: [topSet(), ...sets(4, { loadPercent: 0.8 })] },
     ])
     .withSchedule(FULL_BODY_AB)
+    // FR-3.3: a %-based skill needs a starting 1RM before the plan can become active.
+    .withOneRm('skill_back_squat', 110)
+    .withOneRm('skill_bench_press', 90)
     .build(db);
 
 const week = (rows: PlannedWorkout[], w: number) => rows.filter((r) => r.weekIndex === w);

@@ -2,7 +2,7 @@
 // slots, set the start date, generate the schedule and make the plan active.
 import { isLocalDate } from '@/core/dates';
 import { generatePlannedWorkouts } from '@/core/schedule/generate';
-import type { LocalDate } from '@/core/types';
+import type { LocalDate, Phase } from '@/core/types';
 import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
@@ -17,10 +17,22 @@ export interface StartPlanInput {
    * source slot's day (D-30). Continuations have no slots, so pinning the original moves them too.
    */
   weekdayPins?: Readonly<Record<string, number>>;
+  /**
+   * Starting 1RMs in kg by skill id, from Plan setup (FR-3.3). They replace what the draft was
+   * pre-filled with. Every %-based skill needs one before the plan can become active.
+   */
+  oneRms?: Readonly<Record<string, number>>;
 }
 
 export type StartPlanError =
-  'not_found' | 'not_draft' | 'plan_already_current' | 'bad_date' | 'bad_pin' | 'empty_schedule';
+  | 'not_found'
+  | 'not_draft'
+  | 'plan_already_current'
+  | 'bad_date'
+  | 'bad_pin'
+  | 'bad_one_rm'
+  | 'missing_one_rm'
+  | 'empty_schedule';
 
 export type StartPlanResult = ServiceResult<StartPlanError, { plannedCount: number }>;
 
@@ -74,13 +86,56 @@ export async function startPlanTx(
   );
   if (planned.length === 0) return { ok: false, reason: 'empty_schedule' };
 
+  // Step 3: starting 1RMs. Every %-based skill needs one before the plan can become active
+  // (FR-3.3, §4.4), so the requirement is read from the blueprint, not from the rows that exist.
+  const entered = input.oneRms ?? {};
+  if (Object.values(entered).some((kg) => !(kg > 0))) return { ok: false, reason: 'bad_one_rm' };
+  const planSkills = await r.plans.skills(plan.id);
+  const stored = new Map(planSkills.map((ps) => [ps.skillId, ps]));
+  const setup = new Map<string, number>();
+  for (const skillId of await percentBasedSkills(r, phases)) {
+    const kg = entered[skillId] ?? stored.get(skillId)?.startingOneRmKg ?? null;
+    if (kg === null) return { ok: false, reason: 'missing_one_rm' };
+    setup.set(skillId, kg);
+  }
+
   for (const s of pinned) {
     if (s.weekday !== slots.find((o) => o.id === s.id)!.weekday) {
       await r.blueprints.updateSlot(s.id, { weekday: s.weekday });
     }
   }
-  // TODO(1RM setup slice): §8.1 step 3 — starting 1RMs and 'plan_setup' history rows (C-13),
-  // and the §4.4 rule that every %-based skill needs a starting 1RM before activation (FR-3.3).
+
+  const current = await r.oneRepMax.latestBySkill([...setup.keys()]);
+  for (const [skillId, kg] of setup) {
+    const ps = stored.get(skillId);
+    if (!ps) {
+      await r.plans.insertSkill({
+        id: ctx.newId(),
+        planId: plan.id,
+        skillId,
+        tmPercent: null,
+        startingOneRmKg: kg,
+      });
+    } else if (kg !== ps.startingOneRmKg) {
+      await r.plans.updateSkill(ps.id, { startingOneRmKg: kg });
+    }
+    // C-13: a 'plan_setup' row only where setup changed the skill's current 1RM.
+    if (kg !== (current.get(skillId)?.oneRmKg ?? null)) {
+      await r.oneRepMax.insert({
+        id: ctx.newId(),
+        skillId,
+        oneRmKg: kg,
+        source: 'plan_setup',
+        planId: plan.id,
+        effectiveFromWeekIndex: 1,
+        cycleReviewId: null,
+        estimateSessionId: null,
+        note: null,
+        setAt: ctx.now,
+      });
+    }
+  }
+
   await r.plannedWorkouts.insertMany(planned);
   // TODO(double-progression slice): §8.1 step 5 — create double_progression_state rows.
 
@@ -93,4 +148,23 @@ export async function startPlanTx(
   // TODO(reviews slice): finish with reconcile(ctx.today) once it exists (DESIGN §2.5).
 
   return { ok: true, plannedCount: planned.length };
+}
+
+/** The skills whose loads come from a training max, so a 1RM is required (FR-3.2, FR-3.3). */
+async function percentBasedSkills(
+  r: ReturnType<typeof repositories>,
+  phases: readonly Phase[],
+): Promise<Set<string>> {
+  const skills = new Set<string>();
+  for (const phase of phases) {
+    const blueprint = await r.blueprints.loadBlueprint(phase.id);
+    for (const w of blueprint?.workouts ?? []) {
+      for (const e of w.exercises) {
+        if (e.sets.some((s) => s.loadType === 'percent_tm' || s.loadType === 'top_set')) {
+          skills.add(e.exercise.skillId);
+        }
+      }
+    }
+  }
+  return skills;
 }
