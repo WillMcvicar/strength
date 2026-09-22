@@ -76,8 +76,9 @@ describe('AC-2 Cycle repetition', () => {
   });
 });
 
-// TODO(OQ-1): once templates are seeded (build plan Slice 5), also run this against the seeded
-// Beginner Strength template. Until then the template's shape is built by inserting its deload.
+// TODO(OQ-1): the Beginner Strength template is seeded with the same shape; run this against a
+// plan copied from it once `createDraftFromTemplate` exists (DESIGN §8.1). Until then the shape
+// is built here by inserting the deload.
 describe('AC-57 Template continuation numbering', () => {
   let built: BuiltPlan;
   let rows: PlannedWorkout[];

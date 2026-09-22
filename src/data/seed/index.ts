@@ -1,12 +1,12 @@
 // Seeding (DESIGN §4.6). Versioned separately from the schema: `app_meta.seed_version` is the
 // export `seedVersion`. Upgrades add built-ins and never touch custom skills or user templates.
-// Templates are seeded once OQ-1 settles their exercises.
 import type { Db } from '../db';
 import { orm } from '../orm';
 import { appMeta, settings, skill } from '../schema';
 import { SEED_SKILLS } from './skills';
+import { seedTemplates } from './templates';
 
-export const SEED_VERSION = 1;
+export const SEED_VERSION = 2;
 
 export async function runSeed(db: Db, now: string): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
@@ -26,6 +26,9 @@ export async function runSeed(db: Db, now: string): Promise<void> {
         .values({ ...s, isCustom: false, isArchived: false, createdAt: now, updatedAt: now })
         .onConflictDoNothing();
     }
+
+    // Built-in templates (FR-2.1). Their exercises are placeholders until OQ-1 settles (§4.6).
+    await seedTemplates(o, now);
 
     await o
       .insert(appMeta)
