@@ -52,6 +52,62 @@ describe('ExerciseCard (§6.5, §7.2)', () => {
   });
 });
 
+describe('AC-71 Today RPE targets', () => {
+  it('shows "@ RPE 7–8" under 5 × 5 and says it aloud', async () => {
+    await render(
+      <ExerciseCard
+        name="Squat"
+        sets={5}
+        target={{ reps: [5] }}
+        rpe={{ min: 7, max: 8 }}
+        load={{ kg: 72.5, unit: 'kg' }}
+      />,
+    );
+    const card = screen.getByLabelText('Squat, 5 sets of 5 reps, at RPE 7 to 8, 72.5 kilograms');
+    expect(card).toHaveTextContent(/5 × 5/);
+    expect(screen.getByText('@ RPE 7–8')).toBeTruthy();
+  });
+
+  it('shows a single RPE without a range', async () => {
+    await render(
+      <ExerciseCard name="Squat" sets={3} target={{ reps: [5] }} rpe={{ min: 8, max: 8 }} />,
+    );
+    expect(screen.getByText('@ RPE 8')).toBeTruthy();
+    expect(screen.getByLabelText('Squat, 3 sets of 5 reps, at RPE 8')).toBeTruthy();
+  });
+
+  it('reads a top set as "Work up to 1–3 @ RPE 8"', async () => {
+    await render(
+      <ExerciseCard
+        name="Squat"
+        sets={1}
+        target={{ reps: [1, 3] }}
+        rpe={{ min: 8, max: 8 }}
+        topSet
+        load={{ kg: 87.5, unit: 'kg' }}
+      />,
+    );
+    expect(screen.getByText('Work up to 1–3 @ RPE 8')).toBeTruthy();
+    expect(
+      screen.getByLabelText(
+        'Squat, 1 set of 1 to 3 reps, work up to 1 to 3 reps at RPE 8, 87.5 kilograms',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('shows no RPE when the set has no target', async () => {
+    await render(<ExerciseCard name="Plank" sets={3} target={{ seconds: 45 }} rpe={null} />);
+    expect(screen.queryByText(/RPE/)).toBeNull();
+  });
+
+  it('shows half-point RPEs as they are', async () => {
+    await render(
+      <ExerciseCard name="Row" sets={3} target={{ reps: [8, 12] }} rpe={{ min: 7.5, max: 9 }} />,
+    );
+    expect(screen.getByText('@ RPE 7.5–9')).toBeTruthy();
+  });
+});
+
 describe('WeekStrip (§6.5, §7.2)', () => {
   // Mon 14 – Sun 20 Sep 2026, as in the §7.2 sketch: ✓ · ● · ○ · ·
   const days = [

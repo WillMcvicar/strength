@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Document version** | 1.4 (deload details) |
-| **Date** | 17 September 2026 |
+| **Document version** | 1.5 (RPE targets on Today) |
+| **Date** | 22 September 2026 |
 | **Status** | Approved for the design phase |
 | **Platform** | iOS + Android (React Native, Expo) |
 | **Licence** | MIT (open source) |
@@ -406,7 +406,7 @@ The app goes beyond the Notion version by letting the user choose from plan temp
 
 ### FR-7 Today Screen (Home)
 - **FR-7.1** This is the default screen on launch.
-- **FR-7.2** It shows **today's scheduled workout**: name, phase, cycle and week (e.g. "Strength · Cycle 1 · Week 9 of 17"), skill list with target sets × reps × calculated load, and estimated duration.
+- **FR-7.2** It shows **today's scheduled workout**: name, phase, cycle and week (e.g. "Strength · Cycle 1 · Week 9 of 17"), skill list with target sets × reps, the target RPE where one is set, and calculated load, and estimated duration. A top set reads "Work up to 1–3 @ RPE 8": its RPE is the prescription and its load only a starting point (FR-2.4).
 - **FR-7.2a** If a Cycle Review is pending (FR-3.8), it shows a banner that opens the oldest pending review.
 - **FR-7.3** A primary **"Start Workout"** action opens the logging flow (FR-9).
 - **FR-7.4** If today is a **rest day**, it says so and shows the next scheduled workout and its date.
@@ -1083,6 +1083,13 @@ Suggested bottom tabs: **Today · Week · Plans · Progress · More** (More hold
   - **Given** the Beginner Strength template, whose week-7 deload was generated on Mon/Wed/Fri
   - **When** the user starts it on Monday 14 Sep 2026 and pins Tue/Thu/Sat
   - **Then** the week-7 deload workouts fall on Tue 27, Thu 29 and Sat 31 Oct 2026, with no separate deload rows to pin
+- **AC-71 Today RPE targets**
+  - **Given** a workout whose squat sets are 5 × 5 at RPE 7–8
+  - **Then** Today's squat row shows "5 × 5" and "@ RPE 7–8"
+  - **Given** a top set of 1–3 reps at RPE 8
+  - **Then** its row reads "Work up to 1–3 @ RPE 8"
+  - **Given** a set with no target RPE
+  - **Then** no RPE is shown
 
 ---
 
@@ -1189,7 +1196,7 @@ Each release is shippable on its own. Build only what is tagged for the current 
   - FR-3.9 (Final Review without Test Day)
   - FR-3.10–3.12 and FR-3.14–3.15
 - **Engineering:** all NFRs
-- **Acceptance tests:** AC-1 to AC-12, AC-14 to AC-17, AC-19, AC-20, AC-23 to AC-31, AC-35 to AC-45, AC-47 to AC-51, AC-53 to AC-57, AC-60 to AC-66, AC-68 to AC-70
+- **Acceptance tests:** AC-1 to AC-12, AC-14 to AC-17, AC-19, AC-20, AC-23 to AC-31, AC-35 to AC-45, AC-47 to AC-51, AC-53 to AC-57, AC-60 to AC-66, AC-68 to AC-71
 
 ### v1.1 — Periodisation
 **Goal:** support real blocks and peaking.
@@ -1260,3 +1267,4 @@ See §8 Future Considerations.
 | | | • AMRAP sets become fixed-rep sets at their minimum reps in a deload (FR-2.12, §4) |
 | | | • A deload must follow a training week and can't sit directly before another deload (FR-2.12) |
 | | | • New acceptance criterion AC-70; release plan updated |
+| 1.5 | 22 Sep 2026 | Today shows RPE targets (design decision D-36): FR-7.2 lists each exercise's target RPE, and a top set reads "Work up to … @ RPE …". New acceptance criterion AC-71 (v1.0). |

@@ -1,4 +1,4 @@
-// Development builds only (docs/BUILD_PLAN.md Slice 4): a sample Beginner Strength plan, started
+// Development mode only (`__DEV__`, including Expo Go; docs/BUILD_PLAN.md Slice 4): a sample Beginner Strength plan, started
 // on this week's Monday, so Today can be checked on a device before templates arrive in Slice 5.
 // The Today screen offers it only when `__DEV__` is true, so release builds never call it.
 import { addDays, weekday } from '@/core/dates';

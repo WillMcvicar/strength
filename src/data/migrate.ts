@@ -27,12 +27,12 @@ export async function migrate(db: Db, bundle: MigrationBundle): Promise<void> {
   const entries = [...bundle.journal.entries].sort((a, b) => a.idx - b.idx);
 
   await db.withExclusiveTransactionAsync(async (tx) => {
-    // On device, every transaction runs on a fresh connection, so foreign keys depend on the
-    // SQLITE_DEFAULT_FOREIGN_KEYS build flag (app.json). Fail at launch rather than silently.
+    // On device, every transaction runs on a fresh connection, and the driver switches foreign
+    // keys on before BEGIN (D-35). If that ever stops working, fail at launch rather than silently.
     const fk = await tx.getFirstAsync<{ foreign_keys: number }>('PRAGMA foreign_keys');
     if (fk?.foreign_keys !== 1) {
       throw new Error(
-        'Foreign keys are off on this connection. Build with SQLITE_DEFAULT_FOREIGN_KEYS=1 (app.json).',
+        'Foreign keys are off on this connection. The driver must enable them before BEGIN (D-35).',
       );
     }
 
