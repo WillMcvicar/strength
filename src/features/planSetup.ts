@@ -18,6 +18,12 @@ export interface SetupSlotView {
   /** "Week A · Full body A" (DESIGN §7.5). */
   label: string;
   weekday: number;
+  /**
+   * Which week of which phase this slot sits in. Two phases both have a "Week A", so a clash is
+   * only a clash within one phase's cycle week.
+   */
+  phaseId: string;
+  cycleWeekIndex: number;
 }
 
 export interface SetupSkillView {
@@ -93,6 +99,8 @@ async function readSetup(db: Db, planId: string, today: LocalDate): Promise<Plan
         workoutNames.get(slot.cycleWorkoutId) ?? 'Workout'
       }`,
       weekday: slot.weekday,
+      phaseId: slot.phaseId,
+      cycleWeekIndex: slot.cycleWeekIndex,
     })),
     skills: planSkills
       .map((ps) => ({

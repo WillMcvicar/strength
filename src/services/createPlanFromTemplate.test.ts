@@ -154,6 +154,27 @@ describe('FR-2.3 a plan is an editable copy', () => {
     expect(sources.every((id) => own.has(id))).toBe(true);
   });
 
+  it('resumes an existing draft instead of copying the blueprint again', async () => {
+    const first = await draft();
+    const sets = await count(db, 'cycle_set');
+
+    const again = await createPlanFromTemplate(db, { templateId: 'tpl_beginner_strength' }, ctx);
+    expect(again).toEqual({ ok: true, planId: first });
+    expect(await count(db, 'plan')).toBe(1);
+    expect(await count(db, 'cycle_set')).toBe(sets);
+  });
+
+  it('starts a fresh draft once the earlier one is no longer a draft', async () => {
+    const first = await draft();
+    expect(
+      (await startPlan(db, { planId: first, startDate: START, oneRms: ONE_RMS }, ctx)).ok,
+    ).toBe(true);
+
+    const again = await createPlanFromTemplate(db, { templateId: 'tpl_beginner_strength' }, ctx);
+    expect(again.ok && again.planId).not.toBe(first);
+    expect(await count(db, 'plan')).toBe(2);
+  });
+
   it('rejects an unknown template', async () => {
     expect(await createPlanFromTemplate(db, { templateId: 'nope' }, ctx)).toEqual({
       ok: false,

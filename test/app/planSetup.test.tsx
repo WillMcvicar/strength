@@ -45,8 +45,8 @@ const SETUP: PlanSetupView = {
   weekStart: 1,
   activePlanName: null,
   slots: [
-    { id: 's1', label: 'Week A · Full body A', weekday: 1 },
-    { id: 's2', label: 'Week A · Full body B', weekday: 3 },
+    { id: 's1', label: 'Week A · Full body A', weekday: 1, phaseId: 'p1', cycleWeekIndex: 1 },
+    { id: 's2', label: 'Week A · Full body B', weekday: 3, phaseId: 'p1', cycleWeekIndex: 1 },
   ],
   skills: [
     { skillId: 'skill_back_squat', name: 'Back squat', oneRmKg: 110 },
@@ -104,6 +104,18 @@ describe('FR-2.3 step 1, the start date', () => {
 });
 
 describe('DESIGN §7.5 step 2, training days', () => {
+  it('two phases each have a "Week A", so that alone is no clash', async () => {
+    ready({
+      slots: [
+        { id: 's1', label: 'Week A · Upper', weekday: 1, phaseId: 'p1', cycleWeekIndex: 1 },
+        { id: 's2', label: 'Week A · Squat', weekday: 1, phaseId: 'p2', cycleWeekIndex: 1 },
+      ],
+    });
+    await render(<PlanSetupScreen />);
+    await goTo(2);
+    expect(screen.queryByText(/share a day/)).not.toBeOnTheScreen();
+  });
+
   it('lists a picker per slot and warns when two workouts share a day', async () => {
     ready();
     await render(<PlanSetupScreen />);
@@ -187,6 +199,7 @@ describe('FR-3.3 step 3, the 1RMs', () => {
     await fireEvent.press(screen.getByText('Next')); // log the set
 
     expect(screen.getByText(/Estimated 1RM: 117.5/)).toBeOnTheScreen();
+    expect(screen.getByLabelText('Your 1RM in kg')).toHaveDisplayValue('117.5');
     await fireEvent.press(screen.getByText('Use this'));
 
     expect(record).toHaveBeenCalledWith({
@@ -195,6 +208,33 @@ describe('FR-3.3 step 3, the 1RMs', () => {
       oneRmKg: 117.5,
     });
     expect(screen.getByLabelText('Bench press one rep max in kg')).toHaveDisplayValue('117.5');
+  });
+
+  it('FR-3.3a the estimate can be edited before it is used', async () => {
+    ready({ skills: [{ skillId: 'skill_bench_press', name: 'Bench press', oneRmKg: null }] });
+    await render(<PlanSetupScreen />);
+    await goTo(3);
+
+    await fireEvent.press(screen.getByText("Don't know it? Estimate it for me"));
+    await fireEvent.press(screen.getByText('Next'));
+    await fireEvent.changeText(screen.getByLabelText('Test set weight in kg'), '100');
+    await fireEvent.press(screen.getByText('Next'));
+    await fireEvent.press(within(screen.getByLabelText('Reps you completed')).getByLabelText('3'));
+    await fireEvent.press(
+      within(screen.getByLabelText('How hard it felt (RPE)')).getByLabelText('8'),
+    );
+    await fireEvent.press(screen.getByText('Next'));
+
+    // The lifter knows they have done 120 before, so they keep that instead.
+    await fireEvent.changeText(screen.getByLabelText('Your 1RM in kg'), '120');
+    await fireEvent.press(screen.getByText('Use this'));
+
+    expect(record).toHaveBeenCalledWith({
+      planId: 'plan',
+      skillId: 'skill_bench_press',
+      oneRmKg: 120,
+    });
+    expect(screen.getByLabelText('Bench press one rep max in kg')).toHaveDisplayValue('120');
   });
 
   it('treats a zero or empty 1RM as missing', async () => {

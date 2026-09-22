@@ -52,6 +52,14 @@ export async function createPlanFromTemplateTx(
   const phases = await r.blueprints.phasesOfTemplate(template.id);
   if (phases.length === 0) return { ok: false, reason: 'empty_template' };
 
+  // Backing out of Plan setup and tapping "Use this template" again resumes the draft it made,
+  // rather than leaving an unreachable copy of the whole blueprint behind each time. A draft the
+  // user has started filling in is the same thing they are coming back to.
+  const existing = (await r.plans.list()).find(
+    (p) => p.status === 'draft' && p.sourceTemplateId === template.id,
+  );
+  if (existing) return { ok: true, planId: existing.id };
+
   const planId = ctx.newId();
   const copy = copyBlueprint(planId, phases, await loadContent(r, phases), ctx.newId);
 

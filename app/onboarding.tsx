@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,16 +21,23 @@ const UNITS: { value: Unit; label: string; hint: string }[] = [
 export default function OnboardingScreen() {
   const c = useColors();
   const type = useTypography();
-  const { complete, saving } = useOnboarding();
+  const { status, complete, saving } = useOnboarding();
 
   const [step, setStep] = useState(0);
   const [unit, setUnit] = useState<Unit>('kg');
   const [failed, setFailed] = useState(false);
+  const [going, setGoing] = useState<'/plans' | '/' | null>(null);
 
-  // Onboarding closes before navigating, so the stack can't land back here (§7.1 rule 3).
+  // Onboarding closes before navigating, so the stack can't land back here (§7.1 rule 3). The
+  // destination is only mounted once that guard flips, which happens on the live read after the
+  // write, so navigating straight after `complete()` would be dropped.
+  useEffect(() => {
+    if (going !== null && status === 'done') router.replace(going);
+  }, [going, status]);
+
   const finish = async (go: '/plans' | '/') => {
     setFailed(false);
-    if (await complete(unit)) router.replace(go);
+    if (await complete(unit)) setGoing(go);
     else setFailed(true);
   };
 
@@ -124,9 +131,7 @@ export default function OnboardingScreen() {
             />
           </>
         )}
-        {step > 0 && step < 2 && (
-          <Button label="Back" variant="ghost" onPress={() => setStep(step - 1)} />
-        )}
+        {step > 0 && <Button label="Back" variant="ghost" onPress={() => setStep(step - 1)} />}
       </BottomBar>
     </SafeAreaView>
   );

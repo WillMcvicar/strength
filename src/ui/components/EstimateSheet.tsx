@@ -14,6 +14,9 @@ import { BottomBar } from './BottomBar';
 import { Button } from './Button';
 import { NumberField } from './NumberField';
 
+/** At most 2 dp, so an lb user sees "259.04", not "259.0392…" (FR-3.6). */
+const trim = (value: number) => Number(value.toFixed(2));
+
 const REPS = [1, 2, 3, 4, 5];
 const RPES = [7, 7.5, 8, 8.5, 9, 9.5, 10];
 
@@ -41,6 +44,9 @@ export function EstimateSheet({
   const [load, setLoad] = useState('');
   const [reps, setReps] = useState<number | null>(null);
   const [rpe, setRpe] = useState<number | null>(null);
+  // FR-3.3a step 4: the estimate is shown for the user to confirm *or edit*, so the result is a
+  // field, not a label. It is seeded from the estimate when the result step opens.
+  const [confirmed, setConfirmed] = useState('');
 
   // The user types in their display unit; the maths is in kg, and kg is what leaves here.
   const estimate = useEstimate(
@@ -58,7 +64,13 @@ export function EstimateSheet({
     setLoad('');
     setReps(null);
     setRpe(null);
+    setConfirmed('');
     onClose();
+  };
+
+  const openResult = () => {
+    setConfirmed(estimate.oneRmKg === null ? '' : String(trim(toDisplay(estimate.oneRmKg, unit))));
+    setStep(3);
   };
 
   return (
@@ -128,14 +140,19 @@ export function EstimateSheet({
 
           {step === 3 && (
             <View style={styles.section}>
-              <Text style={[type.title, { color: c.ink }]}>
-                Estimated 1RM: {estimate.oneRmKg === null ? '—' : toDisplay(estimate.oneRmKg, unit)}{' '}
-                {unit}
+              <Text accessibilityRole="header" style={[type.title, { color: c.ink }]}>
+                Estimated 1RM:{' '}
+                {estimate.oneRmKg === null ? '—' : trim(toDisplay(estimate.oneRmKg, unit))} {unit}
               </Text>
               <Text style={[type.body, { color: c.inkMuted }]}>
-                It&apos;s an estimate, not a test. You can change it any time before your first
-                session.
+                It&apos;s an estimate, not a test. Use it, or change it here.
               </Text>
+              <NumberField
+                label={`Your 1RM in ${unit}`}
+                value={confirmed}
+                onChange={setConfirmed}
+                suffix={unit}
+              />
             </View>
           )}
         </ScrollView>
@@ -147,19 +164,20 @@ export function EstimateSheet({
               disabled={
                 (step === 1 && !(Number(load) > 0)) || (step === 2 && estimate.oneRmKg === null)
               }
-              onPress={() => setStep(step + 1)}
+              onPress={() => (step === 2 ? openResult() : setStep(step + 1))}
             />
           ) : (
             <Button
               label="Use this"
+              disabled={!(Number(confirmed) > 0)}
               onPress={() => {
-                if (estimate.oneRmKg !== null) onUse(estimate.oneRmKg);
+                onUse(toKg(Number(confirmed), unit));
                 close();
               }}
             />
           )}
           <Button
-            label={step === 3 ? 'Edit' : 'Cancel'}
+            label={step === 3 ? 'Back to the set' : 'Cancel'}
             variant="ghost"
             onPress={() => (step === 3 ? setStep(2) : close())}
           />

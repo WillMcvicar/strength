@@ -12,18 +12,28 @@ jest.mock('react-native-safe-area-context', () => {
 });
 jest.mock('@/features/onboarding', () => ({ useOnboarding: jest.fn() }));
 
-const complete = jest.fn(async () => true);
+// The real hook reads through useLiveQuery, so the status only flips once the write has
+// committed. The screen waits for that before navigating, so the mock has to model it.
+let status: 'needed' | 'done';
+const complete = jest.fn(async () => {
+  status = 'done';
+  return true;
+});
 
 beforeEach(() => {
   mockReplace.mockClear();
   complete.mockClear();
-  complete.mockResolvedValue(true);
-  jest.mocked(useOnboarding).mockReturnValue({
-    status: 'needed',
+  complete.mockImplementation(async () => {
+    status = 'done';
+    return true;
+  });
+  status = 'needed';
+  jest.mocked(useOnboarding).mockImplementation(() => ({
+    status,
     error: null,
     complete,
     saving: false,
-  });
+  }));
 });
 
 const goTo = async (step: number) => {
@@ -40,6 +50,16 @@ describe('FR-12.1 step 3, units', () => {
     expect(screen.getByLabelText('Pounds').props.accessibilityState).toMatchObject({
       selected: false,
     });
+  });
+
+  it('does not navigate until the launch-rule-3 guard has flipped', async () => {
+    complete.mockImplementation(async () => true); // resolves, but the status stays 'needed'
+    await render(<OnboardingScreen />);
+    await goTo(3);
+    await fireEvent.press(screen.getByText('Skip for now'));
+
+    expect(complete).toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('saves the unit the user chose when onboarding finishes', async () => {
@@ -93,7 +113,7 @@ describe('DESIGN §7.15 step 5, get started', () => {
   });
 
   it('stays put and says so when the save fails', async () => {
-    complete.mockResolvedValue(false);
+    complete.mockImplementation(async () => false);
     await render(<OnboardingScreen />);
     await goTo(3);
     await fireEvent.press(screen.getByText('Skip for now'));

@@ -60,21 +60,28 @@ function Setup({ setup }: { setup: PlanSetupView }) {
     Object.fromEntries(setup.slots.map((s) => [s.id, s.weekday])),
   );
   // Held as typed text in the display unit; converted to kg only on the way to the service.
-  const [oneRms, setOneRms] = useState<Record<string, string>>(
-    Object.fromEntries(
-      setup.skills.map((s) => [
-        s.skillId,
-        s.oneRmKg === null ? '' : String(round(toDisplay(s.oneRmKg, setup.unit))),
-      ]),
-    ),
+  // The pre-fill is trimmed for display, so converting it back would not give the stored kg
+  // exactly. An untouched field therefore submits the stored value itself, or C-13 would see a
+  // change the user never made and write a spurious `plan_setup` row.
+  const prefilled = useMemo(
+    () =>
+      Object.fromEntries(
+        setup.skills.map((s) => [
+          s.skillId,
+          s.oneRmKg === null ? '' : String(round(toDisplay(s.oneRmKg, setup.unit))),
+        ]),
+      ),
+    [setup.skills, setup.unit],
   );
+  const [oneRms, setOneRms] = useState<Record<string, string>>(prefilled);
   const [error, setError] = useState<string | null>(null);
 
   const endDate = addDays(startDate, setup.totalWeeks * 7 - 1);
+  // Two workouts clash only inside one phase's cycle week: a later phase has its own "Week A".
   const clash = useMemo(() => {
     const seen = new Map<string, number[]>();
     for (const slot of setup.slots) {
-      const week = slot.label.split(' · ')[0] ?? '';
+      const week = `${slot.phaseId}:${slot.cycleWeekIndex}`;
       seen.set(week, [...(seen.get(week) ?? []), pins[slot.id] ?? slot.weekday]);
     }
     return [...seen.values()].some((days) => new Set(days).size !== days.length);
@@ -89,7 +96,12 @@ function Setup({ setup }: { setup: PlanSetupView }) {
       startDate,
       weekdayPins: pins,
       oneRms: Object.fromEntries(
-        setup.skills.map((s) => [s.skillId, toKg(Number(oneRms[s.skillId]), setup.unit)]),
+        setup.skills.map((s) => [
+          s.skillId,
+          s.oneRmKg !== null && oneRms[s.skillId] === prefilled[s.skillId]
+            ? s.oneRmKg
+            : toKg(Number(oneRms[s.skillId]), setup.unit),
+        ]),
       ),
     });
     if (reason === null) {

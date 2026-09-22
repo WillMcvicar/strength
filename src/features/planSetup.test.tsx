@@ -73,6 +73,7 @@ describe('FR-2.3 the start date default', () => {
 describe('DESIGN §7.5 training days', () => {
   it('lists one row per slot, named "Week A · Full body A"', async () => {
     const setup = await setupOf(await draft());
+    expect(setup?.slots.every((s) => s.phaseId !== '' && s.cycleWeekIndex >= 1)).toBe(true);
     expect(setup?.slots.map((s) => [s.label, s.weekday])).toEqual([
       ['Week A · Full body A', 1],
       ['Week A · Full body B', 3],
