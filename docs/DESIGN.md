@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.15 (RPE targets on Today) |
+| **Document version** | 0.16 (seed builds built-in template content) |
 | **Date** | 22 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
@@ -69,6 +69,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-34 | **Chips for in-progress and paused workouts.** `effectiveStatus` (§3.7) can return `in_progress` and `paused`, but §6.2 listed chips for six statuses only, so Today and Week had no way to show them. They are `▸ In progress` (blue) and `‖ Paused` (inkMuted). The glyphs avoid ▶ and ⏸, which iOS draws as colour emoji and which would ignore the token colour. `Paused` appears only once pause and resume ships (FR-4.10, v1.1, `pauseResume` flag). | DESIGN §6.2 (no SRS change) | StatusChip and WeekStrip tests |
 | D-35 | **Exclusive transactions switch foreign keys on themselves.** D-29 relied on the `SQLITE_DEFAULT_FOREIGN_KEYS` build flag because `expo-sqlite`'s `withExclusiveTransactionAsync` begins the transaction before the caller runs, and `PRAGMA foreign_keys` is a no-op inside one. Expo Go ignores that flag, so the app couldn't run there, and without a Mac or an Apple Developer account there was no way to see it on an iPhone. The device driver now opens the transaction's connection itself (`useNewConnection`), runs `PRAGMA foreign_keys = ON` and a 5 s busy timeout, then `BEGIN EXCLUSIVE`, the work, and `COMMIT` or `ROLLBACK`, and always closes the connection. That takes the exclusive lock at `BEGIN`, where `expo-sqlite`'s version ran a plain `BEGIN`. Nested transactions are refused. The build flag stays as a backstop, and the migration runner still refuses to run with foreign keys off. The app runs in Expo Go for development; store builds are unchanged. | DESIGN §4.1, §9.1; D-29 (no SRS change) | driver tests (§9.1); migration guard test; release checklist |
 | D-36 | **Today shows RPE targets.** For a top set the RPE is the prescription and the load a pre-fill (D-19), so a Today row without it misstated the task. The target sits on a second line under sets × reps (`@ RPE 7–8`, or `Work up to 1–3 @ RPE 8` for a top set), read aloud as "at RPE 7 to 8". It comes from the first working set, like the rest of the row. | FR-7.2 (SRS 1.5) | AC-71 |
+| D-37 | **The seed may compute built-in template content.** A beginner template stores Block 1 → Deload → Block 2 as rows, because `createDraftFromTemplate` (§8.1) is a plain deep copy and inserts no deload of its own. `insertDeload` is plan-only by design (D-23), so the seed has to materialise the deload week itself. Hand-writing those rows would duplicate FR-2.12's volume maths in seed data, where it could drift. `src/data/seed` may therefore call `src/core`'s pure generators at runtime; every other file in `src/data` still imports core **types only**. | DESIGN §2.1, §4.6; FR-2.1, FR-2.12 (no SRS change) | template seed tests (§9) |
 
 ### 1.2 Open design questions
 
@@ -128,7 +129,7 @@ These rules sit inside the SRS wording but aren't spelled out there. The design 
 
 **Dependency rules** (enforced by ESLint `no-restricted-imports` / `import/no-restricted-paths`):
 - `src/core` imports nothing outside itself (no React, Expo or SQLite) and never reads the clock or generates IDs. "Today", "now" and new IDs are passed in as arguments, so every function is deterministic. New IDs arrive either as values or, when the number of rows depends on the input, as a caller-supplied `newId: () => string` generator (D-30).
-- `src/data` imports `src/core` types only.
+- `src/data` imports `src/core` types only, except `src/data/seed`, which may also call core's pure generators to build built-in content (D-37).
 - `src/features` may use **read** hooks from `src/data` repositories (for live queries), but all **writes** go through `src/services`.
 - `src/services` orchestrates: load with repositories → compute with `core` → write with repositories, all in one transaction.
 - Screens never import `src/data` directly (NFR-3, NFR-10).
@@ -1064,6 +1065,7 @@ type DeloadPayload  = { deloadPhaseId: string; splitPhase?: { id: string; fromWe
 - **Seed data** (`src/data/seed/`) is versioned separately (`seed_version`). Upgrades add new built-in skills and templates (the v1.1 seed adds the periodised template) and update built-in template content. Plans already started from a template are unaffected, because they are copies. They never touch custom skills or user templates.
 - The built-in skill list (`src/data/seed/skills.ts`) is a draft awaiting product-owner review. It can change freely until v1.0 ships, and after that only with a `seed_version` bump.
 - Template exercises remain blocked on SRS Open Question 1, so the seed ships placeholder exercises behind a `TODO(OQ-1)` marker, and a CI check fails a release build while the marker exists.
+- A built-in template stores its full phase list as rows, including the deload week, because starting a plan from it is a plain deep copy (§8.1). The seed builds that deload with core's `planDraftDeloadInsert` and `generateDeload`, the same pair `insertDeload` uses, so a template's deload and a user-inserted one are generated by one algorithm (D-37).
 
 ### 4.7 Performance (NFR-5)
 
