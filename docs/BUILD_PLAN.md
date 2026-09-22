@@ -18,8 +18,8 @@ can be checked. Its "Done when" check must pass before the next slice starts.
 | 1 | Core primitives | **Done** |
 | 2 | Persistence | **Done** |
 | 3 | Schedule engine | **Done** |
-| 4 | Shell, design system, Today (read-only) | Next |
-| 5 | Start a plan from a template | |
+| 4 | Shell, design system, Today (read-only) | **Done** |
+| 5 | Start a plan from a template | Next |
 | 6 | Log a session | |
 | ✓ | Checkpoint: gym test (runs alongside 7–9) | |
 | 7 | PRs and history | |
