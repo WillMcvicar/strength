@@ -10,6 +10,15 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Added
 
+- Start a plan from a template (build plan Slice 5, FR-2.1–2.3, FR-3.3, FR-4.1, AC-1): the two
+  beginner templates are seeded as Block 1 → Deload → Block 2 (D-37), the Plans tab and template
+  detail browse them, and "Use this template" runs the three-step Plan setup — start date (D-38),
+  training days and 1RMs — before generating the schedule.
+- "Estimate it for me" (FR-3.3a): a four-step test-set flow whose confirmed value is written to
+  1RM history as `setup_estimate`, with the §3.5 bounds and messages.
+- Onboarding after the disclaimer (DESIGN §7.15, §7.1 launch rule 3): units, where the data lives,
+  and what to do first.
+
 - The app runs in Expo Go: exclusive transactions open their own connection and switch foreign
   keys on before `BEGIN EXCLUSIVE`, instead of relying on a SQLite build flag Expo Go ignores
   (D-35).

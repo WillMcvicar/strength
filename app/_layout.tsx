@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { DatabaseProvider, useOpenDatabase } from '@/features/database';
 import { useDisclaimer } from '@/features/disclaimer';
+import { useOnboarding } from '@/features/onboarding';
 import { fontSources } from '@/ui/fonts';
 import { useColors } from '@/ui/theme';
 import { spacing } from '@/ui/tokens';
@@ -35,18 +36,27 @@ export default function RootLayout() {
 /** §7.1 launch rules. Each screen exists only while its guard holds, so there is no way back. */
 function AppStack() {
   const disclaimer = useDisclaimer();
-  if (disclaimer.status === 'loading') return null;
+  const onboarding = useOnboarding();
+  if (disclaimer.status === 'loading' || onboarding.status === 'loading') return null;
   if (disclaimer.status === 'failed') {
     return <DatabaseFailed message={disclaimer.error?.message ?? 'Unknown error'} />;
   }
+  if (onboarding.status === 'failed') {
+    return <DatabaseFailed message={onboarding.error?.message ?? 'Unknown error'} />;
+  }
   const acknowledged = disclaimer.status === 'acknowledged';
+  // Rule 3: onboarding follows the disclaimer and precedes the tabs (§7.15).
+  const onboarded = onboarding.status === 'done';
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={!acknowledged}>
         <Stack.Screen name="disclaimer" options={{ gestureEnabled: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={acknowledged}>
+      <Stack.Protected guard={acknowledged && !onboarded}>
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={acknowledged && onboarded}>
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>
     </Stack>
