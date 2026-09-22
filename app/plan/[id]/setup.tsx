@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { addDays, type LocalDate } from '@/core';
+import { addDays, toDisplay, toKg, type LocalDate, type Unit } from '@/core';
+import { useRecordEstimate } from '@/features/estimateOneRm';
 import {
   trainingMaxKg,
   usePlanSetup,
@@ -13,6 +14,7 @@ import {
 import { BottomBar } from '@/ui/components/BottomBar';
 import { Button } from '@/ui/components/Button';
 import { DateStepper } from '@/ui/components/DateStepper';
+import { EstimateSheet } from '@/ui/components/EstimateSheet';
 import { InfoTip } from '@/ui/components/InfoTip';
 import { NumberField } from '@/ui/components/NumberField';
 import { WeekdayPicker } from '@/ui/components/WeekdayPicker';
@@ -57,9 +59,13 @@ function Setup({ setup }: { setup: PlanSetupView }) {
   const [pins, setPins] = useState<Record<string, number>>(
     Object.fromEntries(setup.slots.map((s) => [s.id, s.weekday])),
   );
+  // Held as typed text in the display unit; converted to kg only on the way to the service.
   const [oneRms, setOneRms] = useState<Record<string, string>>(
     Object.fromEntries(
-      setup.skills.map((s) => [s.skillId, s.oneRmKg === null ? '' : String(s.oneRmKg)]),
+      setup.skills.map((s) => [
+        s.skillId,
+        s.oneRmKg === null ? '' : String(round(toDisplay(s.oneRmKg, setup.unit))),
+      ]),
     ),
   );
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +88,9 @@ function Setup({ setup }: { setup: PlanSetupView }) {
       planId: setup.planId,
       startDate,
       weekdayPins: pins,
-      oneRms: Object.fromEntries(setup.skills.map((s) => [s.skillId, Number(oneRms[s.skillId])])),
+      oneRms: Object.fromEntries(
+        setup.skills.map((s) => [s.skillId, toKg(Number(oneRms[s.skillId]), setup.unit)]),
+      ),
     });
     if (reason === null) {
       router.replace('/');
@@ -149,8 +157,11 @@ function Setup({ setup }: { setup: PlanSetupView }) {
             {setup.skills.map((skill) => (
               <OneRmRow
                 key={skill.skillId}
+                planId={setup.planId}
+                skillId={skill.skillId}
                 name={skill.name}
                 unit={setup.unit}
+                increment={setup.increment}
                 tmPercent={setup.tmPercent}
                 value={oneRms[skill.skillId] ?? ''}
                 onChange={(value) => setOneRms((v) => ({ ...v, [skill.skillId]: value }))}
@@ -200,21 +211,29 @@ function Notice({ message, alert = false }: { message: string; alert?: boolean }
 }
 
 function OneRmRow({
+  planId,
+  skillId,
   name,
   unit,
+  increment,
   tmPercent,
   value,
   onChange,
 }: {
+  planId: string;
+  skillId: string;
   name: string;
-  unit: 'kg' | 'lb';
+  unit: Unit;
+  increment: number;
   tmPercent: number;
   value: string;
   onChange: (value: string) => void;
 }) {
   const c = useColors();
   const type = useTypography();
-  const tm = isPositive(value) ? trainingMaxKg(Number(value), tmPercent) : null;
+  const { record } = useRecordEstimate();
+  const [estimating, setEstimating] = useState(false);
+  const tm = isPositive(value) ? trainingMaxKg(toKg(Number(value), unit), tmPercent) : null;
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.line }]}>
       <View style={styles.row}>
@@ -229,19 +248,41 @@ function OneRmRow({
         placeholder="0"
       />
       <View style={styles.row}>
-        <Text style={[type.label, { color: c.inkMuted }]}>
+        <Text style={[type.label, styles.grow, { color: c.inkMuted }]}>
           {tm === null
             ? 'Enter your best single, or an estimate.'
-            : `→ TM ${round(tm)} ${unit} (${Math.round(tmPercent * 100)}%)`}
+            : `→ TM ${round(toDisplay(tm, unit))} ${unit} (${Math.round(tmPercent * 100)}%)`}
         </Text>
         <InfoTip term="tm" />
       </View>
+      <Button
+        label="Don't know it? Estimate it for me"
+        variant="ghost"
+        onPress={() => setEstimating(true)}
+      />
+      <EstimateSheet
+        visible={estimating}
+        skillName={name}
+        unit={unit}
+        increment={increment}
+        onClose={() => setEstimating(false)}
+        onUse={(oneRmKg) => {
+          onChange(String(round(toDisplay(oneRmKg, unit))));
+          // FR-3.3a step 5: the confirmed value is written to 1RM history as `setup_estimate`.
+          void record({ planId, skillId, oneRmKg });
+        }}
+      />
     </View>
   );
 }
 
 const isPositive = (value: string | undefined) => value !== undefined && Number(value) > 0;
-const round = (kg: number) => Number(kg.toFixed(2));
+
+/**
+ * At most 2 dp, so an lb user sees "242.51", not "242.508488" (FR-3.6). The field is for editing,
+ * so what the user leaves in it is what gets stored; the trim is far below any load increment.
+ */
+const round = (value: number) => Number(value.toFixed(2));
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },

@@ -38,6 +38,8 @@ export interface PlanSetupView {
   skills: SetupSkillView[];
   tmPercent: number;
   unit: Unit;
+  /** The user's weight increment in the display unit, for rounding an estimate (FR-1.6). */
+  increment: number;
   weekStart: 0 | 1;
   /** FR-4.1: starting this plan ends the one that's running. */
   activePlanName: string | null;
@@ -101,6 +103,7 @@ async function readSetup(db: Db, planId: string, today: LocalDate): Promise<Plan
       .sort((a, b) => a.name.localeCompare(b.name)),
     tmPercent: plan.defaultTmPercent,
     unit: settings.unit,
+    increment: settings.unit === 'kg' ? settings.weightIncrementKg : settings.weightIncrementLb,
     weekStart: settings.weekStart,
     activePlanName: active?.name ?? null,
   };

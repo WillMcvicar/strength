@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 
 import PlanSetupScreen from '../../app/plan/[id]/setup';
+import { useRecordEstimate } from '@/features/estimateOneRm';
 import {
   usePlanSetup,
   useStartPlan,
@@ -23,8 +24,13 @@ jest.mock('@/features/planSetup', () => ({
   usePlanSetup: jest.fn(),
   useStartPlan: jest.fn(),
 }));
+jest.mock('@/features/estimateOneRm', () => ({
+  ...jest.requireActual('@/features/estimateOneRm'),
+  useRecordEstimate: jest.fn(),
+}));
 
 const start = jest.fn(async () => null);
+const record = jest.fn(async () => true);
 const show = (view: PlanSetupScreenView) => jest.mocked(usePlanSetup).mockReturnValue(view);
 
 const SETUP: PlanSetupView = {
@@ -35,6 +41,7 @@ const SETUP: PlanSetupView = {
   totalWeeks: 13,
   tmPercent: 0.9,
   unit: 'kg',
+  increment: 2.5,
   weekStart: 1,
   activePlanName: null,
   slots: [
@@ -59,6 +66,8 @@ beforeEach(() => {
   mockReplace.mockClear();
   start.mockClear();
   jest.mocked(useStartPlan).mockReturnValue({ start, busy: false });
+  record.mockClear();
+  jest.mocked(useRecordEstimate).mockReturnValue({ record, busy: false });
 });
 
 describe('FR-2.3 step 1, the start date', () => {
@@ -137,6 +146,55 @@ describe('FR-3.3 step 3, the 1RMs', () => {
       oneRms: { skill_back_squat: 110, skill_bench_press: 90 },
     });
     expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+
+  it('FR-12.1 works in the display unit, and stores kilograms', async () => {
+    // 242.5 lb = 110.0 kg; the TM line stays in lb, and the service is handed kg.
+    ready({
+      unit: 'lb',
+      increment: 5,
+      skills: [{ skillId: 'skill_back_squat', name: 'Back squat', oneRmKg: 110 }],
+    });
+    await render(<PlanSetupScreen />);
+    await goTo(3);
+
+    expect(screen.getByLabelText('Back squat one rep max in lb')).toHaveDisplayValue('242.51');
+    await fireEvent.changeText(screen.getByLabelText('Back squat one rep max in lb'), '245');
+    expect(screen.getByText('→ TM 220.5 lb (90%)')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByText('Start plan'));
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        oneRms: { skill_back_squat: expect.closeTo(111.13, 2) as number },
+      }),
+    );
+  });
+
+  it('FR-3.3a records a confirmed estimate and fills the field', async () => {
+    ready({ skills: [{ skillId: 'skill_bench_press', name: 'Bench press', oneRmKg: null }] });
+    await render(<PlanSetupScreen />);
+    await goTo(3);
+
+    await fireEvent.press(screen.getByText("Don't know it? Estimate it for me"));
+    await fireEvent.press(screen.getByText('Next')); // safety and warm-up
+    await fireEvent.changeText(screen.getByLabelText('Test set weight in kg'), '100');
+    await fireEvent.press(screen.getByText('Next')); // choose a load
+
+    const reps = within(screen.getByLabelText('Reps you completed'));
+    await fireEvent.press(reps.getByLabelText('3'));
+    const rpe = within(screen.getByLabelText('How hard it felt (RPE)'));
+    await fireEvent.press(rpe.getByLabelText('8'));
+    await fireEvent.press(screen.getByText('Next')); // log the set
+
+    expect(screen.getByText(/Estimated 1RM: 117.5/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText('Use this'));
+
+    expect(record).toHaveBeenCalledWith({
+      planId: 'plan',
+      skillId: 'skill_bench_press',
+      oneRmKg: 117.5,
+    });
+    expect(screen.getByLabelText('Bench press one rep max in kg')).toHaveDisplayValue('117.5');
   });
 
   it('treats a zero or empty 1RM as missing', async () => {
