@@ -103,7 +103,8 @@ only (`__DEV__`, which includes Expo Go): a `src/services/dev` service builds th
 `test/fixtures`, and production bundles drop the service). This is where the visual direction
 gets validated, before there are twelve screens to redo.
 
-- **IDs:** FR-5, FR-6.1, FR-6.3, FR-7.1–7.5, FR-7.7, FR-7.8, NFR-7 checklist, contrast tests.
+- **IDs:** FR-5, FR-6.1, FR-6.3, FR-7.1–7.5, FR-7.7, FR-7.8, NFR-7 checklist, contrast tests. AC-71
+  (added by D-36).
 - **Done when:** on a phone, a fresh install shows the disclaimer; after "I understand", Today
   shows the empty state; "Load sample plan (dev)" then shows this week's workout with loads, the
   ribbon, the progress meter and the week strip, in light and dark and at 200% text.

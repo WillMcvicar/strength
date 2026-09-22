@@ -128,6 +128,8 @@ function MainCard({
           sets={row.sets}
           target={row.target}
           load={row.load ? { ...row.load, unit } : undefined}
+          rpe={row.rpe}
+          topSet={row.topSet}
           inSuperset={row.inSuperset}
         />
       ))}

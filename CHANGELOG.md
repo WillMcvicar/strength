@@ -13,6 +13,8 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 - The app runs in Expo Go: exclusive transactions open their own connection and switch foreign
   keys on before `BEGIN EXCLUSIVE`, instead of relying on a SQLite build flag Expo Go ignores
   (D-35).
+- Today shows each exercise's target RPE on a second line ("@ RPE 7–8"), and a top set reads
+  "Work up to 1–3 @ RPE 8" (FR-7.2, D-36, AC-71; SRS 1.5).
 
 - Specifications (`docs/REQUIREMENTS.md`, `docs/DESIGN.md`), CI, and the Claude Code configuration.
 - Expo app scaffold (build plan Slice 0): Expo SDK 57, React Native 0.86, React 19,

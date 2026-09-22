@@ -38,7 +38,7 @@ const plan: TodayPlanView = {
   ],
 };
 
-const workout: TodayView = {
+const workout: Extract<TodayView, { status: 'ready' }> = {
   status: 'ready',
   unit: 'kg',
   plan,
@@ -53,6 +53,8 @@ const workout: TodayView = {
         sets: 5,
         target: { reps: [5] },
         load: { kg: 90, perSide: false, added: false },
+        rpe: { min: 7, max: 8 },
+        topSet: false,
         restSec: 180,
         inSuperset: false,
       },
@@ -62,6 +64,8 @@ const workout: TodayView = {
         sets: 3,
         target: { seconds: 45 },
         load: null,
+        rpe: null,
+        topSet: false,
         restSec: 60,
         inSuperset: false,
       },
@@ -80,7 +84,10 @@ describe('Today screen (§7.2)', () => {
     expect(screen.getByText('Block 2 · Cycle 4 · Week 9 of 13')).toBeTruthy();
     expect(screen.getByRole('header', { name: 'Full body A' })).toBeTruthy();
     expect(screen.getByLabelText('About 55 minutes')).toHaveTextContent('~55 min');
-    expect(screen.getByLabelText('Squat, 5 sets of 5 reps, 90 kilograms')).toBeTruthy();
+    expect(
+      screen.getByLabelText('Squat, 5 sets of 5 reps, at RPE 7 to 8, 90 kilograms'),
+    ).toBeTruthy();
+    expect(screen.getByText('@ RPE 7–8')).toBeTruthy();
     expect(screen.getByLabelText('Plank, 3 sets of 45 seconds')).toBeTruthy();
   });
 

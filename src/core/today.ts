@@ -131,6 +131,10 @@ export interface WorkoutRow {
    * sets prescribed as bodyweight, which show as "BW".
    */
   load: { kg: number | null; perSide: boolean; added: boolean } | null;
+  /** The first working set's target RPE; a lone bound is used as both ends (D-36, AC-71). */
+  rpe: { min: number; max: number } | null;
+  /** A top set's RPE is its prescription and its load a pre-fill (D-19). */
+  topSet: boolean;
   restSec: number;
   inSuperset: boolean;
 }
@@ -189,12 +193,17 @@ export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
             ? { reps: [first.repsMin] }
             : null;
 
+    const rpeMin = first?.targetRpeMin ?? first?.targetRpeMax ?? null;
+    const rpeMax = first?.targetRpeMax ?? first?.targetRpeMin ?? null;
+
     return {
       exerciseId: exercise.id,
       name: skill?.name ?? 'Unknown exercise',
       sets: working.length,
       target,
       load,
+      rpe: rpeMin !== null && rpeMax !== null ? { min: rpeMin, max: rpeMax } : null,
+      topSet: first?.loadType === 'top_set',
       restSec: exercise.restSec ?? input.defaultRestSec,
       inSuperset: exercise.supersetGroup !== null,
     };

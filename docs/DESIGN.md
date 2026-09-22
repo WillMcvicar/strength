@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Document version** | 0.14 (transactions enable foreign keys) |
+| **Document version** | 0.15 (RPE targets on Today) |
 | **Date** | 22 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
-| **Implements** | `docs/REQUIREMENTS.md` document version 1.4 (the SRS) |
+| **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
 
 **Contents:**
@@ -68,6 +68,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-33 | **Red text has its own token.** Building the tokens found that light `plateRed` text on `surfaceSunk` (set rows, input wells) is 4.38:1, below WCAG AA. `plateRedText` (`#B0352B` light, `#E8726A` dark) is used for red text and icons, as `plateYellowText` is for yellow; `plateRed` stays the fill. A contrast test checks every text token on `bg`, `surface` and `surfaceSunk` in both themes; it also corrected ink on yellow from 6.7 to 6.6 (6.65 had been rounded twice). | DESIGN §6.2, NFR-7 (no SRS change) | contrast test (§9) |
 | D-34 | **Chips for in-progress and paused workouts.** `effectiveStatus` (§3.7) can return `in_progress` and `paused`, but §6.2 listed chips for six statuses only, so Today and Week had no way to show them. They are `▸ In progress` (blue) and `‖ Paused` (inkMuted). The glyphs avoid ▶ and ⏸, which iOS draws as colour emoji and which would ignore the token colour. `Paused` appears only once pause and resume ships (FR-4.10, v1.1, `pauseResume` flag). | DESIGN §6.2 (no SRS change) | StatusChip and WeekStrip tests |
 | D-35 | **Exclusive transactions switch foreign keys on themselves.** D-29 relied on the `SQLITE_DEFAULT_FOREIGN_KEYS` build flag because `expo-sqlite`'s `withExclusiveTransactionAsync` begins the transaction before the caller runs, and `PRAGMA foreign_keys` is a no-op inside one. Expo Go ignores that flag, so the app couldn't run there, and without a Mac or an Apple Developer account there was no way to see it on an iPhone. The device driver now opens the transaction's connection itself (`useNewConnection`), runs `PRAGMA foreign_keys = ON` and a 5 s busy timeout, then `BEGIN EXCLUSIVE`, the work, and `COMMIT` or `ROLLBACK`, and always closes the connection. That takes the exclusive lock at `BEGIN`, where `expo-sqlite`'s version ran a plain `BEGIN`. Nested transactions are refused. The build flag stays as a backstop, and the migration runner still refuses to run with foreign keys off. The app runs in Expo Go for development; store builds are unchanged. | DESIGN §4.1, §9.1; D-29 (no SRS change) | driver tests (§9.1); migration guard test; release checklist |
+| D-36 | **Today shows RPE targets.** For a top set the RPE is the prescription and the load a pre-fill (D-19), so a Today row without it misstated the task. The target sits on a second line under sets × reps (`@ RPE 7–8`, or `Work up to 1–3 @ RPE 8` for a top set), read aloud as "at RPE 7 to 8". It comes from the first working set, like the rest of the row. | FR-7.2 (SRS 1.5) | AC-71 |
 
 ### 1.2 Open design questions
 
@@ -1178,7 +1179,7 @@ All sizes scale with the OS text size (NFR-7). Layouts must survive 200% text: r
 | `TipCard` | one-time tip | dismissible; records the key in `settings.seen_tips` |
 | `Banner` | pending review, backup reminder | colour + icon + action |
 | `WeekStrip` | 7 day cells | used on Today (compact) and Week |
-| `ExerciseCard` | exercise summary in lists | name, sets × reps × load, superset bracket |
+| `ExerciseCard` | exercise summary in lists | name, sets × reps × load, target RPE on a second line (D-36), superset bracket |
 | `ConfirmSheet` | confirmations | states consequences plainly: "Remove weeks 11–12? 6 upcoming workouts will be deleted." |
 | `EmptyState` | empty screens | one sentence plus the action that fixes it |
 | `SegmentedControl`, `Stepper`, `ListRow`, `Toggle`, `DatePickerSheet`, `WeekdayPicker` | form controls | |
@@ -1239,8 +1240,11 @@ The Today screen shows one main card, chosen in this order: in-progress session 
 ├─────────────────────────────────────┤
 │ Full body A                ~55 min  │
 │ Squat         5 × 5       90 kg     │
+│               @ RPE 7–8             │
 │ Bench press   5 × 5       80 kg     │
+│               @ RPE 7–8             │
 │ Barbell row   3 × 8–12    60 kg ↑   │
+│               @ RPE 7–9             │
 │ Plank         3 × 45 s              │
 │                                     │
 │ M  T  W  T  F  S  S   (week strip)  │

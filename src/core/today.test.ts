@@ -215,6 +215,8 @@ describe('workoutRows (FR-7.2, §3.3)', () => {
         sets: 5,
         target: { reps: [5] },
         load: { kg: 72.5, perSide: false, added: false },
+        rpe: null,
+        topSet: false,
         restSec: 120,
         inSuperset: false,
       },
@@ -465,5 +467,98 @@ describe('weekDays (FR-8.1, §7.2 week strip)', () => {
     );
     expect(days[0]?.status).toBe('missed');
     expect(days[2]?.status).toBe('in_progress');
+  });
+});
+
+describe('AC-71 Today RPE targets', () => {
+  const exercise = {
+    id: 'squat_x',
+    cycleWorkoutId: 'w',
+    skillId: 'squat',
+    sortOrder: 1,
+    supersetGroup: null,
+    restSec: null,
+    notes: null,
+    sourceCycleExerciseId: null,
+  } satisfies CycleExercise;
+  const set = (setIndex: number, over: Partial<CycleSet> = {}) =>
+    ({
+      id: `s${setIndex}`,
+      cycleExerciseId: 'squat_x',
+      setIndex,
+      isWarmup: false,
+      repsMin: 5,
+      repsMax: 5,
+      isAmrap: false,
+      targetRpeMin: 7,
+      targetRpeMax: 8,
+      loadType: 'percent_tm',
+      loadPercent: 0.8,
+      fixedLoadKg: null,
+      targetTimeSec: null,
+      ...over,
+    }) satisfies CycleSet;
+  const rows = (sets: CycleSet[]) =>
+    workoutRows({
+      exercises: [{ exercise, sets }],
+      skills: new Map([
+        [
+          'squat',
+          {
+            name: 'Back squat',
+            trackingType: 'weight_reps',
+            loadConvention: 'total',
+            loadIncrementKg: null,
+            loadIncrementLb: null,
+          },
+        ],
+      ]),
+      planSkills: new Map([['squat', { tmPercent: null, startingOneRmKg: 100 }]]),
+      oneRmRows: new Map(),
+      defaultTmPercent: 0.9,
+      firstWeekOfCycle: 1,
+      phase: { type: 'training' },
+      unit: 'kg',
+      increments: { weightIncrementKg: 2.5, weightIncrementLb: 5 },
+      defaultRestSec: 120,
+    });
+
+  it('carries the 5 × 5 squat’s RPE 7–8 target', () => {
+    expect(rows([1, 2, 3, 4, 5].map((i) => set(i)))[0]).toMatchObject({
+      sets: 5,
+      target: { reps: [5] },
+      rpe: { min: 7, max: 8 },
+      topSet: false,
+    });
+  });
+
+  it('marks a 1–3 @ RPE 8 top set', () => {
+    const [row] = rows([
+      set(1, {
+        loadType: 'top_set',
+        loadPercent: 0.975,
+        repsMin: 1,
+        repsMax: 3,
+        targetRpeMin: 8,
+        targetRpeMax: 8,
+      }),
+    ]);
+    expect(row).toMatchObject({ target: { reps: [1, 3] }, rpe: { min: 8, max: 8 }, topSet: true });
+  });
+
+  it('has no RPE when the set sets no target', () => {
+    const [row] = rows([set(1, { targetRpeMin: null, targetRpeMax: null })]);
+    expect(row?.rpe).toBeNull();
+  });
+
+  it('uses a lone bound as both ends', () => {
+    expect(rows([set(1, { targetRpeMin: null, targetRpeMax: 9 })])[0]?.rpe).toEqual({
+      min: 9,
+      max: 9,
+    });
+    expect(rows([set(1, { targetRpeMin: 7, targetRpeMax: null })])[0]?.rpe).toEqual({
+      min: 7,
+      max: 7,
+    });
   });
 });
