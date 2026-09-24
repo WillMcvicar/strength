@@ -12,3 +12,5 @@ export * from './schedule/status';
 export * from './deload';
 export * from './estimate';
 export * from './today';
+export * from './volume';
+export * from './session';

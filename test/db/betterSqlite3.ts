@@ -52,9 +52,12 @@ function wrap(handle: Database.Database): Db {
   return db;
 }
 
-/** Opens an in-memory database for a test. Callers close it in `afterEach`. */
-export function openTestDb(): Db {
-  const handle = new Database(':memory:');
+/**
+ * Opens an in-memory database for a test, or a file when a test needs to close and reopen it.
+ * Callers close it in `afterEach`.
+ */
+export function openTestDb(path = ':memory:'): Db {
+  const handle = new Database(path);
   handle.pragma('foreign_keys = ON');
   return wrap(handle);
 }
@@ -62,9 +65,12 @@ export function openTestDb(): Db {
 /** The fixed `now` test databases are seeded with. */
 export const SEEDED_AT = '2026-09-14T08:00:00.000Z';
 
-/** Opens an in-memory database with the real migrations and seed applied (DESIGN §9.1). */
-export async function openMigratedTestDb(): Promise<Db> {
-  const db = openTestDb();
+/**
+ * Opens a database with the real migrations and seed applied (DESIGN §9.1). Reopening a file runs
+ * the same launch path the app does.
+ */
+export async function openMigratedTestDb(path?: string): Promise<Db> {
+  const db = openTestDb(path);
   await initDatabase(db, SEEDED_AT);
   return db;
 }

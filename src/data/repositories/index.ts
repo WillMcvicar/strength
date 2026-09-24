@@ -8,6 +8,7 @@ import { blueprintRepository } from './blueprints';
 import { oneRepMaxRepository } from './oneRepMax';
 import { plannedWorkoutRepository } from './plannedWorkouts';
 import { planRepository } from './plans';
+import { sessionRepository } from './sessions';
 import { settingsRepository } from './settings';
 import { skillRepository } from './skills';
 import { templateRepository } from './templates';
@@ -23,9 +24,11 @@ export function repositories(db: Db) {
     blueprints: blueprintRepository(o),
     plannedWorkouts: plannedWorkoutRepository(o),
     oneRepMax: oneRepMaxRepository(o),
+    sessions: sessionRepository(o),
   };
 }
 
 export type Repositories = ReturnType<typeof repositories>;
 export type { Blueprint, BlueprintExercise, BlueprintWorkout } from './blueprints';
+export type { LoggedExercise, SessionPatch, SetLogPatch } from './sessions';
 export type { SkillSearch } from './skills';

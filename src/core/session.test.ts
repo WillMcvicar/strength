@@ -1,0 +1,237 @@
+// DESIGN §8.2 and §7.6: pre-filling a session's sets and deciding when a set may complete
+// (FR-3.12, FR-9.2, FR-9.2a, FR-9.2b, FR-9.3, FR-9.14).
+import { completionError, isValidSetRpe, prefillSets, rpeRequired } from './session';
+import type { CycleSet } from './types';
+
+const set = (over: Partial<CycleSet> = {}): CycleSet => ({
+  id: 's',
+  cycleExerciseId: 'e',
+  setIndex: 1,
+  isWarmup: false,
+  repsMin: 5,
+  repsMax: 5,
+  isAmrap: false,
+  targetRpeMin: 7,
+  targetRpeMax: 8,
+  loadType: 'percent_tm',
+  loadPercent: 0.8,
+  fixedLoadKg: null,
+  targetTimeSec: null,
+  ...over,
+});
+
+const ctx = {
+  tmKg: 112.5 as number | null,
+  unit: 'kg' as const,
+  increment: 2.5,
+  phase: { type: 'training' as const },
+};
+
+describe('prefillSets (FR-3.12, FR-9.2)', () => {
+  it('snapshots the §7.6 squat: 80% of TM 112.5 kg is 90 kg × 5', () => {
+    const [row] = prefillSets([set()], 'weight_reps', ctx);
+    expect(row).toEqual({
+      setIndex: 1,
+      isWarmup: false,
+      isAmrap: false,
+      isTopSet: false,
+      prescribedRepsMin: 5,
+      prescribedRepsMax: 5,
+      prescribedLoadKg: 90,
+      prescribedTimeSec: null,
+      targetRpeMin: 7,
+      targetRpeMax: 8,
+      reps: 5,
+      loadKg: 90,
+      timeSec: null,
+    });
+  });
+
+  it('pre-fills a rep range at its bottom, and leaves AMRAP reps empty', () => {
+    const [range, amrap] = prefillSets(
+      [set({ repsMin: 4, repsMax: 6 }), set({ setIndex: 2, isAmrap: true, repsMax: null })],
+      'weight_reps',
+      ctx,
+    );
+    expect(range!.reps).toBe(4);
+    expect(amrap!.reps).toBeNull();
+    expect(amrap!.isAmrap).toBe(true);
+  });
+
+  it('leaves %-based loads empty when there is no 1RM', () => {
+    const [row] = prefillSets([set()], 'weight_reps', { ...ctx, tmKg: null });
+    expect(row!.loadKg).toBeNull();
+    expect(row!.prescribedLoadKg).toBeNull();
+  });
+
+  it('still pre-fills fixed loads without a 1RM', () => {
+    const [row] = prefillSets(
+      [set({ loadType: 'fixed', loadPercent: null, fixedLoadKg: 20 })],
+      'weight_reps',
+      { ...ctx, tmKg: null },
+    );
+    expect(row!.loadKg).toBe(20);
+  });
+
+  it('uses the last logged load for double progression with no state yet (§3.12)', () => {
+    const dp = set({ loadType: 'double_progression', loadPercent: null, repsMin: 8, repsMax: 12 });
+    expect(prefillSets([dp], 'weight_reps', { ...ctx, lastLoadKg: 15 })[0]!.loadKg).toBe(15);
+    expect(prefillSets([dp], 'weight_reps', ctx)[0]!.loadKg).toBeNull();
+  });
+
+  it('applies the deload load factor', () => {
+    const [row] = prefillSets([set()], 'weight_reps', {
+      ...ctx,
+      phase: { type: 'deload', loadFactor: 0.9 },
+    });
+    // 90 × 0.9 = 81 → 80 on the 2.5 kg grid
+    expect(row!.loadKg).toBe(80);
+  });
+
+  it('pre-fills time targets, and nothing for completion-only items', () => {
+    const plank = set({ repsMin: null, repsMax: null, loadType: 'bodyweight', targetTimeSec: 60 });
+    expect(prefillSets([plank], 'time', ctx)[0]).toMatchObject({
+      reps: null,
+      loadKg: null,
+      timeSec: 60,
+      prescribedTimeSec: 60,
+    });
+    const run = set({ repsMin: null, repsMax: null, loadType: 'bodyweight' });
+    expect(prefillSets([run], 'completion_only', ctx)[0]).toMatchObject({
+      reps: null,
+      loadKg: null,
+      timeSec: null,
+    });
+  });
+
+  it('gives no load to skills tracked without one', () => {
+    expect(prefillSets([set()], 'reps_only', ctx)[0]!.loadKg).toBeNull();
+  });
+
+  it('keeps warm-ups and their order', () => {
+    const rows = prefillSets(
+      [
+        set({ setIndex: 2 }),
+        set({ setIndex: 1, isWarmup: true, loadType: 'fixed', fixedLoadKg: 60 }),
+      ],
+      'weight_reps',
+      ctx,
+    );
+    expect(rows.map((r) => [r.setIndex, r.isWarmup, r.loadKg])).toEqual([
+      [1, true, 60],
+      [2, false, 90],
+    ]);
+  });
+});
+
+describe('AC-62 Top set in a session', () => {
+  it('is marked as a top set and pre-filled at 97.5 kg (TM 99 × 97.5% = 96.5, rounded)', () => {
+    const top = set({
+      loadType: 'top_set',
+      loadPercent: 0.975,
+      repsMin: 1,
+      repsMax: 3,
+      targetRpeMin: 8,
+      targetRpeMax: 8,
+    });
+    const [row] = prefillSets([top], 'weight_reps', { ...ctx, tmKg: 99 });
+    expect(row).toMatchObject({ isTopSet: true, prescribedLoadKg: 97.5, loadKg: 97.5, reps: 1 });
+  });
+
+  it('completes only after an RPE is chosen, even on a skill that is not a main lift', () => {
+    const exercise = { trackingType: 'weight_reps' as const, isMainLift: false };
+    const top = { isWarmup: false, isTopSet: true };
+    expect(completionError(exercise, top, { reps: 3, loadKg: 100, timeSec: null, rpe: null })).toBe(
+      'rpe_required',
+    );
+    expect(completionError(exercise, top, { reps: 3, loadKg: 100, timeSec: null, rpe: 8 })).toBe(
+      null,
+    );
+  });
+});
+
+describe('AC-31 Per-set RPE', () => {
+  const values = { reps: 5, loadKg: 90, timeSec: null, rpe: null };
+  const working = { isWarmup: false, isTopSet: false };
+
+  it('requires an RPE on main-lift sets', () => {
+    const squat = { trackingType: 'weight_reps' as const, isMainLift: true };
+    expect(rpeRequired(squat, working)).toBe(true);
+    expect(completionError(squat, working, values)).toBe('rpe_required');
+    expect(completionError(squat, working, { ...values, rpe: 8 })).toBeNull();
+  });
+
+  it('lets accessory sets complete with the RPE left empty', () => {
+    const row = { trackingType: 'weight_reps' as const, isMainLift: false };
+    expect(rpeRequired(row, working)).toBe(false);
+    expect(completionError(row, working, values)).toBeNull();
+  });
+});
+
+describe('AC-38 Warm-ups and failed sets', () => {
+  it('asks no RPE for warm-ups, even on a main lift', () => {
+    const squat = { trackingType: 'weight_reps' as const, isMainLift: true };
+    const warmup = { isWarmup: true, isTopSet: false };
+    expect(rpeRequired(squat, warmup)).toBe(false);
+    expect(
+      completionError(squat, warmup, { reps: 5, loadKg: 60, timeSec: null, rpe: null }),
+    ).toBeNull();
+  });
+});
+
+describe('AC-37 Cardio completion', () => {
+  it('completes a completion-only item with no values at all', () => {
+    const run = { trackingType: 'completion_only' as const, isMainLift: false };
+    expect(
+      completionError(
+        run,
+        { isWarmup: false, isTopSet: false },
+        { reps: null, loadKg: null, timeSec: null, rpe: null },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('completionError (FR-9.3)', () => {
+  const working = { isWarmup: false, isTopSet: false };
+  const none = { reps: null, loadKg: null, timeSec: null, rpe: null };
+
+  it('needs reps and a load for weight × reps sets', () => {
+    const ex = { trackingType: 'weight_reps' as const, isMainLift: false };
+    expect(completionError(ex, working, { ...none, loadKg: 90 })).toBe('missing_reps');
+    expect(completionError(ex, working, { ...none, reps: 0, loadKg: 90 })).toBe('missing_reps');
+    // §3.12: with no load to pre-fill, "done as planned" waits for one.
+    expect(completionError(ex, working, { ...none, reps: 5 })).toBe('missing_load');
+    expect(completionError(ex, working, { ...none, reps: 5, loadKg: 0 })).toBe('missing_load');
+  });
+
+  it('needs reps only for reps-only and weighted bodyweight skills', () => {
+    for (const trackingType of ['reps_only', 'bodyweight_plus_load'] as const) {
+      const ex = { trackingType, isMainLift: false };
+      expect(completionError(ex, working, none)).toBe('missing_reps');
+      expect(completionError(ex, working, { ...none, reps: 8 })).toBeNull();
+    }
+    // Assisted pull-ups log a negative added load (FR-1.2).
+    const pullUp = { trackingType: 'bodyweight_plus_load' as const, isMainLift: false };
+    expect(completionError(pullUp, working, { ...none, reps: 5, loadKg: -10 })).toBeNull();
+  });
+
+  it('needs a time for timed sets', () => {
+    const ex = { trackingType: 'time' as const, isMainLift: false };
+    expect(completionError(ex, working, none)).toBe('missing_time');
+    expect(completionError(ex, working, { ...none, timeSec: 45 })).toBeNull();
+  });
+
+  it('rejects an RPE outside 6–10 in half steps', () => {
+    const ex = { trackingType: 'reps_only' as const, isMainLift: false };
+    expect(completionError(ex, working, { ...none, reps: 8, rpe: 8.3 })).toBe('bad_rpe');
+    expect(completionError(ex, working, { ...none, reps: 8, rpe: 5.5 })).toBe('bad_rpe');
+  });
+});
+
+describe('isValidSetRpe (FR-9.2a)', () => {
+  it('accepts 6 to 10 in half steps', () => {
+    expect([6, 6.5, 8, 9.5, 10].every(isValidSetRpe)).toBe(true);
+    expect([5.5, 10.5, 7.25, Number.NaN].some(isValidSetRpe)).toBe(false);
+  });
+});

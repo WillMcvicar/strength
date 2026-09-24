@@ -320,3 +320,74 @@ export interface PlannedWorkout {
   sessionId: string | null;
   skippedAt: string | null;
 }
+
+// ───────────── Sessions (FR-9, DESIGN §4.3) ─────────────
+
+export type SessionKind = 'planned' | 'ad_hoc' | 'one_rm_estimate' | 'test_day';
+export type SessionStatus = 'in_progress' | 'completed';
+
+export interface Session {
+  id: string;
+  planId: string | null;
+  plannedWorkoutId: string | null;
+  phaseId: string | null;
+  /** A historical label with no foreign key (D-27). */
+  cycleGroupId: string | null;
+  phaseCycleIndex: number | null;
+  /** Snapshot of the workout name. */
+  name: string;
+  kind: SessionKind;
+  /** The plan date the session counts for. */
+  localDate: LocalDate;
+  startedAt: string;
+  endedAt: string | null;
+  status: SessionStatus;
+  notes: string | null;
+  /** Effort rating, 1–10 (FR-9.7). */
+  rpe: number | null;
+  /** Cached at finish (FR-9.8). */
+  totalVolumeKg: number | null;
+  updatedAt: string;
+}
+
+/** An exercise in a session, with the skill fields snapshotted when it was added (FR-1.10). */
+export interface SessionExercise {
+  id: string;
+  sessionId: string;
+  skillId: string;
+  cycleExerciseId: string | null;
+  sortOrder: number;
+  supersetGroup: string | null;
+  restSec: number | null;
+  notes: string | null;
+  wasSubstituted: boolean;
+  wasAdded: boolean;
+  tmSnapshotKg: number | null;
+  trackingType: TrackingType;
+  loadConvention: LoadConvention;
+  isUnilateral: boolean;
+  isMainLift: boolean;
+  dpIncreaseKg: number | null;
+}
+
+export interface SetLog {
+  id: string;
+  sessionExerciseId: string;
+  setIndex: number;
+  isWarmup: boolean;
+  isAmrap: boolean;
+  isTopSet: boolean;
+  prescribedRepsMin: number | null;
+  prescribedRepsMax: number | null;
+  prescribedLoadKg: number | null;
+  prescribedTimeSec: number | null;
+  targetRpeMin: number | null;
+  targetRpeMax: number | null;
+  reps: number | null;
+  /** Per side for `per_side`; added load (may be negative) for `bodyweight_plus_load`. */
+  loadKg: number | null;
+  timeSec: number | null;
+  rpe: number | null;
+  status: SetStatus;
+  completedAt: string | null;
+}
