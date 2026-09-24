@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.16 (seed builds built-in template content) |
+| **Document version** | 0.17 (start date is stepped, not picked) |
 | **Date** | 22 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
@@ -70,6 +70,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-35 | **Exclusive transactions switch foreign keys on themselves.** D-29 relied on the `SQLITE_DEFAULT_FOREIGN_KEYS` build flag because `expo-sqlite`'s `withExclusiveTransactionAsync` begins the transaction before the caller runs, and `PRAGMA foreign_keys` is a no-op inside one. Expo Go ignores that flag, so the app couldn't run there, and without a Mac or an Apple Developer account there was no way to see it on an iPhone. The device driver now opens the transaction's connection itself (`useNewConnection`), runs `PRAGMA foreign_keys = ON` and a 5 s busy timeout, then `BEGIN EXCLUSIVE`, the work, and `COMMIT` or `ROLLBACK`, and always closes the connection. That takes the exclusive lock at `BEGIN`, where `expo-sqlite`'s version ran a plain `BEGIN`. Nested transactions are refused. The build flag stays as a backstop, and the migration runner still refuses to run with foreign keys off. The app runs in Expo Go for development; store builds are unchanged. | DESIGN §4.1, §9.1; D-29 (no SRS change) | driver tests (§9.1); migration guard test; release checklist |
 | D-36 | **Today shows RPE targets.** For a top set the RPE is the prescription and the load a pre-fill (D-19), so a Today row without it misstated the task. The target sits on a second line under sets × reps (`@ RPE 7–8`, or `Work up to 1–3 @ RPE 8` for a top set), read aloud as "at RPE 7 to 8". It comes from the first working set, like the rest of the row. | FR-7.2 (SRS 1.5) | AC-71 |
 | D-37 | **The seed may compute built-in template content.** A beginner template stores Block 1 → Deload → Block 2 as rows, because `createDraftFromTemplate` (§8.1) is a plain deep copy and inserts no deload of its own. `insertDeload` is plan-only by design (D-23), so the seed has to materialise the deload week itself. Hand-writing those rows would duplicate FR-2.12's volume maths in seed data, where it could drift. `src/data/seed` may therefore call `src/core`'s pure generators at runtime; every other file in `src/data` still imports core **types only**. | DESIGN §2.1, §4.6; FR-2.1, FR-2.12 (no SRS change) | template seed tests (§9) |
+| D-38 | **The start date is stepped, not picked.** §7.5 called for a date picker, which needs a native calendar dependency the project does not carry. FR-2.3 already defaults the start date to the next week-start day so plan weeks line up with calendar weeks, and moving it is the exception, so a `DateStepper` offers that default with week and day arrows either way. Week arrows keep the alignment; day arrows break it deliberately, and the alignment note disappears when they do. Steps before today are disabled. A calendar picker can replace it later without changing what is stored. | DESIGN §7.5; FR-2.3 (no SRS change) | DateStepper and Plan setup tests (§9) |
 
 ### 1.2 Open design questions
 
@@ -1184,7 +1185,10 @@ All sizes scale with the OS text size (NFR-7). Layouts must survive 200% text: r
 | `ExerciseCard` | exercise summary in lists | name, sets × reps × load, target RPE on a second line (D-36), superset bracket |
 | `ConfirmSheet` | confirmations | states consequences plainly: "Remove weeks 11–12? 6 upcoming workouts will be deleted." |
 | `EmptyState` | empty screens | one sentence plus the action that fixes it |
-| `SegmentedControl`, `Stepper`, `ListRow`, `Toggle`, `DatePickerSheet`, `WeekdayPicker` | form controls | |
+| `DateStepper` | a plan date | the spoken date, with week and day arrows either way (D-38) |
+| `WeekdayPicker` | a slot's training day | seven toggles, one chosen, starting on the week-start day (FR-12.3) |
+| `NumberField` | a number typed in | input well with its unit beside it; keeps part-typed text |
+| `SegmentedControl`, `Stepper`, `ListRow`, `Toggle` | form controls | |
 
 ### 6.6 Voice and copy
 
@@ -1321,7 +1325,7 @@ The Today screen shows one main card, chosen in this order: in-progress session 
 
 A three-step flow with a progress indicator, used after choosing a template, after building, and in onboarding.
 
-1. **Start date:** date picker, defaulting to the next week-start day, or today if today is the week-start day (FR-2.3). Shows the end date as it changes.
+1. **Start date:** a `DateStepper` (D-38), defaulting to the next week-start day, or today if today is the week-start day (FR-2.3). Week and day arrows move it either way; steps before today are disabled. Shows the end date as it changes, and while the default stands, that plan weeks line up with calendar weeks.
 2. **Training days:** one row per slot (e.g. "Week A · Full body A"), each with a `WeekdayPicker`. Generated deload slots aren't listed: they take their source slot's day (D-30). Warns if two workouts share a day, and shows "Tip: leave a day between full-body sessions".
 3. **1RMs:** one row per %-based skill.
 

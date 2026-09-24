@@ -8,8 +8,10 @@
 // The periodised template is v1.1 (SRS §11), so it isn't seeded here.
 import type { IncreaseRule } from '@/core/types';
 
+import { eq } from 'drizzle-orm';
+
 import type { Orm } from '../orm';
-import { template } from '../schema';
+import { phase, template } from '../schema';
 import {
   buildBlueprint,
   withDeload,
@@ -258,26 +260,38 @@ function seedIds(prefix: string): () => string {
   return () => `${prefix}_${++n}`;
 }
 
+/**
+ * Writes the built-in templates. A seed upgrade updates their content (DESIGN §4.6): the template
+ * row is upserted and its blueprint is replaced, because the generated IDs are positional, so
+ * leaving old rows in place would strand them beside shifted duplicates. The template row itself
+ * survives, so a plan started from it keeps its `source_template_id`; plans are copies and are
+ * untouched either way.
+ */
 export async function seedTemplates(o: Orm, now: string): Promise<void> {
   for (const t of SEED_TEMPLATES) {
+    const row = {
+      name: t.name,
+      description: t.description,
+      defaultTmPercent: 0.9,
+      sessionsPerWeek: t.sessionsPerWeek,
+      level: 'beginner',
+      isBuiltIn: true,
+    } as const;
     await o
       .insert(template)
-      .values({
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        defaultTmPercent: 0.9,
-        sessionsPerWeek: t.sessionsPerWeek,
-        level: 'beginner',
-        isBuiltIn: true,
-        createdAt: now,
-      })
-      .onConflictDoNothing();
+      .values({ id: t.id, createdAt: now, ...row })
+      .onConflictDoUpdate({ target: template.id, set: row });
+    // Cascades through the phase's workouts, exercises, sets, slots and increase rules (§4.3).
+    await o.delete(phase).where(eq(phase.templateId, t.id));
 
     const newId = seedIds(t.id);
     const block = buildBlueprint({ templateId: t.id }, [t.block], newId);
     const rows = withDeload(block, t.deloadAfterWeek, 1, newId);
-    rows.phases[rows.phases.length - 1]!.name = 'Block 2';
+    // FR-2.1: the deload splits the block, and the half after it is Block 2. A deload at the very
+    // end would leave nothing to continue, which would make the template a different shape.
+    const continuation = rows.phases.find((p) => p.continuesPhaseId !== null);
+    if (!continuation) throw new Error(`${t.id}: the deload left no continuation to name Block 2`);
+    continuation.name = 'Block 2';
     await writeBlueprint(o, rows);
   }
 }

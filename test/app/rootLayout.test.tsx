@@ -8,6 +8,7 @@ import { useFonts } from 'expo-font';
 import RootLayout from '../../app/_layout';
 import { useOpenDatabase } from '@/features/database';
 import { useDisclaimer } from '@/features/disclaimer';
+import { useOnboarding } from '@/features/onboarding';
 
 jest.mock('expo-font', () => ({ useFonts: jest.fn() }));
 jest.mock('expo-router', () => {
@@ -25,6 +26,7 @@ jest.mock('expo-router', () => {
   return { Stack };
 });
 jest.mock('@/features/disclaimer', () => ({ useDisclaimer: jest.fn() }));
+jest.mock('@/features/onboarding', () => ({ useOnboarding: jest.fn() }));
 jest.mock('@/features/database', () => ({
   DatabaseProvider: ({ children }: { children: unknown }) => children,
   useOpenDatabase: jest.fn(),
@@ -45,8 +47,20 @@ const gate = (
   saveFailed: false,
 });
 
+const onboarding = jest.mocked(useOnboarding);
+const onboardingGate = (
+  status: ReturnType<typeof useOnboarding>['status'],
+  error: Error | null = null,
+): ReturnType<typeof useOnboarding> => ({
+  status,
+  error,
+  complete: jest.fn(),
+  saving: false,
+});
+
 beforeEach(() => {
   disclaimer.mockReturnValue(gate('acknowledged'));
+  onboarding.mockReturnValue(onboardingGate('done'));
 });
 
 describe('RootLayout', () => {
@@ -110,6 +124,57 @@ describe('RootLayout', () => {
     await render(<RootLayout />);
 
     expect(screen.queryByText(/^screen:/)).toBeNull();
+  });
+
+  it('§7.1 rule 3: onboarding follows the disclaimer and precedes the tabs', async () => {
+    fonts.mockReturnValue([true, null]);
+    database.mockReturnValue(ready);
+    onboarding.mockReturnValue(onboardingGate('needed'));
+    await render(<RootLayout />);
+
+    expect(screen.getByText('screen:onboarding')).toBeTruthy();
+    expect(screen.queryByText('screen:(tabs)')).toBeNull();
+    expect(screen.queryByText('screen:disclaimer')).toBeNull();
+  });
+
+  it('never shows onboarding again once it is done', async () => {
+    fonts.mockReturnValue([true, null]);
+    database.mockReturnValue(ready);
+    await render(<RootLayout />);
+
+    expect(screen.getByText('screen:(tabs)')).toBeTruthy();
+    expect(screen.queryByText('screen:onboarding')).toBeNull();
+  });
+
+  it('shows the disclaimer first, even when onboarding is also outstanding', async () => {
+    fonts.mockReturnValue([true, null]);
+    database.mockReturnValue(ready);
+    disclaimer.mockReturnValue(gate('needed'));
+    onboarding.mockReturnValue(onboardingGate('needed'));
+    await render(<RootLayout />);
+
+    expect(screen.getByText('screen:disclaimer')).toBeTruthy();
+    expect(screen.queryByText('screen:onboarding')).toBeNull();
+  });
+
+  it('renders nothing while it reads whether onboarding is done', async () => {
+    fonts.mockReturnValue([true, null]);
+    database.mockReturnValue(ready);
+    onboarding.mockReturnValue(onboardingGate('loading'));
+    await render(<RootLayout />);
+
+    expect(screen.queryByText('screen:(tabs)')).toBeNull();
+    expect(screen.queryByText('screen:onboarding')).toBeNull();
+  });
+
+  it('explains a failed onboarding read with the blocking error (§4.6)', async () => {
+    fonts.mockReturnValue([true, null]);
+    database.mockReturnValue(ready);
+    onboarding.mockReturnValue(onboardingGate('failed', new Error('settings row missing')));
+    await render(<RootLayout />);
+
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByText('settings row missing')).toBeTruthy();
   });
 
   it('explains a failed settings read with the blocking error, not a crash (§4.6)', async () => {

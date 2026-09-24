@@ -200,6 +200,29 @@ describe('seeding templates is idempotent (DESIGN §4.6)', () => {
     expect(await count(db, 'cycle_set')).toBe(before);
   });
 
+  it('DESIGN §4.6: an upgrade replaces built-in content but keeps the template row', async () => {
+    const { blueprints, templates } = repositories(db);
+    const before = await blueprints.phasesOfTemplate('tpl_beginner_strength');
+
+    // A plan started from the template keeps pointing at it across the upgrade.
+    await db.runAsync(
+      `INSERT INTO plan (id, name, source_template_id, status, created_at, updated_at)
+       VALUES ('p', 'Mine', 'tpl_beginner_strength', 'draft', ?, ?)`,
+      [SEEDED_AT, SEEDED_AT],
+    );
+    await repositories(db).appMeta.set('seed_version', '0');
+    await runSeed(db, '2027-01-01T00:00:00.000Z');
+
+    expect(await blueprints.phasesOfTemplate('tpl_beginner_strength')).toEqual(before);
+    expect(await templates.get('tpl_beginner_strength')).toMatchObject({
+      name: 'Beginner Strength',
+      createdAt: SEEDED_AT,
+    });
+    expect(await db.getFirstAsync('SELECT source_template_id AS t FROM plan')).toEqual({
+      t: 'tpl_beginner_strength',
+    });
+  });
+
   it('re-running it after a seed_version reset re-writes the same rows', async () => {
     const before = {
       templates: await count(db, 'template'),
