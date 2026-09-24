@@ -18,6 +18,10 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   1RM history as `setup_estimate`, with the §3.5 bounds and messages.
 - Onboarding after the disclaimer (DESIGN §7.15, §7.1 launch rule 3): units, where the data lives,
   and what to do first.
+- Build plan Slice 5 is done: walked through on a phone, from a fresh install through the
+  disclaimer and onboarding to picking Beginner Strength and Today showing Monday's workout.
+- Development only: "Reset app data" on the More tab clears everything the user made and puts the
+  launch rules back, so the first-launch flow can be walked again without clearing Expo Go.
 
 - The app runs in Expo Go: exclusive transactions open their own connection and switch foreign
   keys on before `BEGIN EXCLUSIVE`, instead of relying on a SQLite build flag Expo Go ignores
