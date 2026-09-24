@@ -1,9 +1,17 @@
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { takeLaunchReopen } from '@/features/launch';
 import { useSamplePlan } from '@/features/samplePlan';
-import { useToday, type TodayCardView, type TodayPlanView } from '@/features/today';
+import {
+  useStartWorkout,
+  useToday,
+  type InProgressView,
+  type TodayCardView,
+  type TodayPlanView,
+} from '@/features/today';
 import { BottomBar } from '@/ui/components/BottomBar';
 import { Button } from '@/ui/components/Button';
 import { EmptyState } from '@/ui/components/EmptyState';
@@ -12,18 +20,40 @@ import { PlanRibbon } from '@/ui/components/PlanRibbon';
 import { ProgressMeter } from '@/ui/components/ProgressMeter';
 import { StatusChip } from '@/ui/components/StatusChip';
 import { WeekStrip } from '@/ui/components/WeekStrip';
-import { formatDay, spokenDay } from '@/ui/format';
+import { formatDay, formatTime, spokenDay } from '@/ui/format';
 import { useColors } from '@/ui/theme';
 import { radius, spacing } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
 
 // Today (FR-7, DESIGN §7.2): one main card, chosen by `todayCard` in src/core, under the plan
 // ribbon and progress meter. Banners (reviews, backups), missed workouts and the ⋯ menu arrive
-// with the slices that build them; "Start workout" is enabled by Slice 6.
+// with the slices that build them.
+
 export default function TodayScreen() {
   const c = useColors();
   const type = useTypography();
   const view = useToday();
+  const { start, startAdHoc, starting } = useStartWorkout();
+  const [message, setMessage] = useState<string | null>(null);
+  const inProgressId = view.status === 'ready' ? (view.inProgress?.sessionId ?? null) : null;
+
+  useEffect(() => {
+    // §7.1 launch rule 4: a session left in progress reopens once per launch (FR-9.10).
+    if (view.status !== 'ready' || !takeLaunchReopen()) return;
+    if (inProgressId) router.push(`/session/${inProgressId}`);
+  }, [view.status, inProgressId]);
+
+  const open = async (
+    started: Promise<{ ok: true; sessionId: string } | { ok: false; message: string }>,
+  ) => {
+    const result = await started;
+    if (result.ok) {
+      setMessage(null);
+      router.push(`/session/${result.sessionId}`);
+    } else {
+      setMessage(result.message);
+    }
+  };
 
   if (view.status === 'loading') return null;
   if (view.status === 'failed') {
@@ -36,7 +66,10 @@ export default function TodayScreen() {
     );
   }
 
-  const { card, plan, unit } = view;
+  const { card, plan, unit, inProgress } = view;
+  // §7.2: an in-progress session comes first. A planned one shows its workout card; an ad-hoc one
+  // has only its own card.
+  const adHocInProgress = inProgress !== null && card.kind !== 'in_progress';
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: c.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -44,7 +77,13 @@ export default function TodayScreen() {
           Today
         </Text>
         {plan && <PlanSummary plan={plan} />}
-        {card.kind === 'no_plan' ? (
+        {message && (
+          <Text accessibilityRole="alert" style={[type.body, { color: c.plateRedText }]}>
+            {message}
+          </Text>
+        )}
+        {inProgress && <InProgressNote session={inProgress} />}
+        {adHocInProgress ? null : card.kind === 'no_plan' ? (
           <NoPlan />
         ) : (
           <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.line }]}>
@@ -52,13 +91,46 @@ export default function TodayScreen() {
             {plan && <WeekStrip days={plan.week} />}
           </View>
         )}
+        {!inProgress && (
+          <Button
+            label="Log a workout without a plan"
+            variant="ghost"
+            disabled={starting}
+            onPress={() => void open(startAdHoc())}
+          />
+        )}
       </ScrollView>
-      {card.kind === 'workout' && (
+      {inProgress ? (
         <BottomBar>
-          <Button label="Start workout" disabled onPress={() => {}} />
+          <Button label="Resume" onPress={() => router.push(`/session/${inProgress.sessionId}`)} />
         </BottomBar>
+      ) : (
+        card.kind === 'workout' && (
+          <BottomBar>
+            <Button
+              label="Start workout"
+              disabled={starting}
+              onPress={() => void open(start(card.workoutId))}
+            />
+          </BottomBar>
+        )
       )}
     </SafeAreaView>
+  );
+}
+
+function InProgressNote({ session }: { session: InProgressView }) {
+  const c = useColors();
+  const type = useTypography();
+  return (
+    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.plateBlue }]}>
+      <Text accessibilityRole="header" style={[type.title, { color: c.ink }]}>
+        {session.name}
+      </Text>
+      <Text style={[type.body, { color: c.ink }]}>
+        Workout in progress, started {formatTime(session.startedAt)}
+      </Text>
+    </View>
   );
 }
 

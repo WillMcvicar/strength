@@ -1,6 +1,6 @@
 // Plan dates for display (DESIGN §7): "Wed 16 Sep", spoken as "Wednesday 16 September". Dates stay
 // YYYY-MM-DD strings; weekday comes from src/core/dates, never from Date in the local zone.
-import { weekday, type LocalDate } from '@/core';
+import { toDisplay, weekday, type LocalDate, type Unit } from '@/core';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = [
@@ -53,4 +53,21 @@ export function spokenClock(totalSec: number): string {
     sec % 60 && unit(sec % 60, 'second'),
   ].filter((p): p is string => Boolean(p));
   return parts.length > 0 ? parts.join(' ') : '0 seconds';
+}
+
+/** Session volume, rounded to a whole number with thousands separators: "6,063 kg" (§7.7). */
+export function formatVolume(kg: number, unit: Unit): { shown: string; spoken: string } {
+  const value = Math.round(toDisplay(kg, unit));
+  const grouped = String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const word = unit === 'kg' ? 'kilograms' : 'pounds';
+  return {
+    shown: `${grouped} ${unit}`,
+    spoken: `${value} ${value === 1 ? word.slice(0, -1) : word}`,
+  };
+}
+
+/** An event time in the device's local zone, 24-hour: "18:02" (§7.2 "started 18:02"). */
+export function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }

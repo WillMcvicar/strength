@@ -25,7 +25,7 @@ export interface SetRowProps {
   set: RowSet;
   exercise: RowExercise;
   unit: Unit;
-  /** Completion-only items show their name beside the checkbox. */
+  /** The exercise: in labels, and beside the checkbox of a completion-only item. */
   name?: string;
   /** A top set's target, "Work up to 1–3 @ RPE 8". */
   target?: string | null;
@@ -47,7 +47,10 @@ export function SetRow(props: SetRowProps) {
   const ink = set.isWarmup ? c.inkMuted : c.ink;
   const load = loadText(set, exercise, unit);
   const reps = repsText(set, exercise);
-  const setName = spokenSetName(number, set);
+  // "Back squat set 2", so two exercises' set 2s aren't read alike (§7.17).
+  const setName = name
+    ? `${name} ${spokenSetName(number, set).toLowerCase()}`
+    : spokenSetName(number, set);
   const completionOnly = exercise.trackingType === 'completion_only';
 
   const actions = [

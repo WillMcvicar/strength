@@ -4,6 +4,8 @@ import {
   completionError,
   isValidSetRpe,
   newSet,
+  nextSetId,
+  restsAfter,
   prefillSets,
   rpePrompt,
   rpeRequired,
@@ -374,5 +376,50 @@ describe('rpePrompt (FR-9.2a, FR-9.14)', () => {
     const run = { isMainLift: false, trackingType: 'completion_only' as const };
     expect(rpePrompt(plank, { isWarmup: false, isTopSet: false })).toBe('none');
     expect(rpePrompt(run, { isWarmup: false, isTopSet: false })).toBe('none');
+  });
+});
+
+describe('superset order (§7.6)', () => {
+  const ex = (id: string, group: string | null, statuses: string[]) => ({
+    id,
+    supersetGroup: group,
+    sets: statuses.map((status, i) => ({ id: `${id}${i + 1}`, status: status as 'pending' })),
+  });
+
+  it('works through plain exercises in order', () => {
+    const list = [ex('a', null, ['completed', 'pending']), ex('b', null, ['pending'])];
+    expect(nextSetId(list)).toBe('a2');
+    expect(nextSetId([ex('a', null, ['completed'])])).toBeNull();
+  });
+
+  it('alternates between the exercises of a superset, round by round', () => {
+    const list = [
+      ex('a', 'g', ['completed', 'pending', 'pending']),
+      ex('b', 'g', ['completed', 'pending']),
+      ex('c', null, ['pending']),
+    ];
+    expect(nextSetId(list)).toBe('a2');
+    list[0]!.sets[1]!.status = 'completed' as 'pending';
+    expect(nextSetId(list)).toBe('b2');
+    list[1]!.sets[1]!.status = 'completed' as 'pending';
+    expect(nextSetId(list)).toBe('a3');
+  });
+
+  it('skips failed sets, which are resolved', () => {
+    expect(nextSetId([ex('a', null, ['failed', 'pending'])])).toBe('a2');
+  });
+
+  it('rests only after the last exercise of a round', () => {
+    const list = [
+      ex('a', 'g', ['pending', 'pending', 'pending']),
+      ex('b', 'g', ['pending', 'pending']),
+      ex('c', null, ['pending']),
+    ];
+    expect(restsAfter(list, 'a1')).toBe(false);
+    expect(restsAfter(list, 'b1')).toBe(true);
+    // b has no third set, so a3 ends round 3.
+    expect(restsAfter(list, 'a3')).toBe(true);
+    expect(restsAfter(list, 'c1')).toBe(true);
+    expect(restsAfter(list, 'nope')).toBe(true);
   });
 });

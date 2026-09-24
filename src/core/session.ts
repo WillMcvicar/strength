@@ -185,3 +185,43 @@ export function valuesForTracking(
     timeSec: trackingType === 'time' ? v.timeSec : null,
   };
 }
+
+interface OrderExercise {
+  id: string;
+  supersetGroup: string | null;
+  sets: readonly { id: string; status: SetLog['status'] }[];
+}
+
+/**
+ * Sets in the order they're done (§7.6): plain exercises one after another; the exercises of a
+ * superset (neighbours sharing a group) round by round, A1 B1 A2 B2. `endsRound` marks the set
+ * after which the rest timer starts.
+ */
+function setOrder(
+  exercises: readonly OrderExercise[],
+): { id: string; status: SetLog['status']; endsRound: boolean }[] {
+  const order: { id: string; status: SetLog['status']; endsRound: boolean }[] = [];
+  for (let i = 0; i < exercises.length;) {
+    const group = exercises[i]!.supersetGroup;
+    let j = i + 1;
+    while (group !== null && j < exercises.length && exercises[j]!.supersetGroup === group) j += 1;
+    const members = exercises.slice(i, j);
+    const rounds = Math.max(...members.map((m) => m.sets.length));
+    for (let round = 0; round < rounds; round += 1) {
+      const inRound = members.flatMap((m) => (m.sets[round] ? [m.sets[round]] : []));
+      inRound.forEach((s, k) => order.push({ ...s, endsRound: k === inRound.length - 1 }));
+    }
+    i = j;
+  }
+  return order;
+}
+
+/** The next set to do: the first one still pending, in the §7.6 order. */
+export function nextSetId(exercises: readonly OrderExercise[]): string | null {
+  return setOrder(exercises).find((s) => s.status === 'pending')?.id ?? null;
+}
+
+/** Whether finishing this set starts the rest timer: in a superset, only the round's last. */
+export function restsAfter(exercises: readonly OrderExercise[], setId: string): boolean {
+  return setOrder(exercises).find((s) => s.id === setId)?.endsRound ?? true;
+}

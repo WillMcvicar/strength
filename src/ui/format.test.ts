@@ -1,5 +1,5 @@
 // Plan dates as the §7 sketches show them: "Wed 16 Sep".
-import { formatClock, formatDay, spokenClock, spokenDay } from './format';
+import { formatClock, formatDay, formatTime, formatVolume, spokenClock, spokenDay } from './format';
 
 describe('formatDay', () => {
   it.each([
@@ -28,5 +28,25 @@ describe('formatClock and spokenClock (§7.6)', () => {
   ])('%s s → %s, "%s"', (sec, shown, spoken) => {
     expect(formatClock(sec)).toBe(shown);
     expect(spokenClock(sec)).toBe(spoken);
+  });
+});
+
+describe('formatVolume (§7.7)', () => {
+  it('rounds the §7.7 example, 6,062.5 kg, to "6,063 kg"', () => {
+    expect(formatVolume(6062.5, 'kg')).toEqual({ shown: '6,063 kg', spoken: '6063 kilograms' });
+  });
+
+  it('shows lb users pounds', () => {
+    // 1,000 kg = 2,204.62 lb
+    expect(formatVolume(1000, 'lb')).toEqual({ shown: '2,205 lb', spoken: '2205 pounds' });
+    expect(formatVolume(0, 'kg').shown).toBe('0 kg');
+  });
+});
+
+describe('formatTime (§7.2)', () => {
+  it('shows an event time in the local zone, 24-hour', () => {
+    // Built in local time, so the test holds in every CI time zone (§9.4).
+    expect(formatTime(new Date(2026, 8, 14, 18, 2).toISOString())).toBe('18:02');
+    expect(formatTime(new Date(2026, 8, 14, 7, 30).toISOString())).toBe('07:30');
   });
 });

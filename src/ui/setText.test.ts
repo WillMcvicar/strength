@@ -131,3 +131,11 @@ describe('spokenSet (§7.17)', () => {
     );
   });
 });
+
+describe('spokenSet with the exercise name', () => {
+  it("names the exercise, so two exercises' set 1s are told apart", () => {
+    expect(
+      spokenSet({ number: 1, set: set(), exercise: barbell, unit: 'kg', name: 'Back squat' }),
+    ).toBe('Back squat, set 1, 100 kilograms, 5 reps, not done');
+  });
+});

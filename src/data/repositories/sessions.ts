@@ -149,6 +149,39 @@ export function sessionRepository(o: Orm) {
     },
 
     /**
+     * Each skill's most recent completed top set from a completed session, shown as "Last: 100 kg
+     * × 2 @ RPE 8" beside a new one (FR-9.2b, §8.2). Top sets come once a cycle, so this is last
+     * cycle's.
+     */
+    async lastTopSetBySkill(
+      skillIds: readonly string[],
+    ): Promise<Map<string, Pick<SetLog, 'loadKg' | 'reps' | 'rpe'>>> {
+      if (skillIds.length === 0) return new Map();
+      const rows = await o
+        .select({
+          skillId: sessionExercise.skillId,
+          loadKg: setLog.loadKg,
+          reps: setLog.reps,
+          rpe: setLog.rpe,
+        })
+        .from(setLog)
+        .innerJoin(sessionExercise, eq(setLog.sessionExerciseId, sessionExercise.id))
+        .innerJoin(session, eq(sessionExercise.sessionId, session.id))
+        .where(
+          and(
+            inArray(sessionExercise.skillId, [...skillIds]),
+            eq(session.status, 'completed'),
+            eq(setLog.status, 'completed'),
+            eq(setLog.isTopSet, true),
+          ),
+        )
+        .orderBy(desc(setLog.completedAt));
+      const last = new Map<string, Pick<SetLog, 'loadKg' | 'reps' | 'rpe'>>();
+      for (const { skillId, ...set } of rows) if (!last.has(skillId)) last.set(skillId, set);
+      return last;
+    },
+
+    /**
      * Each skill's most recent logged working load from a completed session (DESIGN §3.12, "no
      * working load yet"). Skills never logged with a load are left out.
      */

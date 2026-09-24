@@ -17,6 +17,7 @@ runtime dependency or font is added, and keep it in step with `npm run check:lic
 | `expo-document-picker` | MIT | https://github.com/expo/expo |
 | `expo-file-system` | MIT | https://github.com/expo/expo |
 | `expo-font` | MIT | https://github.com/expo/expo |
+| `expo-haptics` | MIT | https://github.com/expo/expo |
 | `expo-keep-awake` | MIT | https://github.com/expo/expo |
 | `expo-linking` | MIT | https://github.com/expo/expo |
 | `expo-notifications` | MIT | https://github.com/expo/expo |

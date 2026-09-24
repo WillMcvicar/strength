@@ -1,33 +1,18 @@
 // What a set row shows and says (DESIGN §7.6 set row table, §7.17): "22.5 kg × 2", "BW +20 kg",
 // "8 each side", "AMRAP", read aloud as one sentence such as "Set 2, 100 kilograms, 5 reps, not
 // done". Loads are stored in kg and shown in the display unit (FR-12.1).
-import {
-  formatLoad,
-  type LoadConvention,
-  type SetStatus,
-  type TrackingType,
-  type Unit,
-} from '@/core';
+import { formatLoad, type SessionExercise, type SetLog, type Unit } from '@/core';
 
 import { spokenLoad } from './components/LoadText';
 import { formatClock, spokenClock } from './format';
 
-export interface RowExercise {
-  trackingType: TrackingType;
-  loadConvention: LoadConvention;
-  isUnilateral: boolean;
-}
+/** The snapshotted skill fields a row needs (FR-1.10). */
+export type RowExercise = Pick<SessionExercise, 'trackingType' | 'loadConvention' | 'isUnilateral'>;
 
-export interface RowSet {
-  isWarmup: boolean;
-  isTopSet: boolean;
-  isAmrap: boolean;
-  reps: number | null;
-  loadKg: number | null;
-  timeSec: number | null;
-  rpe: number | null;
-  status: SetStatus;
-}
+export type RowSet = Pick<
+  SetLog,
+  'isWarmup' | 'isTopSet' | 'isAmrap' | 'reps' | 'loadKg' | 'timeSec' | 'rpe' | 'status'
+>;
 
 export interface CellText {
   shown: string;
@@ -92,14 +77,15 @@ export function spokenSet(args: {
   exercise: RowExercise;
   unit: Unit;
   awaitingRpe?: boolean;
-  /** A completion-only item is read by its name. */
+  /** The exercise, so rows of different exercises aren't read alike. A completion-only item is
+   * read by its name alone. */
   name?: string;
 }): string {
   const { number, set, exercise, unit, awaitingRpe = false, name } = args;
   const status = spokenStatus(set, awaitingRpe);
   if (exercise.trackingType === 'completion_only') return `${name ?? 'Item'}, ${status}`;
   const parts = [
-    spokenSetName(number, set),
+    name ? `${name}, ${spokenSetName(number, set).toLowerCase()}` : spokenSetName(number, set),
     loadText(set, exercise, unit)?.spoken,
     repsText(set, exercise)?.spoken,
     status,

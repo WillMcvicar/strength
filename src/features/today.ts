@@ -1,5 +1,7 @@
 // Today's view-model (FR-7, DESIGN §7.2): the card to show, plus the plan header, ribbon,
 // progress meter and week strip. All the maths is in src/core; this reads and assembles.
+import { useCallback, useState } from 'react';
+
 import {
   cycleFirstWeek,
   estimatedDurationMin,
@@ -20,13 +22,19 @@ import {
 import type { Db } from '@/data/db';
 import { repositories, type Repositories } from '@/data/repositories';
 import { today as clockToday } from '@/services/clock';
+import { startAdHocSession } from '@/services/startAdHocSession';
+import { startSession, type StartSessionError } from '@/services/startSession';
 
+import { useDb } from './database';
+import { serviceContext } from './serviceContext';
 import { useLiveQuery } from './useLiveQuery';
 
 export type TodayCardView =
   | { kind: 'no_plan' }
   | {
       kind: 'workout' | 'in_progress' | 'completed';
+      /** The planned workout, which "Start workout" starts (FR-9.1). */
+      workoutId: string;
       name: string;
       durationMin: number;
       rows: WorkoutRow[];
@@ -42,10 +50,23 @@ export interface TodayPlanView {
   week: { date: LocalDate; status: StripStatus }[];
 }
 
+/** A session in progress, planned or ad hoc: Today offers "Resume" (§7.2, FR-9.10). */
+export interface InProgressView {
+  sessionId: string;
+  name: string;
+  startedAt: string;
+}
+
 export type TodayView =
   | { status: 'loading' }
   | { status: 'failed'; error: Error }
-  | { status: 'ready'; unit: Unit; card: TodayCardView; plan: TodayPlanView | null };
+  | {
+      status: 'ready';
+      unit: Unit;
+      card: TodayCardView;
+      plan: TodayPlanView | null;
+      inProgress: InProgressView | null;
+    };
 
 /** `today` is injectable for tests; the app reads the device clock. */
 export function useToday(today: LocalDate = clockToday()): TodayView {
@@ -58,17 +79,23 @@ export function useToday(today: LocalDate = clockToday()): TodayView {
 async function readToday(
   db: Db,
   today: LocalDate,
-): Promise<{ unit: Unit; card: TodayCardView; plan: TodayPlanView | null }> {
+): Promise<Omit<Extract<TodayView, { status: 'ready' }>, 'status'>> {
   const r = repositories(db);
-  const [settings, plan] = await Promise.all([r.settings.get(), r.plans.current()]);
-  if (!plan) return { unit: settings.unit, card: { kind: 'no_plan' }, plan: null };
+  const [settings, plan, session] = await Promise.all([
+    r.settings.get(),
+    r.plans.current(),
+    r.sessions.inProgress(),
+  ]);
+  const inProgress = session
+    ? { sessionId: session.id, name: session.name, startedAt: session.startedAt }
+    : null;
+  if (!plan) return { unit: settings.unit, card: { kind: 'no_plan' }, plan: null, inProgress };
 
   const [phases, workouts] = await Promise.all([
     r.blueprints.phasesOfPlan(plan.id),
     r.plannedWorkouts.listByPlan(plan.id),
   ]);
-  // Sessions arrive in Slice 6; until then nothing is in progress.
-  const inProgressWorkoutId = null;
+  const inProgressWorkoutId = session?.plannedWorkoutId ?? null;
   const card = todayCard({ hasPlan: true, workouts, today, inProgressWorkoutId });
   const planProgress = progress(phases, workouts, today, plan);
   const position = weekPosition(phases, planProgress.currentWeek);
@@ -117,13 +144,14 @@ async function readToday(
     });
     cardView = {
       kind: card.kind,
+      workoutId: workout.id,
       name: planned?.workout.name ?? 'Workout',
       durationMin: estimatedDurationMin(rows),
       rows,
     };
   }
 
-  return { unit: settings.unit, card: cardView, plan: planView };
+  return { unit: settings.unit, card: cardView, plan: planView, inProgress };
 }
 
 async function workoutName(r: Repositories, workout: PlannedWorkout): Promise<string> {
@@ -138,4 +166,53 @@ function groupBySkill(rows: readonly (OneRmRow & { skillId: string })[]) {
   const bySkill = new Map<string, OneRmRow[]>();
   for (const row of rows) bySkill.set(row.skillId, [...(bySkill.get(row.skillId) ?? []), row]);
   return bySkill;
+}
+
+const START_MESSAGES: Record<StartSessionError, string> = {
+  session_in_progress: 'A workout is already in progress. Resume it first.',
+  not_found: 'This workout is no longer in your plan.',
+  not_open: 'This workout is already done or skipped.',
+  not_today: 'This workout isn’t scheduled for today.',
+  plan_paused: 'Your plan is paused. Resume it to train.',
+  plan_not_active: 'This plan isn’t running.',
+};
+
+type Started = { ok: true; sessionId: string } | { ok: false; message: string };
+
+/** Start a planned workout (FR-9.1) or an ad-hoc one (FR-9.13); the screen opens the session. */
+export function useStartWorkout(): {
+  start: (plannedWorkoutId: string) => Promise<Started>;
+  startAdHoc: () => Promise<Started>;
+  starting: boolean;
+} {
+  const db = useDb();
+  const [starting, setStarting] = useState(false);
+  const run = useCallback(
+    async (
+      call: () => Promise<
+        { ok: true; sessionId: string } | { ok: false; reason: StartSessionError }
+      >,
+    ) => {
+      setStarting(true);
+      try {
+        const result = await call();
+        return result.ok
+          ? { ok: true as const, sessionId: result.sessionId }
+          : { ok: false as const, message: START_MESSAGES[result.reason] };
+      } finally {
+        setStarting(false);
+      }
+    },
+    [],
+  );
+  const start = useCallback(
+    (plannedWorkoutId: string) =>
+      run(() => startSession(db, { plannedWorkoutId }, serviceContext())),
+    [db, run],
+  );
+  const startAdHoc = useCallback(
+    () => run(() => startAdHocSession(db, {}, serviceContext())),
+    [db, run],
+  );
+  return { start, startAdHoc, starting };
 }
