@@ -189,27 +189,35 @@ export function valuesForTracking(
 interface OrderExercise {
   id: string;
   supersetGroup: string | null;
-  sets: readonly { id: string; status: SetLog['status'] }[];
+  sets: readonly { id: string; status: SetLog['status']; isWarmup: boolean }[];
 }
+
+type Step = { id: string; status: SetLog['status']; endsRound: boolean };
 
 /**
  * Sets in the order they're done (§7.6): plain exercises one after another; the exercises of a
- * superset (neighbours sharing a group) round by round, A1 B1 A2 B2. `endsRound` marks the set
- * after which the rest timer starts.
+ * superset (neighbours sharing a group) round by round, A1 B1 A2 B2. A superset's warm-ups come
+ * first, one exercise at a time, so they never throw the working rounds out of step (D-41).
+ * `endsRound` marks the set after which the rest timer starts.
  */
-function setOrder(
-  exercises: readonly OrderExercise[],
-): { id: string; status: SetLog['status']; endsRound: boolean }[] {
-  const order: { id: string; status: SetLog['status']; endsRound: boolean }[] = [];
+function setOrder(exercises: readonly OrderExercise[]): Step[] {
+  const order: Step[] = [];
   for (let i = 0; i < exercises.length;) {
     const group = exercises[i]!.supersetGroup;
     let j = i + 1;
     while (group !== null && j < exercises.length && exercises[j]!.supersetGroup === group) j += 1;
     const members = exercises.slice(i, j);
-    const rounds = Math.max(...members.map((m) => m.sets.length));
+    for (const m of members) {
+      for (const s of m.sets)
+        if (s.isWarmup) order.push({ id: s.id, status: s.status, endsRound: true });
+    }
+    const working = members.map((m) => m.sets.filter((s) => !s.isWarmup));
+    const rounds = Math.max(...working.map((sets) => sets.length));
     for (let round = 0; round < rounds; round += 1) {
-      const inRound = members.flatMap((m) => (m.sets[round] ? [m.sets[round]] : []));
-      inRound.forEach((s, k) => order.push({ ...s, endsRound: k === inRound.length - 1 }));
+      const inRound = working.flatMap((sets) => (sets[round] ? [sets[round]] : []));
+      inRound.forEach((s, k) =>
+        order.push({ id: s.id, status: s.status, endsRound: k === inRound.length - 1 }),
+      );
     }
     i = j;
   }

@@ -13,13 +13,22 @@ export type SessionPatch = Partial<
 export type SetLogPatch = Partial<
   Pick<
     SetLog,
-    'setIndex' | 'reps' | 'loadKg' | 'timeSec' | 'rpe' | 'status' | 'completedAt' | 'isWarmup'
+    | 'sessionExerciseId'
+    | 'setIndex'
+    | 'reps'
+    | 'loadKg'
+    | 'timeSec'
+    | 'rpe'
+    | 'status'
+    | 'completedAt'
+    | 'isWarmup'
   >
 >;
 export type SessionExercisePatch = Partial<
   Pick<
     SessionExercise,
     | 'skillId'
+    | 'sortOrder'
     | 'notes'
     | 'wasSubstituted'
     | 'tmSnapshotKg'

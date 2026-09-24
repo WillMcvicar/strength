@@ -7,7 +7,7 @@ import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { nextSetId, restsAfter, toDisplay, toKg } from '@/core';
+import { formatLoad, nextSetId, restsAfter, toDisplay, toKg } from '@/core';
 import {
   secondsBetween,
   successHaptic,
@@ -23,6 +23,7 @@ import {
   useRestTimerStore,
 } from '@/features/restTimer';
 import {
+  blockedBeforeRpe,
   useSession,
   useSessionActions,
   type ActionResult,
@@ -33,6 +34,7 @@ import {
 import { Button } from '@/ui/components/Button';
 import { ConfirmSheet } from '@/ui/components/ConfirmSheet';
 import { EffortPicker } from '@/ui/components/EffortPicker';
+import { targetEffort } from '@/ui/components/ExerciseCard';
 import { InfoTip } from '@/ui/components/InfoTip';
 import { MenuSheet, type MenuAction } from '@/ui/components/MenuSheet';
 import { NumberSheet } from '@/ui/components/NumberSheet';
@@ -69,7 +71,9 @@ export default function SessionScreen() {
   const type = useTypography();
 
   if (view.status === 'loading') return null;
-  if (view.status === 'failed' || !view.session || view.session.status !== 'in_progress') {
+  // A session that has just finished is on its way to the summary; that isn't an error.
+  if (view.status === 'ready' && view.session?.status === 'completed') return null;
+  if (view.status === 'failed' || !view.session) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
         <View style={styles.content}>
@@ -90,8 +94,8 @@ function Session({ session }: { session: SessionView }) {
   const c = useColors();
   const type = useTypography();
   const actions = useSessionActions(session.id);
-  const now = useNow();
-  const endsAt = useRestTimerStore((s) => s.endsAt);
+  // The note being typed, saved on blur and before leaving (Finish, Save and exit).
+  const noteDraft = useRef<string | null>(null);
   const [awaitingRpe, setAwaitingRpe] = useState<ReadonlySet<string>>(new Set());
   const [optionalPicker, setOptionalPicker] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
@@ -105,12 +109,18 @@ function Session({ session }: { session: SessionView }) {
   const allSets = session.exercises.flatMap((e) => e.sets.map((s) => ({ exercise: e, set: s })));
   const find = (setId: string) => allSets.find((x) => x.set.id === setId);
   const next = nextSetId(session.exercises);
-  const remaining = restRemainingSec(endsAt, now);
-  const elapsed = secondsBetween(session.startedAt, now);
 
   const report = (result: ActionResult) => {
     setMessage(result.ok ? null : result.message);
     return result.ok;
+  };
+
+  const flushNote = async () => {
+    const draft = noteDraft.current;
+    noteDraft.current = null;
+    if (draft !== null && (draft.trim() || null) !== session.notes) {
+      report(await actions.details({ notes: draft }));
+    }
   };
 
   const rest = (exercise: SessionExerciseView, setId: string) => {
@@ -129,17 +139,23 @@ function Session({ session }: { session: SessionView }) {
 
   /** ✓ on a set (§7.6 set row table). */
   const tick = async (exercise: SessionExerciseView, set: SessionSetView) => {
-    if (set.status === 'completed') return;
+    // Already done, or already ticked and waiting for its RPE: a second tap changes nothing.
+    if (set.status === 'completed' || awaitingRpe.has(set.id)) return;
     if (set.isAmrap && set.reps === null)
       return setEditing({ setId: set.id, field: 'reps', thenTick: true });
-    tapHaptic();
     if (set.prompt === 'required') {
+      // Say what's missing now, not after the RPE is picked and the rest has started.
+      const blocked = blockedBeforeRpe(exercise.exercise, set);
+      if (blocked) return setMessage(blocked);
+      tapHaptic();
       // The rest starts now; the set counts as done once an RPE is picked.
       setAwaitingRpe((s) => new Set(s).add(set.id));
+      setMessage(null);
       rest(exercise, set.id);
       return;
     }
     if (report(await actions.completeSet({ setLogId: set.id }))) {
+      tapHaptic();
       rest(exercise, set.id);
       if (set.prompt === 'optional') setOptionalPicker(set.id);
     }
@@ -178,10 +194,11 @@ function Session({ session }: { session: SessionView }) {
 
   const finish = async () => {
     setSheet(null);
+    await flushNote();
     const result = await actions.finish();
     if (!result.ok) return setMessage(result.message);
     successHaptic();
-    await stopRest();
+    void stopRest();
     router.replace(`/session/summary/${session.id}`);
   };
 
@@ -203,12 +220,7 @@ function Session({ session }: { session: SessionView }) {
         <Text accessibilityRole="header" style={[type.title, styles.title, { color: c.ink }]}>
           {session.name}
         </Text>
-        <Text
-          accessibilityLabel={`${spokenClock(elapsed)} so far`}
-          style={[type.label, { color: c.inkMuted, fontVariant: ['tabular-nums'] }]}
-        >
-          {formatClock(elapsed)}
-        </Text>
+        <ElapsedClock startedAt={session.startedAt} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Finish workout"
@@ -252,8 +264,7 @@ function Session({ session }: { session: SessionView }) {
               {exercise.tmKg !== null && (
                 <>
                   <Text style={[type.label, { color: c.inkMuted }]}>
-                    TM {Math.round(toDisplay(exercise.tmKg, session.unit) * 100) / 100}{' '}
-                    {session.unit}
+                    TM {formatLoad(exercise.tmKg, session.unit)}
                   </Text>
                   <InfoTip term="tm" />
                 </>
@@ -287,7 +298,12 @@ function Session({ session }: { session: SessionView }) {
                   exercise={exercise.exercise}
                   unit={session.unit}
                   name={exercise.name}
-                  target={set.target}
+                  target={
+                    set.topSetTarget
+                      ? targetEffort(set.topSetTarget.rpe, { reps: set.topSetTarget.reps }, true)
+                          .shown
+                      : null
+                  }
                   awaitingRpe={awaitingRpe.has(set.id)}
                   next={set.id === next}
                   onDone={() => void tick(exercise, set)}
@@ -336,17 +352,13 @@ function Session({ session }: { session: SessionView }) {
         />
         <SessionDetails
           session={session}
-          onSave={(input) => void actions.details(input).then(report)}
+          onDraft={(text) => (noteDraft.current = text)}
+          onSaveNote={() => void flushNote()}
+          onEffort={(rpe) => void actions.details({ rpe }).then(report)}
         />
       </ScrollView>
 
-      {remaining !== null && remaining > -3 && (
-        <RestTimerBar
-          remainingSec={Math.max(0, remaining)}
-          onAdjust={(delta) => void adjustRest(delta)}
-          onSkip={() => void stopRest()}
-        />
-      )}
+      <RestBar />
 
       <EditSheet
         editing={editing}
@@ -366,6 +378,7 @@ function Session({ session }: { session: SessionView }) {
         setSheet={setSheet}
         report={report}
         onFinish={() => void finish()}
+        onSaveAndExit={() => void flushNote().then(() => router.back())}
       />
     </SafeAreaView>
   );
@@ -440,6 +453,7 @@ function Menus({
   setSheet,
   report,
   onFinish,
+  onSaveAndExit,
 }: {
   sheet: Sheet;
   session: SessionView;
@@ -449,6 +463,7 @@ function Menus({
   setSheet: (sheet: Sheet) => void;
   report: (result: ActionResult) => boolean;
   onFinish: () => void;
+  onSaveAndExit: () => void;
 }) {
   const actions = useSessionActions(session.id);
   const close = () => setSheet(null);
@@ -563,7 +578,7 @@ function Menus({
         title="Leave this workout?"
         closeLabel="Keep going"
         actions={[
-          { label: 'Save and exit', onPress: () => router.back() },
+          { label: 'Save and exit', onPress: onSaveAndExit },
           {
             label: 'Discard workout',
             destructive: true,
@@ -615,26 +630,63 @@ function Menus({
 }
 
 /** The session note and effort rating at the bottom of the list (FR-9.7). */
+/** Elapsed time in the header; it ticks on its own, so the list doesn't re-render (§7.6). */
+function ElapsedClock({ startedAt }: { startedAt: string }) {
+  const c = useColors();
+  const type = useTypography();
+  const elapsed = secondsBetween(startedAt, useNow());
+  return (
+    <Text
+      accessibilityLabel={`${spokenClock(elapsed)} so far`}
+      style={[type.label, { color: c.inkMuted, fontVariant: ['tabular-nums'] }]}
+    >
+      {formatClock(elapsed)}
+    </Text>
+  );
+}
+
+/** The pinned rest countdown (FR-9.6), shown until 3 s after it ends; it ticks on its own. */
+function RestBar() {
+  const endsAt = useRestTimerStore((s) => s.endsAt);
+  const remaining = restRemainingSec(endsAt, useNow());
+  if (remaining === null || remaining <= -3) return null;
+  return (
+    <RestTimerBar
+      remainingSec={Math.max(0, remaining)}
+      onAdjust={(delta) => void adjustRest(delta)}
+      onSkip={() => void stopRest()}
+    />
+  );
+}
+
+/** The session note and effort rating at the bottom of the list (FR-9.7). */
 function SessionDetails({
   session,
-  onSave,
+  onDraft,
+  onSaveNote,
+  onEffort,
 }: {
   session: SessionView;
-  onSave: (input: { notes?: string | null; rpe?: number | null }) => void;
+  onDraft: (text: string) => void;
+  onSaveNote: () => void;
+  onEffort: (rpe: number) => void;
 }) {
   const c = useColors();
   const type = useTypography();
   const [notes, setNotes] = useState(session.notes ?? '');
   return (
     <View style={styles.details}>
-      <EffortPicker value={session.rpe} onPick={(rpe) => onSave({ rpe })} />
+      <EffortPicker value={session.rpe} onPick={onEffort} />
       <Text style={[type.label, { color: c.inkMuted }]}>Session note</Text>
       <TextInput
         accessibilityLabel="Session note"
         multiline
         value={notes}
-        onChangeText={setNotes}
-        onBlur={() => onSave({ notes })}
+        onChangeText={(text) => {
+          setNotes(text);
+          onDraft(text);
+        }}
+        onBlur={onSaveNote}
         placeholder="How did it go?"
         placeholderTextColor={c.inkMuted}
         style={[

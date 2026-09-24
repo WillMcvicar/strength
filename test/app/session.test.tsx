@@ -28,7 +28,12 @@ jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View };
 });
-jest.mock('@/features/session', () => ({ useSession: jest.fn(), useSessionActions: jest.fn() }));
+jest.mock('@/features/session', () => ({
+  // Pure, so the real one decides what a tick may do.
+  blockedBeforeRpe: jest.requireActual('@/features/session').blockedBeforeRpe,
+  useSession: jest.fn(),
+  useSessionActions: jest.fn(),
+}));
 jest.mock('@/features/skillSearch', () => ({
   useSkillSearch: () => [{ id: 'skill_front_squat', name: 'Front squat' }],
 }));
@@ -103,7 +108,7 @@ const set = (id: string, over: Partial<SessionSetView> = {}): SessionSetView => 
   completedAt: null,
   prompt: 'required',
   targetRpe: 8,
-  target: null,
+  topSetTarget: null,
   ...over,
 });
 
@@ -224,6 +229,39 @@ describe('AC-31 Per-set RPE', () => {
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark barbell row set 1 done' }));
     await fireEvent.press(await screen.findByRole('radio', { name: 'RPE 7' }));
     expect(actions.updateSet).toHaveBeenCalledWith({ setLogId: 'r1', rpe: 7 });
+  });
+});
+
+describe('ticking a main-lift set (§7.6)', () => {
+  it('ignores a second tap while the set waits for its RPE, so the rest is not restarted', async () => {
+    show(session());
+    await render(<SessionScreen />);
+    const check = screen.getByRole('checkbox', { name: 'Mark back squat set 1 done' });
+    await fireEvent.press(check);
+    await fireEvent.press(check);
+    expect(startRest).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for a missing load before the RPE, and starts no rest', async () => {
+    const noLoad = exercise('squat', 'Back squat', [set('q1', { loadKg: null })]);
+    show(session({ exercises: [noLoad] }));
+    await render(<SessionScreen />);
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark back squat set 1 done' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter the weight you used.');
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(startRest).not.toHaveBeenCalled();
+  });
+
+  it('shows a top set’s target with the wording Today uses (D-36)', async () => {
+    const top = exercise('bench', 'Bench press', [
+      set('t1', {
+        isTopSet: true,
+        topSetTarget: { reps: [1, 3], rpe: { min: 8, max: 8 } },
+      }),
+    ]);
+    show(session({ exercises: [top] }));
+    await render(<SessionScreen />);
+    expect(screen.getByText('Work up to 1–3 @ RPE 8')).toBeTruthy();
   });
 });
 
@@ -456,9 +494,38 @@ describe('finishing and leaving (FR-9.8, FR-9.9, FR-9.11)', () => {
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
   });
 
-  it('says so when the session has already finished', async () => {
+  it('shows no error for a session that has just finished (it is going to the summary)', async () => {
     show(session({ status: 'completed' }));
     await render(<SessionScreen />);
-    expect(screen.getByRole('alert')).toHaveTextContent(/isn’t in progress any more/);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('header')).toBeNull();
+  });
+
+  it('says so when the workout cannot be read', async () => {
+    jest.mocked(useSession).mockReturnValue({ status: 'failed', error: new Error('x') });
+    await render(<SessionScreen />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Couldn’t load this workout/);
+  });
+
+  it('saves a note still being typed before finishing', async () => {
+    show(session({ setsIncomplete: 0 }));
+    await render(<SessionScreen />);
+    await fireEvent.changeText(screen.getByLabelText('Session note'), 'Felt strong');
+    await fireEvent.press(screen.getByRole('button', { name: 'Finish workout' }));
+    await waitFor(() => expect(actions.finish).toHaveBeenCalled());
+    expect(actions.details).toHaveBeenCalledWith({ notes: 'Felt strong' });
+    expect(actions.details.mock.invocationCallOrder[0]).toBeLessThan(
+      actions.finish.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('saves a note still being typed before "Save and exit"', async () => {
+    show(session());
+    await render(<SessionScreen />);
+    await fireEvent.changeText(screen.getByLabelText('Session note'), 'Knee felt off');
+    await fireEvent.press(screen.getByRole('button', { name: 'Close workout' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Save and exit' }));
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
+    expect(actions.details).toHaveBeenCalledWith({ notes: 'Knee felt off' });
   });
 });

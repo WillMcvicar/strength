@@ -7,7 +7,13 @@ import type { Db } from '@/data/db';
 import { liveDb, type LiveDb } from '@/data/live';
 import { repositories } from '@/data/repositories';
 import { DatabaseProvider } from '@/features/database';
-import { useSession, useSessionActions, type SessionView } from '@/features/session';
+import {
+  blockedBeforeRpe,
+  loadLabel,
+  useSession,
+  useSessionActions,
+  type SessionView,
+} from '@/features/session';
 import { completeSet } from '@/services/completeSet';
 import { finishSession } from '@/services/finishSession';
 import { startSession } from '@/services/startSession';
@@ -129,7 +135,14 @@ describe('useSession (§7.6)', () => {
     const view = await viewOf(second.sessionId);
     expect(view.exercises[0]).toMatchObject({
       lastTopSet: 'Last: 100 kg × 2 @ RPE 8',
-      sets: [{ isTopSet: true, target: 'Work up to 1–3 @ RPE 8', prompt: 'required' }, {}],
+      sets: [
+        {
+          isTopSet: true,
+          topSetTarget: { reps: [1, 3], rpe: { min: 8, max: 8 } },
+          prompt: 'required',
+        },
+        {},
+      ],
     });
   });
 
@@ -171,5 +184,32 @@ describe('useSessionActions (§6.6)', () => {
       await result.current.dismissTip('tip_rpe_picker');
     });
     expect((await viewOf(sessionId)).tips).toEqual({ rpePicker: false, topSet: true });
+  });
+});
+
+describe('loadLabel (§7.6)', () => {
+  const base = {
+    trackingType: 'weight_reps',
+    loadConvention: 'total',
+  } as unknown as Parameters<typeof loadLabel>[1];
+
+  it('reads a load the way the set row shows it', () => {
+    expect(loadLabel(100, base, 'kg')).toBe('100 kg');
+    expect(loadLabel(20, { ...base, loadConvention: 'per_side' }, 'kg')).toBe('20 kg × 2');
+    expect(loadLabel(20, { ...base, trackingType: 'bodyweight_plus_load' }, 'kg')).toBe(
+      'BW +20 kg',
+    );
+  });
+});
+
+describe('blockedBeforeRpe (§7.6)', () => {
+  it('says what is missing before the RPE picker opens, and nothing when only the RPE is', async () => {
+    const view = await viewOf(await started());
+    const squat = view.exercises[0]!;
+    const set = squat.sets[1]!;
+    expect(blockedBeforeRpe(squat.exercise, set)).toBeNull();
+    expect(blockedBeforeRpe(squat.exercise, { ...set, loadKg: null })).toBe(
+      'Enter the weight you used.',
+    );
   });
 });

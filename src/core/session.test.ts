@@ -383,7 +383,11 @@ describe('superset order (§7.6)', () => {
   const ex = (id: string, group: string | null, statuses: string[]) => ({
     id,
     supersetGroup: group,
-    sets: statuses.map((status, i) => ({ id: `${id}${i + 1}`, status: status as 'pending' })),
+    sets: statuses.map((status, i) => ({
+      id: `${id}${i + 1}`,
+      status: status as 'pending',
+      isWarmup: false,
+    })),
   });
 
   it('works through plain exercises in order', () => {
@@ -421,5 +425,20 @@ describe('superset order (§7.6)', () => {
     expect(restsAfter(list, 'a3')).toBe(true);
     expect(restsAfter(list, 'c1')).toBe(true);
     expect(restsAfter(list, 'nope')).toBe(true);
+  });
+
+  it('does a superset’s warm-ups first, so its working rounds stay paired (D-41)', () => {
+    const a = ex('a', 'g', ['pending', 'pending', 'pending']);
+    a.sets[0]!.isWarmup = true;
+    const list = [a, ex('b', 'g', ['pending', 'pending'])];
+    // A's warm-up, then A1 B1, A2 B2 — not [A warm-up, B1].
+    expect(nextSetId(list)).toBe('a1');
+    list[0]!.sets[0]!.status = 'completed' as 'pending';
+    expect(nextSetId(list)).toBe('a2');
+    expect(restsAfter(list, 'a1')).toBe(true);
+    expect(restsAfter(list, 'a2')).toBe(false);
+    expect(restsAfter(list, 'b1')).toBe(true);
+    expect(restsAfter(list, 'a3')).toBe(false);
+    expect(restsAfter(list, 'b2')).toBe(true);
   });
 });

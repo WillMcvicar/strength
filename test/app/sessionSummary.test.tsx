@@ -5,8 +5,14 @@ import SessionSummaryScreen from '../../app/session/summary/[id]';
 import { useSession, useSessionActions, type SessionView } from '@/features/session';
 
 const mockReplace = jest.fn();
+const mockBack = jest.fn();
+let mockCanGoBack = true;
 jest.mock('expo-router', () => ({
-  router: { replace: (href: string) => mockReplace(href) },
+  router: {
+    replace: (href: string) => mockReplace(href),
+    back: () => mockBack(),
+    canGoBack: () => mockCanGoBack,
+  },
   useLocalSearchParams: () => ({ id: 's1' }),
 }));
 jest.mock('react-native-safe-area-context', () => {
@@ -41,6 +47,8 @@ const finished: SessionView = {
 };
 
 beforeEach(() => {
+  mockCanGoBack = true;
+  mockBack.mockClear();
   mockReplace.mockClear();
   details.mockClear();
 });
@@ -64,11 +72,14 @@ describe('Session summary (§7.7)', () => {
     expect(details).toHaveBeenCalledWith({ rpe: 8 });
     await fireEvent.changeText(screen.getByLabelText('Session note'), 'Felt strong');
     await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+    // Back to the Today that opened the session, not a second one pushed on top.
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+    expect(mockReplace).not.toHaveBeenCalled();
     expect(details).toHaveBeenCalledWith({ notes: 'Felt strong' });
   });
 
-  it('goes back to Today when there is nothing to summarise', async () => {
+  it('opens Today when there is nothing to summarise and nothing behind it', async () => {
+    mockCanGoBack = false;
     jest.mocked(useSession).mockReturnValue({ status: 'ready', session: null });
     await render(<SessionSummaryScreen />);
     await fireEvent.press(screen.getByRole('button', { name: 'Back to Today' }));

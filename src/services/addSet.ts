@@ -21,10 +21,10 @@ export function addSet(
     const sets = await r.sessions.setsOf(found.exercise.id);
     const { position, prefill } = newSet(sets, { warmup: input.warmup ?? false });
     const setLogId = ctx.newId();
-    // Inserted past the end, then renumbered into place.
+    // Inserted past the highest index, then renumbered into place.
     await r.sessions.insertSet({
       ...prefill,
-      setIndex: sets.length + 1,
+      setIndex: Math.max(0, ...sets.map((s) => s.setIndex)) + 1,
       id: setLogId,
       sessionExerciseId: found.exercise.id,
       rpe: null,

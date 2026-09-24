@@ -16,6 +16,15 @@ import { useColors } from '@/ui/theme';
 import { radius, spacing, touch } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
 
+/**
+ * The summary replaced the session modal, so going back reaches the Today that opened it. A new
+ * Today is pushed only if there's nothing behind (e.g. opened from a notification).
+ */
+function backToToday() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/');
+}
+
 export default function SessionSummaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const view = useSession(id);
@@ -33,7 +42,7 @@ export default function SessionSummaryScreen() {
           <Text accessibilityRole="alert" style={[type.body, { color: c.ink }]}>
             Couldn’t show this workout’s summary.
           </Text>
-          <Button label="Back to Today" onPress={() => router.replace('/')} />
+          <Button label="Back to Today" onPress={backToToday} />
         </View>
       </SafeAreaView>
     );
@@ -43,7 +52,7 @@ export default function SessionSummaryScreen() {
   const volume = formatVolume(session.volumeKg, session.unit);
   const done = async () => {
     if (notes !== null) await actions.details({ notes });
-    router.replace('/');
+    backToToday();
   };
 
   return (

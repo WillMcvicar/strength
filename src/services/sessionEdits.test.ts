@@ -87,6 +87,21 @@ describe('addSet (FR-9.4, FR-9.14)', () => {
   });
 });
 
+describe('addSet with a gap in the set numbers', () => {
+  it('still adds a set when the indexes are not 1..n', async () => {
+    const { exercises } = await mondaySession();
+    const squat = exercises[0]!;
+    // 1, 2, 3, 4 → 1, 3, 4, 5: e.g. copied from a plan whose sets were edited. Four sets, so
+    // "length + 1" would be 5, which is taken.
+    await repos.sessions.updateSet(squat.sets[1]!.id, { setIndex: 5 });
+    const result = await addSet(db, { sessionExerciseId: squat.exercise.id }, ctx);
+    expect(result.ok).toBe(true);
+    expect((await repos.sessions.setsOf(squat.exercise.id)).map((s) => s.setIndex)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+  });
+});
+
 describe('deleteSet (FR-9.4)', () => {
   it('removes the set and closes the gap', async () => {
     const { exercises } = await mondaySession();
@@ -164,7 +179,7 @@ describe('swapExercise (FR-9.4)', () => {
       { sessionExerciseId: press.exercise.id, skillId: 'skill_lateral_raise' },
       ctx,
     );
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, sessionExerciseId: press.exercise.id });
 
     const [swapped] = (await repos.sessions.exercises(press.exercise.sessionId)).filter(
       (e) => e.exercise.id === press.exercise.id,
@@ -186,17 +201,75 @@ describe('swapExercise (FR-9.4)', () => {
   it('clears values the new skill does not track from sets still to do', async () => {
     const { exercises } = await mondaySession();
     const squat = exercises[0]!;
-    await completeSet(db, { setLogId: squat.sets[1]!.id, rpe: 8 }, ctx);
-    await swapExercise(db, { sessionExerciseId: squat.exercise.id, skillId: 'skill_push_up' }, ctx);
-
+    const result = await swapExercise(
+      db,
+      { sessionExerciseId: squat.exercise.id, skillId: 'skill_push_up' },
+      ctx,
+    );
+    if (!result.ok) throw new Error(result.reason);
+    // Nothing was done yet, so the exercise itself becomes push-ups: reps kept, load gone.
+    expect(result.sessionExerciseId).toBe(squat.exercise.id);
     const sets = await repos.sessions.setsOf(squat.exercise.id);
-    // The done set keeps what was logged; the rest keep reps but lose the load.
-    expect(sets.map((s) => [s.status, s.reps, s.loadKg])).toEqual([
-      ['pending', 5, null],
-      ['completed', 5, 90],
-      ['pending', 5, null],
-      ['pending', 5, null],
+    expect(sets.map((s) => [s.reps, s.loadKg])).toEqual([
+      [5, null],
+      [5, null],
+      [5, null],
+      [5, null],
     ]);
+  });
+
+  it('keeps sets already done on the old skill, and moves only the rest (D-40)', async () => {
+    const { sessionId, exercises } = await mondaySession();
+    const squat = exercises[0]!;
+    await completeSet(db, { setLogId: squat.sets[0]!.id }, ctx);
+    await completeSet(db, { setLogId: squat.sets[1]!.id, rpe: 8 }, ctx);
+    const result = await swapExercise(
+      db,
+      { sessionExerciseId: squat.exercise.id, skillId: 'skill_leg_press' },
+      ctx,
+    );
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.sessionExerciseId).not.toBe(squat.exercise.id);
+
+    const after = await repos.sessions.exercises(sessionId);
+    expect(after.map((e) => [e.exercise.skillId, e.exercise.sortOrder])).toEqual([
+      ['skill_back_squat', 1],
+      ['skill_leg_press', 2],
+      ['skill_incline_dumbbell_press', 3],
+      ['skill_dumbbell_row', 4],
+      ['skill_plank', 5],
+    ]);
+    // The squat keeps what was logged with it, so its PRs and pre-fills stay squat's.
+    expect(after[0]!.sets.map((s) => [s.setIndex, s.status, s.loadKg])).toEqual([
+      [1, 'completed', 60],
+      [2, 'completed', 90],
+    ]);
+    expect(after[0]!.exercise).toMatchObject({ wasSubstituted: false, tmSnapshotKg: 112.5 });
+    // Leg press takes the two sets still to do, renumbered.
+    expect(after[1]!.exercise).toMatchObject({
+      id: result.sessionExerciseId,
+      wasSubstituted: true,
+      cycleExerciseId: null,
+      tmSnapshotKg: null,
+      isMainLift: false,
+    });
+    expect(after[1]!.sets.map((s) => [s.setIndex, s.status, s.reps, s.loadKg])).toEqual([
+      [1, 'pending', 5, 90],
+      [2, 'pending', 5, 90],
+    ]);
+  });
+
+  it('moves nothing when every set is already done', async () => {
+    const { exercises } = await mondaySession();
+    const row = exercises[2]!;
+    await completeSet(db, { setLogId: row.sets[0]!.id }, ctx);
+    expect(
+      await swapExercise(
+        db,
+        { sessionExerciseId: row.exercise.id, skillId: 'skill_leg_press' },
+        ctx,
+      ),
+    ).toEqual({ ok: false, reason: 'nothing_to_swap' });
   });
 
   it('refuses an unknown or archived skill', async () => {

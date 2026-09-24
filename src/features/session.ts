@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 
 import {
   formatLoad,
+  completionError,
   incrementFor,
   rpePrompt,
   sessionTotals,
@@ -44,8 +45,14 @@ export interface SessionSetView extends SetLog {
   prompt: 'required' | 'optional' | 'none';
   /** The pre-highlighted RPE: the top of the target range (D-36). */
   targetRpe: number | null;
-  /** A top set's target, "Work up to 1–3 @ RPE 8" (FR-9.2b). */
-  target: string | null;
+  /**
+   * A top set's target, shown as "Work up to 1–3 @ RPE 8" by the same formatter as Today
+   * (FR-9.2b, D-36).
+   */
+  topSetTarget: {
+    reps: readonly [number] | readonly [number, number];
+    rpe: { min: number; max: number };
+  } | null;
 }
 
 export interface SessionExerciseView {
@@ -98,26 +105,26 @@ export function useSession(sessionId: string): SessionScreenView {
   return { status: 'ready', session: view.data };
 }
 
-/** The session id in progress, if any: Today offers "Resume", and launch reopens it (§7.1). */
-export function useInProgressSession(): { status: 'loading' | 'ready'; sessionId: string | null } {
-  const view = useLiveQuery(
-    async (db) => (await repositories(db).sessions.inProgress())?.id ?? null,
-    [],
-  );
-  return view.status === 'ready'
-    ? { status: 'ready', sessionId: view.data }
-    : { status: 'loading', sessionId: null };
-}
-
-const rpeText = (min: number | null, max: number | null) => {
+/** The set's target RPE range; a lone bound is both ends (D-36). */
+const rpeRange = (min: number | null, max: number | null) => {
   const lo = min ?? max;
   const hi = max ?? min;
-  if (lo === null || hi === null) return null;
-  return lo === hi ? `${lo}` : `${lo}–${hi}`;
+  return lo === null || hi === null ? null : { min: lo, max: hi };
 };
 
-const repsRange = (min: number | null, max: number | null) =>
-  min === null ? null : max === null || max === min ? `${min}` : `${min}–${max}`;
+const repsTarget = (
+  min: number | null,
+  max: number | null,
+): readonly [number] | readonly [number, number] | null =>
+  min === null ? null : max === null || max === min ? [min] : [min, max];
+
+/** "20 kg × 2" per side, "BW +20 kg" added, "100 kg" otherwise, as the set row shows it. */
+export function loadLabel(kg: number, exercise: SessionExercise, unit: Unit): string {
+  if (exercise.trackingType === 'bodyweight_plus_load') {
+    return `BW ${formatLoad(kg, unit, { signed: true })}`;
+  }
+  return formatLoad(kg, unit, { perSide: exercise.loadConvention === 'per_side' });
+}
 
 export async function readSession(db: Db, sessionId: string): Promise<SessionView | null> {
   const r = repositories(db);
@@ -148,18 +155,18 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
       increment: skill ? incrementFor(skill, settings, unit) : unit === 'kg' ? 2.5 : 5,
       lastTopSet:
         last && last.loadKg !== null && last.reps !== null
-          ? `Last: ${formatLoad(last.loadKg, unit)} × ${last.reps}${last.rpe === null ? '' : ` @ RPE ${last.rpe}`}`
+          ? `Last: ${loadLabel(last.loadKg, exercise, unit)} × ${last.reps}${last.rpe === null ? '' : ` @ RPE ${last.rpe}`}`
           : null,
       sets: sets.map((s) => {
         if (!s.isWarmup) number += 1;
-        const rpe = rpeText(s.targetRpeMin, s.targetRpeMax);
-        const reps = repsRange(s.prescribedRepsMin, s.prescribedRepsMax);
+        const rpe = rpeRange(s.targetRpeMin, s.targetRpeMax);
+        const reps = repsTarget(s.prescribedRepsMin, s.prescribedRepsMax);
         return {
           ...s,
           number,
           prompt: rpePrompt(exercise, s),
           targetRpe: s.targetRpeMax ?? s.targetRpeMin,
-          target: s.isTopSet && reps && rpe ? `Work up to ${reps} @ RPE ${rpe}` : null,
+          topSetTarget: s.isTopSet && reps && rpe ? { reps, rpe } : null,
         };
       }),
     };
@@ -208,6 +215,16 @@ const MESSAGES: Record<string, string> = {
 };
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * Why a set can't be done yet, apart from its RPE, or null. Checked before the RPE picker opens,
+ * so a set with no load says so at once rather than after the RPE is picked (§7.6).
+ */
+export function blockedBeforeRpe(exercise: SessionExercise, set: SetLog): string | null {
+  // Any valid RPE stands in for the one still to be picked.
+  const error = completionError(exercise, set, { ...set, rpe: 8 });
+  return error ? (MESSAGES[error] ?? 'Something went wrong.') : null;
+}
 
 const toResult = (result: { ok: true } | { ok: false; reason: string }): ActionResult =>
   result.ok
