@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.19 (changing a session in progress) |
+| **Document version** | 0.20 (session screen details) |
 | **Date** | 24 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
@@ -73,6 +73,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-38 | **The start date is stepped, not picked.** §7.5 called for a date picker, which needs a native calendar dependency the project does not carry. FR-2.3 already defaults the start date to the next week-start day so plan weeks line up with calendar weeks, and moving it is the exception, so a `DateStepper` offers that default with week and day arrows either way. Week arrows keep the alignment; day arrows break it deliberately, and the alignment note disappears when they do. Steps before today are disabled. A calendar picker can replace it later without changing what is stored. | DESIGN §7.5; FR-2.3 (no SRS change) | DateStepper and Plan setup tests (§9) |
 | D-39 | **Starting and pre-filling a session.** Building Slice 6 found five gaps in §8.2. (1) Only today's open workout can be started. A missed one goes through its options (§8.4), which move it to today first; otherwise a missed session could complete without the schedule moving. (2) `session.local_date` is the day the session is logged, from `today`. (3) Sets that aren't double progression pre-fill reps at the bottom of their range (`repsMin`), and AMRAP reps stay empty until entered (§7.6). (4) With no double-progression state, the load pre-fill is the skill's most recent completed working set from a completed session (§3.12). (5) The rest timer's end time is kept in memory, in the session's UI store, and never stored: after a crash the timer doesn't reappear, but its scheduled notification still fires. `expo-haptics` joins §2.3 for the set-completion tap (§6). | DESIGN §2.3, §2.6, §3.12, §4.3, §8.2; FR-9.1, FR-9.2, FR-9.6 (no SRS change) | `startSession` and `prefillSets` tests (§9) |
 | D-40 | **Changing a session in progress.** FR-9.4, FR-9.7 and FR-9.13 leave several details open. (1) An ad-hoc workout is named "Workout" unless the lifter names it. (2) A swap carries the sets over, but sets still to do lose any value the new skill doesn't track (swapping squat for push-ups keeps the reps and clears the load); done sets keep what was logged. The TM snapshot and "↑" badge are cleared, since they belonged to the replaced skill. (3) An added exercise goes last with one blank working set. (4) An added warm-up goes after the existing warm-ups with nothing prescribed. An added working set goes last and copies the last working set's prescription and values, but never as a top set or AMRAP: after one of those it's a plain back-off set with only the values carried over. (5) Archived skills can't be swapped in or added. (6) The session effort rating is a whole number from 1 to 10. The session note and effort can still be set on the summary after finishing, because neither affects PRs or volume; every other change to a finished session goes through History (FR-9.12). (7) `src/core/session.ts` holds the set pre-fill and completion rules. | DESIGN §2.2, §7.6, §7.7, §8.2; FR-9.4, FR-9.7, FR-9.13, FR-9.14 (no SRS change) | session edit service tests, `newSet` tests (§9) |
+| D-41 | **Session screen details.** Building §7.6 found six gaps. (1) The set menu offered "Add note", but `set_log` has no note column; exercise notes (FR-9.7) cover the need, so the set menu has no note. (2) An ad-hoc workout (FR-9.13) starts from "Log a workout without a plan", a text button under Today's main card, shown whenever no session is in progress. (3) Set rows and their controls name the exercise ("Back squat, set 1, …", "Mark back squat set 1 done"), because two exercises' set 1s otherwise read the same. (4) The top-set reference (FR-9.2b) is the skill's most recent completed top set from a finished session; top sets come once a cycle, so this is last cycle's. (5) A set waiting for a required RPE is held in memory only: if the app closes before one is picked, the set is back to not done, and its values are kept. (6) "Add warm-up set" sits in the exercise ⋯ menu (FR-9.14). | DESIGN §7.2, §7.6, §7.17; FR-9.2b, FR-9.13, FR-9.14 (no SRS change) | session screen and Today tests (§9) |
 
 ### 1.2 Open design questions
 
@@ -1270,6 +1271,7 @@ The Today screen shows one main card, chosen in this order: in-progress session 
 | Rest day (FR-7.4) | "Rest day" plus next workout name and date | View next workout |
 | Completed (FR-7.5) | summary: duration, sets, volume, PR chips | View session |
 | In progress | "Workout in progress, started 18:02" | **Resume** |
+| No session in progress | under the main card, any state | "Log a workout without a plan" (ad hoc, FR-9.13, D-41) |
 | Paused (v1.1) | "Plan paused since Mon 14 Sep" | **Resume plan** |
 | No plan (FR-7.8) | "No plan yet. Pick a ready-made plan or build your own." | **Browse templates**, Build a plan |
 | Plan ended with open sessions (FR-4.14) | "Your plan's last day has passed." | Finish plan, Push rest back, Extend (v1.1) |
@@ -1374,7 +1376,7 @@ The most important screen. It is a full-screen modal, with keep-awake on when th
 |---|---|
 | Tap ✓ | Marks the set "done as planned" with the pre-filled values. Haptic tap. Starts the rest timer. For main lifts, opens the RPE picker and the set shows "Pick RPE" until one is tapped; the rest timer still starts, and the set only counts as complete once an RPE is chosen. At Finish, sets still waiting for an RPE are listed so they can be fixed. |
 | Tap load or reps | Opens `NumberSheet` with ± increment buttons. Editing is allowed before or after ✓ (FR-9.3). |
-| Long-press a row | Menu: Mark as warm-up, Mark as failed, Delete set, Add note. |
+| Long-press a row | Menu: Mark as warm-up, Mark as failed, Delete set (D-41: no set notes; notes are per exercise). |
 | RPE picker, accessory | Optional; "Skip" chip dismisses it (FR-9.2a). |
 | AMRAP set | Reps cell shows "AMRAP" until edited; ✓ opens the reps sheet first. |
 | Top set (D-19) | Row is labelled "TOP" in `plateBlue` with the target underneath ("Work up to 1–3 @ RPE 8"). The load is pre-filled and highlighted as "adjust on the day"; tapping it opens `NumberSheet` with last cycle's top set shown ("Last: 100 kg × 2 @ RPE 8"). ✓ always opens the RPE picker, and the set completes only once an RPE is chosen. |
@@ -1385,7 +1387,7 @@ The most important screen. It is a full-screen modal, with keep-awake on when th
 | `bodyweight_plus_load` | Load shows "BW +20 kg" or "BW −10 kg" (assisted). |
 | Superset | Exercises in a group share a bracket on the left, and the next set jumps between them in round order. The rest timer starts only after the last exercise of a round. |
 
-**Exercise menu (⋯):** Swap exercise (Skill picker, sets carry over, FR-9.4), Add note, Remove exercise, Revert increase (when a "↑ +2.5 kg" badge shows, FR-3.15), View history.
+**Exercise menu (⋯):** Swap exercise (Skill picker, sets carry over, FR-9.4), Add note, Add warm-up set (D-41), Remove exercise, Revert increase (when a "↑ +2.5 kg" badge shows, FR-3.15), View history.
 
 **Other details**
 - The header shows elapsed time. "Finish" is always available (FR-9.9). If sets are incomplete, it asks: "4 sets aren't done. Finish anyway?"
@@ -1578,8 +1580,8 @@ Keys: `one_rm`, `tm`, `tm_percent`, `rpe`, `rir`, `cycle`, `phase`, `deload`, `t
 
 ### 7.17 Accessibility checklist (NFR-7)
 
-- Every icon-only control has an `accessibilityLabel` ("Mark set 2 done").
-- Set rows are read as one element: "Set 2, 100 kilograms, 5 reps, not done". Actions are exposed as custom accessibility actions (Mark done, Edit load, Edit reps).
+- Every icon-only control has an `accessibilityLabel` ("Mark back squat set 2 done"; set controls name their exercise, D-41).
+- Set rows are read as one element: "Back squat, set 2, 100 kilograms, 5 reps, not done". Actions are exposed as custom accessibility actions (Mark done, Edit load, Edit reps).
 - The rest timer announces only at 10 s and at the end, not every second.
 - The plan ribbon has a text alternative, e.g. "Phase 3 of 5, Strength, week 9 of 17".
 - Focus order follows the visual order. Sheets trap focus and return it when closed.
