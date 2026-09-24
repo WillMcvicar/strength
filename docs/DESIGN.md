@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.18 (starting and pre-filling a session) |
+| **Document version** | 0.19 (changing a session in progress) |
 | **Date** | 24 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
@@ -72,6 +72,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-37 | **The seed may compute built-in template content.** A beginner template stores Block 1 → Deload → Block 2 as rows, because `createDraftFromTemplate` (§8.1) is a plain deep copy and inserts no deload of its own. `insertDeload` is plan-only by design (D-23), so the seed has to materialise the deload week itself. Hand-writing those rows would duplicate FR-2.12's volume maths in seed data, where it could drift. `src/data/seed` may therefore call `src/core`'s pure generators at runtime; every other file in `src/data` still imports core **types only**. | DESIGN §2.1, §4.6; FR-2.1, FR-2.12 (no SRS change) | template seed tests (§9) |
 | D-38 | **The start date is stepped, not picked.** §7.5 called for a date picker, which needs a native calendar dependency the project does not carry. FR-2.3 already defaults the start date to the next week-start day so plan weeks line up with calendar weeks, and moving it is the exception, so a `DateStepper` offers that default with week and day arrows either way. Week arrows keep the alignment; day arrows break it deliberately, and the alignment note disappears when they do. Steps before today are disabled. A calendar picker can replace it later without changing what is stored. | DESIGN §7.5; FR-2.3 (no SRS change) | DateStepper and Plan setup tests (§9) |
 | D-39 | **Starting and pre-filling a session.** Building Slice 6 found five gaps in §8.2. (1) Only today's open workout can be started. A missed one goes through its options (§8.4), which move it to today first; otherwise a missed session could complete without the schedule moving. (2) `session.local_date` is the day the session is logged, from `today`. (3) Sets that aren't double progression pre-fill reps at the bottom of their range (`repsMin`), and AMRAP reps stay empty until entered (§7.6). (4) With no double-progression state, the load pre-fill is the skill's most recent completed working set from a completed session (§3.12). (5) The rest timer's end time is kept in memory, in the session's UI store, and never stored: after a crash the timer doesn't reappear, but its scheduled notification still fires. `expo-haptics` joins §2.3 for the set-completion tap (§6). | DESIGN §2.3, §2.6, §3.12, §4.3, §8.2; FR-9.1, FR-9.2, FR-9.6 (no SRS change) | `startSession` and `prefillSets` tests (§9) |
+| D-40 | **Changing a session in progress.** FR-9.4, FR-9.7 and FR-9.13 leave several details open. (1) An ad-hoc workout is named "Workout" unless the lifter names it. (2) A swap carries the sets over, but sets still to do lose any value the new skill doesn't track (swapping squat for push-ups keeps the reps and clears the load); done sets keep what was logged. The TM snapshot and "↑" badge are cleared, since they belonged to the replaced skill. (3) An added exercise goes last with one blank working set. (4) An added warm-up goes after the existing warm-ups with nothing prescribed. An added working set goes last and copies the last working set's prescription and values, but never as a top set or AMRAP: after one of those it's a plain back-off set with only the values carried over. (5) Archived skills can't be swapped in or added. (6) The session effort rating is a whole number from 1 to 10. The session note and effort can still be set on the summary after finishing, because neither affects PRs or volume; every other change to a finished session goes through History (FR-9.12). (7) `src/core/session.ts` holds the set pre-fill and completion rules. | DESIGN §2.2, §7.6, §7.7, §8.2; FR-9.4, FR-9.7, FR-9.13, FR-9.14 (no SRS change) | session edit service tests, `newSet` tests (§9) |
 
 ### 1.2 Open design questions
 
@@ -164,7 +165,7 @@ app/                              Expo Router
   settings/…
 src/config/release.ts             current release and feature flags (§10)
 src/core/
-  units.ts  rounding.ts  dates.ts  loads.ts  e1rm.ts
+  units.ts  rounding.ts  dates.ts  loads.ts  e1rm.ts  estimate.ts  today.ts  session.ts
   schedule/generate.ts  schedule/shift.ts  schedule/deloadNow.ts  schedule/status.ts
   reviews.ts  doubleProgression.ts  prs.ts  volume.ts  deload.ts  taper.ts
   types.ts  index.ts
@@ -1625,7 +1626,7 @@ startSession(plannedWorkoutId | adHoc, now)
     looked up for display)
   - pre-fill (D-39): reps = repsMin, empty for AMRAP; load from §3.3, or §3.12 for double progression
 completeSet(setLogId, values)        → UPDATE set_log …; the UI schedules the rest notification
-updateSet / addSet / deleteSet / swapExercise / addExercise   → single-row writes
+updateSet / addSet / deleteSet / swapExercise / addExercise   → writes to this session only (D-40)
 finishSession(sessionId, now)
   1. session.status = 'completed', ended_at, total_volume_kg
   2. if planned: planned_workout.status = 'completed', session_id
