@@ -132,8 +132,10 @@ required on main lifts and top sets, top-set display, warm-ups, failed sets, add
 a minimal skill picker), the rest timer with a background notification, keep-awake, crash
 recovery, ad-hoc sessions, and the session summary with total volume.
 
-- **IDs:** FR-9 in full, FR-1.8 volume multiplier, FR-2.4 top-set prescription as consumed by
-  sessions, FR-6.2 RPE tip. AC-3, AC-7, AC-31, AC-35–45, AC-55.
+- **IDs:** FR-9 except FR-9.12, FR-1.8 volume multiplier, FR-2.4 top-set prescription as consumed
+  by sessions, FR-6.2 RPE tip. AC-3, AC-7, AC-31, AC-37, AC-38, AC-39, AC-40 (logging; its PR is
+  Slice 7), AC-43 (the RPE tip), AC-44 (PRs from Slice 7), AC-55.
+- FR-9.12 (edit or delete a past session) is built in Slice 7, with the PR replay it needs (AC-5).
 - The single highest-value slice. After it, the app replaces the Notion setup for one workout at a
   time.
 
@@ -149,8 +151,8 @@ Train with the app for 1–2 weeks as soon as Slice 6 is on a phone. Slices 7–
 Automatic detection on finish, the summary and Today highlights, the PR board, recalculation on
 edit or delete, the session list and session detail.
 
-- **IDs:** FR-10.1–10.3, FR-10.5, FR-10.7, FR-11.1, FR-11.3. C-7. AC-4, AC-5, AC-23 (a PR never
-  changes the 1RM or TM by itself).
+- **IDs:** FR-9.12, FR-10.1–10.3, FR-10.5, FR-10.7, FR-11.1, FR-11.3. C-7. AC-4, AC-5, AC-23 (a
+  PR never changes the 1RM or TM by itself).
 
 ### Slice 8 — Double progression
 
