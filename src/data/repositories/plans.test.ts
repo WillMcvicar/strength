@@ -314,8 +314,8 @@ describe('planned workout repository (FR-4.2)', () => {
 describe('template repository (FR-2.1)', () => {
   it('reads templates by id and in name order', async () => {
     for (const [id, name] of [
-      ['tpl_b', 'Beginner Strength'],
-      ['tpl_a', 'Beginner Hypertrophy'],
+      ['tpl_b', 'Custom B'],
+      ['tpl_a', 'Custom A'],
     ]) {
       await db.runAsync(
         `INSERT INTO template (id, name, sessions_per_week, level, is_built_in, created_at)
@@ -326,7 +326,7 @@ describe('template repository (FR-2.1)', () => {
 
     expect(await repos.templates.get('tpl_b')).toEqual({
       id: 'tpl_b',
-      name: 'Beginner Strength',
+      name: 'Custom B',
       description: '',
       defaultTmPercent: 0.9,
       sessionsPerWeek: 3,
@@ -335,6 +335,12 @@ describe('template repository (FR-2.1)', () => {
       createdAt: NOW,
     });
     expect(await repos.templates.get('nope')).toBeNull();
-    expect((await repos.templates.list()).map((t) => t.id)).toEqual(['tpl_a', 'tpl_b']);
+    // The two seeded built-ins sort first by name (FR-2.1).
+    expect((await repos.templates.list()).map((t) => t.id)).toEqual([
+      'tpl_beginner_hypertrophy',
+      'tpl_beginner_strength',
+      'tpl_a',
+      'tpl_b',
+    ]);
   });
 });

@@ -153,7 +153,13 @@ describe('insertDeload (FR-2.12)', () => {
 describe('insertDeload rejections', () => {
   const nothingWritten = async (planId: string) => {
     expect(await count(db, 'phase', `plan_id = '${planId}'`)).toBe(1);
-    expect(await count(db, 'cycle_workout')).toBe(2);
+    expect(
+      await count(
+        db,
+        'cycle_workout',
+        `phase_id IN (SELECT id FROM phase WHERE plan_id = '${planId}')`,
+      ),
+    ).toBe(2);
     expect((await repos.blueprints.phasesOfPlan(planId))[0].lengthWeeks).toBe(12);
   };
 

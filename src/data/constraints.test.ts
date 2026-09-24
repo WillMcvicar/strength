@@ -9,9 +9,28 @@ import { count, GRAPH_ORDER, type GraphTable, insert, insertGraph } from '../../
 type Row = Record<string, SqlValue>;
 
 let db: Db;
+/** Row counts the seed owns (the built-in templates), before the fixture graph is added. */
+let seeded: Record<string, number>;
+
+const CASCADE_TABLES = [
+  'plan_skill',
+  'phase',
+  'increase_rule',
+  'cycle_workout',
+  'cycle_slot',
+  'cycle_exercise',
+  'cycle_set',
+  'planned_workout',
+  'double_progression_state',
+  'cycle_review',
+  'cycle_review_item',
+  'schedule_change',
+] as const;
 
 beforeEach(async () => {
   db = await openMigratedTestDb();
+  seeded = {};
+  for (const table of CASCADE_TABLES) seeded[table] = await count(db, table);
   await insertGraph(db);
 });
 
@@ -341,21 +360,9 @@ describe('Deleting rows (SRS §4, docs/ERD.md §4.2)', () => {
   it('a plan: its blueprint, schedule, reviews, progression state and history go with it', async () => {
     await db.runAsync("DELETE FROM plan WHERE id = 'plan'");
 
-    for (const table of [
-      'plan_skill',
-      'phase',
-      'increase_rule',
-      'cycle_workout',
-      'cycle_slot',
-      'cycle_exercise',
-      'cycle_set',
-      'planned_workout',
-      'double_progression_state',
-      'cycle_review',
-      'cycle_review_item',
-      'schedule_change',
-    ]) {
-      expect([table, await count(db, table)]).toEqual([table, 0]);
+    // Only the seeded built-in templates' blueprint rows are left.
+    for (const table of CASCADE_TABLES) {
+      expect([table, await count(db, table)]).toEqual([table, seeded[table]]);
     }
   });
 
@@ -406,7 +413,7 @@ describe('Deleting rows (SRS §4, docs/ERD.md §4.2)', () => {
 
     expect(await count(db, 'cycle_review')).toBe(0);
     expect(await count(db, 'planned_workout')).toBe(0);
-    expect(await count(db, 'cycle_workout')).toBe(0);
+    expect(await count(db, 'cycle_workout')).toBe(seeded.cycle_workout);
     expect(await db.getFirstAsync('SELECT phase_id FROM session')).toEqual({ phase_id: null });
   });
 

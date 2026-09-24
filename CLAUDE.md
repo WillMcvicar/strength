@@ -38,7 +38,7 @@ Layers, from top to bottom:
 Rules:
 
 - `src/core/` is pure TypeScript. It has no React, Expo, SQLite or Drizzle imports, and never reads the clock or makes random values or IDs. `today`, `now` and new IDs are passed in as arguments.
-- `src/data/` imports only types from `src/core/`.
+- `src/data/` imports only types from `src/core/`. The one exception is `src/data/seed/`, which may call core's pure generators to build built-in content (D-37).
 - Screens never import `src/data/`. Features may read through repository hooks, but **all writes go through `src/services/`**.
 - Each service is one **exclusive** transaction (C-15) and ends by calling `reconcile(today)` when it changes plan state.
 - `src/services/clock.ts` is the only place that reads the device clock.
