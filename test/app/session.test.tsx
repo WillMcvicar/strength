@@ -318,6 +318,24 @@ describe('the session screen (§7.6)', () => {
     );
   });
 
+  it('fills a timed set from the stopwatch sheet (§7.6)', async () => {
+    const plank = exercise('plank', 'Plank', [
+      set('p1', { reps: null, loadKg: null, timeSec: 60, prompt: 'none', targetRpe: null }),
+    ]);
+    plank.exercise.trackingType = 'time';
+    show(session({ exercises: [plank] }));
+    await render(<SessionScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit plank set 1 time' }));
+    expect(screen.getByRole('button', { name: 'Start stopwatch' })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Enter it instead' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Decrease by 5 s' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(actions.updateSet).toHaveBeenCalledWith({ setLogId: 'p1', timeSec: 55 }),
+    );
+  });
+
   it('rests only after the last exercise of a superset round (§7.6)', async () => {
     const a = exercise('a', 'Curl', [set('a1', { prompt: 'none' })], { supersetGroup: 'g' });
     const b = exercise('b', 'Pushdown', [set('b1', { prompt: 'none' })], { supersetGroup: 'g' });

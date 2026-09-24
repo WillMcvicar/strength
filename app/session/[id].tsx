@@ -3,7 +3,7 @@
 // starts. Rules live in src/core and writes in src/services; this screen only decides which sheet
 // is open.
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -40,9 +40,11 @@ import { RestTimerBar } from '@/ui/components/RestTimerBar';
 import { RpePicker } from '@/ui/components/RpePicker';
 import { SetRow } from '@/ui/components/SetRow';
 import { SkillPicker } from '@/ui/components/SkillPicker';
+import { StopwatchSheet } from '@/ui/components/StopwatchSheet';
 import { TextSheet } from '@/ui/components/TextSheet';
 import { TipCard } from '@/ui/components/TipCard';
 import { formatClock, spokenClock } from '@/ui/format';
+import { useReduceMotion } from '@/ui/motion';
 import { spokenSetName } from '@/ui/setText';
 import { useColors } from '@/ui/theme';
 import { radius, spacing, touch } from '@/ui/tokens';
@@ -95,6 +97,9 @@ function Session({ session }: { session: SessionView }) {
   const [editing, setEditing] = useState<Editing>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const scroll = useRef<ScrollView>(null);
+  const exerciseY = useRef(new Map<string, number>());
+  const reduceMotion = useReduceMotion();
   useKeepAwakeWhile(session.keepAwake);
 
   const allSets = session.exercises.flatMap((e) => e.sets.map((s) => ({ exercise: e, set: s })));
@@ -111,6 +116,14 @@ function Session({ session }: { session: SessionView }) {
   const rest = (exercise: SessionExerciseView, setId: string) => {
     if (restsAfter(session.exercises, setId)) {
       void startRest(exercise.restSec, session.restTimerAlerts);
+    }
+    // §7.6: after the last set of an exercise, the next exercise scrolls to the top.
+    const left = exercise.sets.filter((s) => s.status === 'pending' && s.id !== setId);
+    const index = session.exercises.findIndex((e) => e.id === exercise.id);
+    const following = session.exercises[index + 1];
+    const y = following && exerciseY.current.get(following.id);
+    if (left.length === 0 && y !== undefined) {
+      scroll.current?.scrollTo({ y, animated: !reduceMotion });
     }
   };
 
@@ -208,7 +221,7 @@ function Session({ session }: { session: SessionView }) {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         {message && (
           <Text accessibilityRole="alert" style={[type.body, { color: c.plateRedText }]}>
             {message}
@@ -222,6 +235,7 @@ function Session({ session }: { session: SessionView }) {
         {session.exercises.map((exercise) => (
           <View
             key={exercise.id}
+            onLayout={(e) => exerciseY.current.set(exercise.id, e.nativeEvent.layout.y)}
             style={[
               styles.card,
               { backgroundColor: c.surface, borderColor: c.line },
@@ -392,13 +406,24 @@ function EditSheet({
       />
     );
   }
+  if (editing.field === 'time') {
+    return (
+      <StopwatchSheet
+        visible
+        title={`${exercise.name}, ${setName} time`}
+        value={set.timeSec}
+        onDone={onSave}
+        onClose={onClose}
+      />
+    );
+  }
   return (
     <NumberSheet
       visible
-      title={`${exercise.name}, ${setName} ${editing.field === 'time' ? 'time' : 'reps'}`}
-      value={editing.field === 'time' ? set.timeSec : set.reps}
-      suffix={editing.field === 'time' ? 's' : 'reps'}
-      step={editing.field === 'time' ? 5 : 1}
+      title={`${exercise.name}, ${setName} reps`}
+      value={set.reps}
+      suffix="reps"
+      step={1}
       integer
       onDone={onSave}
       onClose={onClose}
