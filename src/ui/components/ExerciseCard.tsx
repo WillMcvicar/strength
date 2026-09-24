@@ -24,7 +24,7 @@ export interface ExerciseCardProps {
   inSuperset?: boolean;
 }
 
-function effort(
+export function targetEffort(
   rpe: { min: number; max: number },
   target: SetTarget | null,
   topSet: boolean,
@@ -66,7 +66,7 @@ export function ExerciseCard({
   const c = useColors();
   const type = useTypography();
   const shown = target ? `${sets} × ${prescription(target).shown}` : null;
-  const rpeLine = rpe ? effort(rpe, target, topSet) : null;
+  const rpeLine = rpe ? targetEffort(rpe, target, topSet) : null;
   const summary = [
     `${inSuperset ? 'Superset: ' : ''}${name}`,
     ...(target ? [`${count(sets, 'set', 'sets')} of ${prescription(target).spoken}`] : []),

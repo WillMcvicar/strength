@@ -66,6 +66,23 @@ export function rpeRequired(
   return !set.isWarmup && (exercise.isMainLift || set.isTopSet);
 }
 
+/**
+ * Which RPE picker a set gets once it is ticked (FR-9.2a, §7.6): required on main lifts and top
+ * sets, optional and dismissible otherwise, and none on warm-ups (FR-9.14) or on timed and
+ * completion-only items, which have no reps to rate.
+ */
+export function rpePrompt(
+  exercise: { isMainLift: boolean; trackingType?: TrackingType },
+  set: { isWarmup: boolean; isTopSet: boolean },
+): 'required' | 'optional' | 'none' {
+  if (rpeRequired(exercise, set)) return 'required';
+  if (set.isWarmup) return 'none';
+  if (exercise.trackingType === 'time' || exercise.trackingType === 'completion_only') {
+    return 'none';
+  }
+  return 'optional';
+}
+
 /** 6–10 in half steps (FR-9.2a). */
 export function isValidSetRpe(rpe: number): boolean {
   return rpe >= 6 && rpe <= 10 && Number.isInteger(rpe * 2);

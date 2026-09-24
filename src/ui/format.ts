@@ -33,3 +33,24 @@ export function spokenDay(date: LocalDate): string {
   const p = parts(date);
   return `${p.day} ${p.date} ${p.month}`;
 }
+
+/** Elapsed or remaining time: "0:45", "1:42", "24:13", "1:02:05". */
+export function formatClock(totalSec: number): string {
+  const sec = Math.max(0, Math.round(totalSec));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = String(sec % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
+
+/** The same time as a screen reader says it: "1 minute 42 seconds". */
+export function spokenClock(totalSec: number): string {
+  const sec = Math.max(0, Math.round(totalSec));
+  const unit = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
+  const parts = [
+    Math.floor(sec / 3600) && unit(Math.floor(sec / 3600), 'hour'),
+    Math.floor((sec % 3600) / 60) && unit(Math.floor((sec % 3600) / 60), 'minute'),
+    sec % 60 && unit(sec % 60, 'second'),
+  ].filter((p): p is string => Boolean(p));
+  return parts.length > 0 ? parts.join(' ') : '0 seconds';
+}

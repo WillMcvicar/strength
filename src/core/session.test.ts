@@ -5,6 +5,7 @@ import {
   isValidSetRpe,
   newSet,
   prefillSets,
+  rpePrompt,
   rpeRequired,
   valuesForTracking,
 } from './session';
@@ -355,5 +356,23 @@ describe('valuesForTracking (FR-9.4 swap)', () => {
       loadKg: null,
       timeSec: null,
     });
+  });
+});
+
+describe('rpePrompt (FR-9.2a, FR-9.14)', () => {
+  it('requires one on main lifts and top sets, offers one on accessories, and never asks on warm-ups', () => {
+    const main = { isMainLift: true };
+    const accessory = { isMainLift: false };
+    expect(rpePrompt(main, { isWarmup: false, isTopSet: false })).toBe('required');
+    expect(rpePrompt(accessory, { isWarmup: false, isTopSet: true })).toBe('required');
+    expect(rpePrompt(accessory, { isWarmup: false, isTopSet: false })).toBe('optional');
+    expect(rpePrompt(main, { isWarmup: true, isTopSet: false })).toBe('none');
+  });
+
+  it('never asks on sets tracked without effort: timed and completion-only items', () => {
+    const plank = { isMainLift: false, trackingType: 'time' as const };
+    const run = { isMainLift: false, trackingType: 'completion_only' as const };
+    expect(rpePrompt(plank, { isWarmup: false, isTopSet: false })).toBe('none');
+    expect(rpePrompt(run, { isWarmup: false, isTopSet: false })).toBe('none');
   });
 });
