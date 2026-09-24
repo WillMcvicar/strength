@@ -11,7 +11,24 @@ export type SessionPatch = Partial<
   Pick<Session, 'status' | 'endedAt' | 'notes' | 'rpe' | 'totalVolumeKg' | 'updatedAt'>
 >;
 export type SetLogPatch = Partial<
-  Pick<SetLog, 'reps' | 'loadKg' | 'timeSec' | 'rpe' | 'status' | 'completedAt' | 'isWarmup'>
+  Pick<
+    SetLog,
+    'setIndex' | 'reps' | 'loadKg' | 'timeSec' | 'rpe' | 'status' | 'completedAt' | 'isWarmup'
+  >
+>;
+export type SessionExercisePatch = Partial<
+  Pick<
+    SessionExercise,
+    | 'skillId'
+    | 'notes'
+    | 'wasSubstituted'
+    | 'tmSnapshotKg'
+    | 'trackingType'
+    | 'loadConvention'
+    | 'isUnilateral'
+    | 'isMainLift'
+    | 'dpIncreaseKg'
+  >
 >;
 
 export interface LoggedExercise {
@@ -64,6 +81,47 @@ export function sessionRepository(o: Orm) {
 
     async updateSet(id: string, patch: SetLogPatch): Promise<void> {
       await o.update(setLog).set(patch).where(eq(setLog.id, id));
+    },
+
+    async deleteSet(id: string): Promise<void> {
+      await o.delete(setLog).where(eq(setLog.id, id));
+    },
+
+    /** One exercise's sets in set order. */
+    async setsOf(sessionExerciseId: string): Promise<SetLog[]> {
+      return o
+        .select()
+        .from(setLog)
+        .where(eq(setLog.sessionExerciseId, sessionExerciseId))
+        .orderBy(asc(setLog.setIndex));
+    },
+
+    /**
+     * Gives the exercise's sets indexes 1…n in the order given. Two passes through negative
+     * indexes keep `uq_set_log` satisfied at every step.
+     */
+    async renumberSets(orderedIds: readonly string[]): Promise<void> {
+      for (const [i, id] of orderedIds.entries()) {
+        await o
+          .update(setLog)
+          .set({ setIndex: -(i + 1) })
+          .where(eq(setLog.id, id));
+      }
+      for (const [i, id] of orderedIds.entries()) {
+        await o
+          .update(setLog)
+          .set({ setIndex: i + 1 })
+          .where(eq(setLog.id, id));
+      }
+    },
+
+    async updateExercise(id: string, patch: SessionExercisePatch): Promise<void> {
+      await o.update(sessionExercise).set(patch).where(eq(sessionExercise.id, id));
+    },
+
+    /** Its sets go with it (ON DELETE CASCADE). */
+    async deleteExercise(id: string): Promise<void> {
+      await o.delete(sessionExercise).where(eq(sessionExercise.id, id));
     },
 
     /** The session's exercises in order, each with its sets in order. */

@@ -30,5 +30,5 @@ export function repositories(db: Db) {
 
 export type Repositories = ReturnType<typeof repositories>;
 export type { Blueprint, BlueprintExercise, BlueprintWorkout } from './blueprints';
-export type { LoggedExercise, SessionPatch, SetLogPatch } from './sessions';
+export type { LoggedExercise, SessionExercisePatch, SessionPatch, SetLogPatch } from './sessions';
 export type { SkillSearch } from './skills';

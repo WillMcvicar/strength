@@ -99,3 +99,72 @@ export function completionError(
   if (values.rpe == null && rpeRequired(exercise, set)) return 'rpe_required';
   return null;
 }
+
+const BLANK: Omit<SetPrefill, 'setIndex' | 'isWarmup'> = {
+  isAmrap: false,
+  isTopSet: false,
+  prescribedRepsMin: null,
+  prescribedRepsMax: null,
+  prescribedLoadKg: null,
+  prescribedTimeSec: null,
+  targetRpeMin: null,
+  targetRpeMax: null,
+  reps: null,
+  loadKg: null,
+  timeSec: null,
+};
+
+/**
+ * A set added during a session (FR-9.4, FR-9.14), and where it goes among the exercise's sets
+ * (a 0-based position; the caller renumbers). A warm-up goes after the existing warm-ups with
+ * nothing prescribed. A working set goes last and copies the last working set, so "done as
+ * planned" logs what the lifter just did, except that a top set or AMRAP is never copied: the
+ * extra set is a plain back-off set with only its values carried over.
+ */
+export function newSet(
+  sets: readonly SetLog[],
+  { warmup }: { warmup: boolean },
+): { position: number; prefill: SetPrefill } {
+  if (warmup) {
+    const position = sets.filter((s) => s.isWarmup).length;
+    return { position, prefill: { ...BLANK, setIndex: position + 1, isWarmup: true } };
+  }
+  const last = [...sets].reverse().find((s) => !s.isWarmup);
+  const position = sets.length;
+  if (!last) return { position, prefill: { ...BLANK, setIndex: position + 1, isWarmup: false } };
+  const special = last.isTopSet || last.isAmrap;
+  return {
+    position,
+    prefill: {
+      ...(special
+        ? BLANK
+        : {
+            isAmrap: false,
+            isTopSet: false,
+            prescribedRepsMin: last.prescribedRepsMin,
+            prescribedRepsMax: last.prescribedRepsMax,
+            prescribedLoadKg: last.prescribedLoadKg,
+            prescribedTimeSec: last.prescribedTimeSec,
+            targetRpeMin: last.targetRpeMin,
+            targetRpeMax: last.targetRpeMax,
+          }),
+      setIndex: position + 1,
+      isWarmup: false,
+      reps: last.reps,
+      loadKg: last.loadKg,
+      timeSec: last.timeSec,
+    },
+  };
+}
+
+/** The values a tracking type records; the rest are cleared, e.g. when a swap changes it. */
+export function valuesForTracking(
+  v: Pick<SetValues, 'reps' | 'loadKg' | 'timeSec'>,
+  trackingType: TrackingType,
+): Pick<SetValues, 'reps' | 'loadKg' | 'timeSec'> {
+  return {
+    reps: REPS.has(trackingType) ? v.reps : null,
+    loadKg: LOADED.has(trackingType) ? v.loadKg : null,
+    timeSec: trackingType === 'time' ? v.timeSec : null,
+  };
+}

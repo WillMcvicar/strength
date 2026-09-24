@@ -13,7 +13,7 @@ import { aStartedPlan, START } from '../../test/fixtures/sessions';
 import type { ServiceContext } from './context';
 import { discardSession } from './discardSession';
 import { finishSession } from './finishSession';
-import { completeSet } from './logSet';
+import { completeSet } from './completeSet';
 import { startSession } from './startSession';
 
 let db: Db;

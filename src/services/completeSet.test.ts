@@ -1,4 +1,4 @@
-// Logging a set during a session (DESIGN §8.2, §7.6; FR-9.2, FR-9.2a, FR-9.3).
+// Completing and editing a set during a session (DESIGN §8.2, §7.6; FR-9.2, FR-9.2a, FR-9.3).
 import type { Db } from '@/data/db';
 import { repositories, type LoggedExercise, type Repositories } from '@/data/repositories';
 
@@ -6,7 +6,8 @@ import { openMigratedTestDb } from '../../test/db/betterSqlite3';
 import { idSequence } from '../../test/fixtures/ids';
 import { aStartedPlan, START } from '../../test/fixtures/sessions';
 import type { ServiceContext } from './context';
-import { completeSet, updateSet } from './logSet';
+import { completeSet } from './completeSet';
+import { updateSet } from './updateSet';
 import { startSession } from './startSession';
 
 let db: Db;

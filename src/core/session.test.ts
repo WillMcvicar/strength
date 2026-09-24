@@ -1,7 +1,14 @@
 // DESIGN §8.2 and §7.6: pre-filling a session's sets and deciding when a set may complete
 // (FR-3.12, FR-9.2, FR-9.2a, FR-9.2b, FR-9.3, FR-9.14).
-import { completionError, isValidSetRpe, prefillSets, rpeRequired } from './session';
-import type { CycleSet } from './types';
+import {
+  completionError,
+  isValidSetRpe,
+  newSet,
+  prefillSets,
+  rpeRequired,
+  valuesForTracking,
+} from './session';
+import type { CycleSet, SetLog } from './types';
 
 const set = (over: Partial<CycleSet> = {}): CycleSet => ({
   id: 's',
@@ -233,5 +240,120 @@ describe('isValidSetRpe (FR-9.2a)', () => {
   it('accepts 6 to 10 in half steps', () => {
     expect([6, 6.5, 8, 9.5, 10].every(isValidSetRpe)).toBe(true);
     expect([5.5, 10.5, 7.25, Number.NaN].some(isValidSetRpe)).toBe(false);
+  });
+});
+
+describe('newSet (FR-9.4, FR-9.14)', () => {
+  const logged = (over: Partial<SetLog>): SetLog => ({
+    id: 'x',
+    sessionExerciseId: 'e',
+    setIndex: 1,
+    isWarmup: false,
+    isAmrap: false,
+    isTopSet: false,
+    prescribedRepsMin: 5,
+    prescribedRepsMax: 5,
+    prescribedLoadKg: 90,
+    prescribedTimeSec: null,
+    targetRpeMin: 8,
+    targetRpeMax: 8,
+    reps: 5,
+    loadKg: 90,
+    timeSec: null,
+    rpe: 8,
+    status: 'completed',
+    completedAt: '2026-09-14T17:30:00.000Z',
+    ...over,
+  });
+
+  it('adds a working set after the last one, copying its prescription and values', () => {
+    const sets = [
+      logged({ id: 'w', setIndex: 1, isWarmup: true, loadKg: 60 }),
+      logged({ id: 'a', setIndex: 2, reps: 4, loadKg: 92.5 }),
+    ];
+    expect(newSet(sets, { warmup: false })).toEqual({
+      position: 2,
+      prefill: {
+        setIndex: 3,
+        isWarmup: false,
+        isAmrap: false,
+        isTopSet: false,
+        prescribedRepsMin: 5,
+        prescribedRepsMax: 5,
+        prescribedLoadKg: 90,
+        prescribedTimeSec: null,
+        targetRpeMin: 8,
+        targetRpeMax: 8,
+        reps: 4,
+        loadKg: 92.5,
+        timeSec: null,
+      },
+    });
+  });
+
+  it('never copies a top set: an extra set after one is a back-off set with no prescription', () => {
+    const [prefill] = [
+      newSet([logged({ isTopSet: true, isAmrap: true })], { warmup: false }).prefill,
+    ];
+    expect(prefill).toMatchObject({ isTopSet: false, isAmrap: false, prescribedLoadKg: null });
+  });
+
+  it('adds a warm-up after the existing warm-ups, with nothing prescribed', () => {
+    const sets = [
+      logged({ id: 'w', setIndex: 1, isWarmup: true, loadKg: 60 }),
+      logged({ id: 'a', setIndex: 2 }),
+      logged({ id: 'b', setIndex: 3 }),
+    ];
+    const { position, prefill } = newSet(sets, { warmup: true });
+    expect(position).toBe(1);
+    expect(prefill).toMatchObject({
+      setIndex: 2,
+      isWarmup: true,
+      prescribedLoadKg: null,
+      prescribedRepsMin: null,
+      targetRpeMin: null,
+      reps: null,
+      loadKg: null,
+    });
+  });
+
+  it('starts an empty exercise with one blank working set', () => {
+    expect(newSet([], { warmup: false })).toEqual({
+      position: 0,
+      prefill: {
+        setIndex: 1,
+        isWarmup: false,
+        isAmrap: false,
+        isTopSet: false,
+        prescribedRepsMin: null,
+        prescribedRepsMax: null,
+        prescribedLoadKg: null,
+        prescribedTimeSec: null,
+        targetRpeMin: null,
+        targetRpeMax: null,
+        reps: null,
+        loadKg: null,
+        timeSec: null,
+      },
+    });
+  });
+});
+
+describe('valuesForTracking (FR-9.4 swap)', () => {
+  it('keeps only the values the new tracking type records', () => {
+    const v = { reps: 5, loadKg: 90, timeSec: 30 };
+    expect(valuesForTracking(v, 'weight_reps')).toEqual({ reps: 5, loadKg: 90, timeSec: null });
+    expect(valuesForTracking(v, 'bodyweight_plus_load')).toEqual({
+      reps: 5,
+      loadKg: 90,
+      timeSec: null,
+    });
+    expect(valuesForTracking(v, 'reps_only')).toEqual({ reps: 5, loadKg: null, timeSec: null });
+    expect(valuesForTracking(v, 'time')).toEqual({ reps: null, loadKg: null, timeSec: 30 });
+    expect(valuesForTracking(v, 'completion_only')).toEqual({
+      reps: null,
+      loadKg: null,
+      timeSec: null,
+    });
   });
 });
