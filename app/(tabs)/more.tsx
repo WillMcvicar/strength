@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useResetAppData } from '@/features/devTools';
+import { lateBySec, useRestTimerSpike } from '@/features/restTimerSpike';
 import { Button } from '@/ui/components/Button';
 import { Placeholder } from '@/ui/components/Placeholder';
 import { useColors } from '@/ui/theme';
@@ -19,6 +20,7 @@ export default function MoreScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Placeholder title="More" />
         <DevTools />
+        <RestTimerSpike />
       </ScrollView>
     </SafeAreaView>
   );
@@ -45,6 +47,51 @@ function DevTools() {
         disabled={resetting}
         onPress={() => void reset()}
       />
+    </View>
+  );
+}
+
+/**
+ * DESIGN §2.6 spike: schedule a rest-timer notification, lock the phone, and come back after it
+ * fires. The card then shows how late the OS delivered it.
+ */
+function RestTimerSpike() {
+  const c = useColors();
+  const type = useTypography();
+  const { runs, error, schedule, clear } = useRestTimerSpike();
+
+  return (
+    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.line }]}>
+      <Text accessibilityRole="header" style={[type.label, { color: c.inkMuted }]}>
+        Rest timer spike
+      </Text>
+      <Text style={[type.body, { color: c.ink }]}>
+        Schedule a notification, lock the phone straight away, and unlock it after the notification
+        arrives. Open this tab again to see how late it was.
+      </Text>
+      {[60, 120, 180].map((sec) => (
+        <Button
+          key={sec}
+          label={`Notify in ${sec} s`}
+          variant="secondary"
+          onPress={() => void schedule(sec)}
+        />
+      ))}
+      {error ? (
+        <Text accessibilityRole="alert" style={[type.body, { color: c.ink }]}>
+          {error}
+        </Text>
+      ) : null}
+      {runs.map((run) => {
+        const late = lateBySec(run);
+        return (
+          <Text key={run.id} style={[type.body, { color: c.ink }]}>
+            {run.delaySec} s, due {run.dueAt.slice(11, 19)} UTC:{' '}
+            {late === null ? 'not delivered yet' : `${late.toFixed(1)} s late`}
+          </Text>
+        );
+      })}
+      {runs.length > 0 ? <Button label="Clear runs" variant="secondary" onPress={clear} /> : null}
     </View>
   );
 }
