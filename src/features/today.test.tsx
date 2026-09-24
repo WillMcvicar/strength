@@ -7,7 +7,10 @@ import type { Db } from '@/data/db';
 import { liveDb, type LiveDb } from '@/data/live';
 import { DatabaseProvider } from '@/features/database';
 import { useToday } from '@/features/today';
+import { repositories } from '@/data/repositories';
+import { finishSession } from '@/services/finishSession';
 import { startPlan } from '@/services/startPlan';
+import { startSession } from '@/services/startSession';
 
 import { openMigratedTestDb } from '../../test/db/betterSqlite3';
 import { idSequence } from '../../test/fixtures/ids';
@@ -127,5 +130,36 @@ describe('useToday (FR-7)', () => {
         ],
       },
     });
+  });
+});
+
+describe('useToday with a session (FR-9.1, FR-9.10, §7.2)', () => {
+  const ctx = { today: '2026-09-14', now: '2026-09-14T17:30:00.000Z', newId: idSequence('s') };
+
+  it('shows the workout in progress first, with its session to resume', async () => {
+    await startBeginner();
+    const [monday] = await repositories(db).plannedWorkouts.listByPlan('plan');
+    const started = await startSession(db, { plannedWorkoutId: monday!.id }, ctx);
+    if (!started.ok) throw new Error(started.reason);
+
+    const { result } = await renderHook(() => useToday('2026-09-14'), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current).toMatchObject({
+      card: { kind: 'in_progress', workoutId: monday!.id, name: 'Full body A' },
+      inProgress: { sessionId: started.sessionId, name: 'Full body A', startedAt: ctx.now },
+      plan: { week: expect.arrayContaining([{ date: '2026-09-14', status: 'in_progress' }]) },
+    });
+  });
+
+  it('shows the workout as done once the session is finished (FR-7.5)', async () => {
+    await startBeginner();
+    const [monday] = await repositories(db).plannedWorkouts.listByPlan('plan');
+    const started = await startSession(db, { plannedWorkoutId: monday!.id }, ctx);
+    if (!started.ok) throw new Error(started.reason);
+    await finishSession(db, { sessionId: started.sessionId }, ctx);
+
+    const { result } = await renderHook(() => useToday('2026-09-14'), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current).toMatchObject({ card: { kind: 'completed' }, inProgress: null });
   });
 });

@@ -1,0 +1,71 @@
+// Finish Workout (DESIGN §8.2, FR-9.8, FR-9.9). Unfinished sets are kept as they are, and the
+// session still counts as completed.
+import { sessionTotals } from '@/core';
+import type { Db } from '@/data/db';
+import { repositories } from '@/data/repositories';
+
+import { exclusive, type ServiceContext, type ServiceResult } from './context';
+
+export interface SessionSummary {
+  name: string;
+  startedAt: string;
+  endedAt: string;
+  /** reps × load × multiplier over completed working sets (§3.14). */
+  volumeKg: number;
+  setsCompleted: number;
+  /** Sets still pending, warm-ups included: "4 sets aren't done" (§7.6). */
+  setsIncomplete: number;
+}
+
+export type FinishSessionResult = ServiceResult<'not_in_progress', { summary: SessionSummary }>;
+
+export function finishSession(
+  db: Db,
+  input: { sessionId: string },
+  ctx: ServiceContext,
+): Promise<FinishSessionResult> {
+  return exclusive(db, async (tx) => {
+    const r = repositories(tx);
+    const session = await r.sessions.get(input.sessionId);
+    if (!session || session.status !== 'in_progress') {
+      return { ok: false, reason: 'not_in_progress' };
+    }
+
+    // Step 1: close the session and cache its volume.
+    const exercises = await r.sessions.exercises(session.id);
+    const totals = sessionTotals(exercises);
+    await r.sessions.update(session.id, {
+      status: 'completed',
+      endedAt: ctx.now,
+      totalVolumeKg: totals.volumeKg,
+      updatedAt: ctx.now,
+    });
+
+    // Step 2: the planned workout is done, even with sets left over (FR-9.9).
+    if (session.plannedWorkoutId) {
+      await r.plannedWorkouts.update(session.plannedWorkoutId, {
+        status: 'completed',
+        sessionId: session.id,
+      });
+    }
+
+    // TODO(Slice 7): step 3, incremental PR detection (§3.13), returned for the summary.
+    // TODO(Slice 8): step 4, the double-progression update for each linked exercise (§3.12).
+    // TODO(Slice 10): step 5, finish with reconcile(ctx.today) once it exists (DESIGN §2.5).
+
+    return {
+      ok: true,
+      summary: {
+        name: session.name,
+        startedAt: session.startedAt,
+        endedAt: ctx.now,
+        volumeKg: totals.volumeKg,
+        setsCompleted: totals.setsCompleted,
+        setsIncomplete: exercises.reduce(
+          (n, e) => n + e.sets.filter((s) => s.status === 'pending').length,
+          0,
+        ),
+      },
+    };
+  });
+}

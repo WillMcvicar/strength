@@ -58,6 +58,15 @@ function AppStack() {
       </Stack.Protected>
       <Stack.Protected guard={acknowledged && onboarded}>
         <Stack.Screen name="(tabs)" />
+        {/* Full-screen modals (§7.1). Leaving goes through the ✕ menu, not a swipe (§7.6). */}
+        <Stack.Screen
+          name="session/[id]"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="session/summary/[id]"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
       </Stack.Protected>
     </Stack>
   );

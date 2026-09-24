@@ -188,3 +188,27 @@ describe('RootLayout', () => {
     expect(screen.queryByText(/^screen:/)).toBeNull();
   });
 });
+
+describe('AC-36 Disclaimer', () => {
+  beforeEach(() => {
+    fonts.mockReturnValue([true, null]);
+    database.mockReturnValue(ready);
+  });
+
+  it('shows on a fresh install before onboarding (the screen needs "I understand")', async () => {
+    disclaimer.mockReturnValue(gate('needed'));
+    onboarding.mockReturnValue(onboardingGate('needed'));
+    await render(<RootLayout />);
+
+    expect(screen.getByText('screen:disclaimer')).toBeTruthy();
+    expect(screen.queryByText('screen:onboarding')).toBeNull();
+  });
+
+  it('does not appear on relaunch, including after an update, once acknowledged', async () => {
+    // The acknowledgement lives in the database, which an app update keeps (FR-5.3).
+    await render(<RootLayout />);
+    expect(screen.queryByText('screen:disclaimer')).toBeNull();
+  });
+
+  it.todo('remains available in Settings → About (Slice 14)');
+});

@@ -46,3 +46,14 @@ describe('DESIGN §3.5 what the estimate refuses', () => {
     expect(set({ reps: 5, rpe: 10 }).ok).toBe(true);
   });
 });
+
+describe('AC-35 Estimate it for me', () => {
+  it('estimates 107.5 kg from 90 kg × 4 @ RPE 8: 90 × (1 + 6/30) = 108, on the 2.5 kg grid', () => {
+    expect(set({ loadKg: 90, reps: 4, rpe: 8 })).toEqual({ ok: true, oneRmKg: 107.5 });
+  });
+
+  it('rejects 8 reps, so the lifter is told to use a heavier load', () => {
+    // The guidance copy for `reps_high` is shown by the estimate sheet (DESIGN §7.5).
+    expect(set({ loadKg: 90, reps: 8, rpe: 8 })).toEqual({ ok: false, reason: 'reps_high' });
+  });
+});

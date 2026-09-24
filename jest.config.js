@@ -25,6 +25,7 @@ module.exports = {
     {
       displayName: 'app',
       preset: 'jest-expo',
+      setupFiles: ['<rootDir>/test/ui/warmModules.js'],
       testMatch: [
         // Screen tests: Expo Router would treat a test file under app/ as a route.
         '<rootDir>/test/app/**/*.test.tsx',

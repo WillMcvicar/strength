@@ -625,7 +625,7 @@ export const session = sqliteTable(
     kind: text('kind', { enum: ['planned', 'ad_hoc', 'one_rm_estimate', 'test_day'] })
       .notNull()
       .default('planned'),
-    localDate: text('local_date').$type<LocalDate>().notNull(), // date it counts for
+    localDate: text('local_date').$type<LocalDate>().notNull(), // the day it was logged (D-39)
     startedAt: text('started_at').notNull(),
     endedAt: text('ended_at'),
     status: text('status', { enum: ['in_progress', 'completed'] }).notNull(),
