@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Document version** | 0.17 (start date is stepped, not picked) |
-| **Date** | 22 September 2026 |
+| **Document version** | 0.18 (starting and pre-filling a session) |
+| **Date** | 24 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
@@ -71,6 +71,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-36 | **Today shows RPE targets.** For a top set the RPE is the prescription and the load a pre-fill (D-19), so a Today row without it misstated the task. The target sits on a second line under sets × reps (`@ RPE 7–8`, or `Work up to 1–3 @ RPE 8` for a top set), read aloud as "at RPE 7 to 8". It comes from the first working set, like the rest of the row. | FR-7.2 (SRS 1.5) | AC-71 |
 | D-37 | **The seed may compute built-in template content.** A beginner template stores Block 1 → Deload → Block 2 as rows, because `createDraftFromTemplate` (§8.1) is a plain deep copy and inserts no deload of its own. `insertDeload` is plan-only by design (D-23), so the seed has to materialise the deload week itself. Hand-writing those rows would duplicate FR-2.12's volume maths in seed data, where it could drift. `src/data/seed` may therefore call `src/core`'s pure generators at runtime; every other file in `src/data` still imports core **types only**. | DESIGN §2.1, §4.6; FR-2.1, FR-2.12 (no SRS change) | template seed tests (§9) |
 | D-38 | **The start date is stepped, not picked.** §7.5 called for a date picker, which needs a native calendar dependency the project does not carry. FR-2.3 already defaults the start date to the next week-start day so plan weeks line up with calendar weeks, and moving it is the exception, so a `DateStepper` offers that default with week and day arrows either way. Week arrows keep the alignment; day arrows break it deliberately, and the alignment note disappears when they do. Steps before today are disabled. A calendar picker can replace it later without changing what is stored. | DESIGN §7.5; FR-2.3 (no SRS change) | DateStepper and Plan setup tests (§9) |
+| D-39 | **Starting and pre-filling a session.** Building Slice 6 found five gaps in §8.2. (1) Only today's open workout can be started. A missed one goes through its options (§8.4), which move it to today first; otherwise a missed session could complete without the schedule moving. (2) `session.local_date` is the day the session is logged, from `today`. (3) Sets that aren't double progression pre-fill reps at the bottom of their range (`repsMin`), and AMRAP reps stay empty until entered (§7.6). (4) With no double-progression state, the load pre-fill is the skill's most recent completed working set from a completed session (§3.12). (5) The rest timer's end time is kept in memory, in the session's UI store, and never stored: after a crash the timer doesn't reappear, but its scheduled notification still fires. `expo-haptics` joins §2.3 for the set-completion tap (§6). | DESIGN §2.3, §2.6, §3.12, §4.3, §8.2; FR-9.1, FR-9.2, FR-9.6 (no SRS change) | `startSession` and `prefillSets` tests (§9) |
 
 ### 1.2 Open design questions
 
@@ -190,6 +191,7 @@ All are free, and all licences allow store distribution (SRS §1.3).
 | Import validation | `zod` | MIT | 1.0 |
 | Notifications (rest timer, reminders) | `expo-notifications` | MIT | 1.0 |
 | Keep awake | `expo-keep-awake` | MIT | 1.0 |
+| Haptics | `expo-haptics` | MIT | 1.0 |
 | Export / import | `expo-file-system`, `expo-sharing`, `expo-document-picker` | MIT | 1.0 |
 | IDs | `expo-crypto` (`randomUUID`) | MIT | 1.0 |
 | Gestures, animation | `react-native-gesture-handler`, `react-native-reanimated` | MIT | 1.0 |
@@ -222,7 +224,7 @@ It is idempotent: running it twice changes nothing. It also runs at the end of `
 
 ### 2.6 Notifications
 
-- **Rest timer (FR-9.6):** when a set is completed and rest timer alerts are on (FR-12.5), schedule a local notification for `now + restSec` and store its ID. Skipping or adjusting the timer cancels and reschedules it. The in-app countdown is computed from the stored end time, so it stays correct after backgrounding.
+- **Rest timer (FR-9.6):** when a set is completed and rest timer alerts are on (FR-12.5), schedule a local notification for `now + restSec` and store its ID. Skipping or adjusting the timer cancels and reschedules it. The in-app countdown is computed from the stored end time, so it stays correct after backgrounding. The end time lives in memory, in the session's UI store, and isn't written to the database (D-39): after a crash the timer doesn't reappear, but the scheduled notification still fires.
 - **Workout reminder (FR-12.5):** one scheduled notification for the next workout date at the chosen time, rescheduled by `reconcile` and after any schedule change.
 - Permission is requested the first time it is needed (the first rest timer, or turning on reminders), not at launch.
 - **Android timing risk:** recent Android versions restrict exact alarms, which can delay time-based notifications. Test rest-timer notifications on a real Android phone before logging is built (`docs/BUILD_PLAN.md`, Slice 6). If they fire late, keep the in-app countdown authoritative, and request the exact-alarm permission only if it is really needed.
@@ -555,7 +557,7 @@ showReduceHint = state.consecutiveBelowMin >= 2
 - **Scope (D-20):** state is keyed by `cycle_exercise_id`, and a cycle exercise belongs to a workout definition. Every slot of "Full body A" therefore reads and writes the same state, in session order (AC-64).
 - **Revert (one tap):** sets `workingLoadKg = previousWorkingLoadKg` and clears the badge.
 - **Pre-fill (D-12):** after an increase, `repsMin`; otherwise `lastReps` for that set, clamped to the range (`repsMin` if there's no value).
-- **No working load yet** (first session of a new plan): pre-fill the skill's most recent logged load from any session. If the skill has never been logged, the load cell is empty and "done as planned" is disabled until a load is entered.
+- **No working load yet** (first session of a new plan): pre-fill the load of the skill's most recent completed working set (not a warm-up) from any completed session (D-39). If the skill has never been logged, the load cell is empty and "done as planned" is disabled until a load is entered.
 - **In deloads**, generated exercises read the source's state through `sourceCycleExerciseId` and apply the load factor, but never write to it.
 
 AC-28: 3 × 12 at 15 kg → 16 kg × 8, badge "↑ +1 kg". AC-29: 12/11/10 → stays at 15 kg, pre-fills 12/11/10. AC-56: 10@15, 9@16, 9@16 → 16 kg, pre-fills 10/9/9. AC-53: in a deload, 16 kg × 0.9 = 14.4 → 14 kg, state untouched.
@@ -943,7 +945,7 @@ CREATE TABLE session (
   name                TEXT NOT NULL,                 -- snapshot of the workout name
   kind                TEXT NOT NULL DEFAULT 'planned'
                         CHECK (kind IN ('planned','ad_hoc','one_rm_estimate','test_day')),
-  local_date          TEXT NOT NULL CHECK (local_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- date it counts for (history grouping)
+  local_date          TEXT NOT NULL CHECK (local_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- the day it was logged (D-39); groups history
   started_at          TEXT NOT NULL,
   ended_at            TEXT,
   status              TEXT NOT NULL CHECK (status IN ('in_progress','completed')),
@@ -1615,10 +1617,13 @@ Drafts left unused for 30 days are deleted on launch. A draft has no planned wor
 ```
 startSession(plannedWorkoutId | adHoc, now)
   - reject if another session is in progress (show "Resume" instead)
+  - reject unless the workout is upcoming and scheduled for today; a missed one starts through §8.4 (D-39)
   - reject if the plan is paused
   - resolve 1RM → TM per skill for this cycle; compute prescribed loads (§3.3)
-  - insert session, session_exercise (with snapshots), set_log rows (status 'pending', values pre-filled,
-    is_top_set copied from the prescription, top-set load from §3.3 and last cycle's top set looked up for display)
+  - insert session (local_date = today), session_exercise (with snapshots), set_log rows (status 'pending',
+    values pre-filled, is_top_set copied from the prescription, top-set load from §3.3 and last cycle's top set
+    looked up for display)
+  - pre-fill (D-39): reps = repsMin, empty for AMRAP; load from §3.3, or §3.12 for double progression
 completeSet(setLogId, values)        → UPDATE set_log …; the UI schedules the rest notification
 updateSet / addSet / deleteSet / swapExercise / addExercise   → single-row writes
 finishSession(sessionId, now)

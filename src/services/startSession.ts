@@ -48,7 +48,7 @@ export async function startSessionTx(
   const workout = await r.plannedWorkouts.get(input.plannedWorkoutId);
   if (!workout) return { ok: false, reason: 'not_found' };
   if (workout.status !== 'upcoming') return { ok: false, reason: 'not_open' };
-  // A missed workout is started through its options, which move it to today first (§8.4).
+  // A missed workout is started through its options, which move it to today first (§8.4, D-39).
   if (workout.scheduledDate !== ctx.today) return { ok: false, reason: 'not_today' };
 
   const plan = await r.plans.get(workout.planId);

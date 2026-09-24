@@ -21,7 +21,7 @@ const REPS: ReadonlySet<TrackingType> = new Set([
 
 /**
  * The sets of one exercise, in set order, with the prescription snapshotted and the values that
- * "done as planned" will log (FR-9.2). Reps start at the bottom of the range; an AMRAP set's reps
+ * "done as planned" will log (FR-9.2). Reps start at the bottom of the range (D-39); an AMRAP set's reps
  * stay empty until the lifter enters them (§7.6). A top set's load is its starting-% pre-fill
  * (FR-3.12). %-based loads are empty while the skill has no 1RM.
  */
