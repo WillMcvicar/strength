@@ -10,6 +10,32 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Added
 
+- Log a session (build plan Slice 6, FR-9 except FR-9.12, AC-3, AC-7, AC-31, AC-37–40, AC-43,
+  AC-44, AC-55): Start or Resume on Today opens the session screen with sets pre-filled (D-39), and
+  ✓ logs a set as planned. Reps, load and time can be edited before or after.
+- Per-set RPE (FR-9.2a): an inline 6–10 picker, pre-highlighted at the target RPE. It is required
+  on main lifts and top sets, and can be dismissed on everything else. A one-time tip explains it
+  (FR-6.2).
+- Top sets (FR-9.2b) are labelled with their target ("Work up to 1–3 @ RPE 8"), and show the last
+  top set as a reference.
+- Warm-up and failed sets (FR-9.14, FR-9.15). Both are excluded from volume and set counts, and
+  warm-ups need no RPE.
+- For this session only (FR-9.4, D-40): add or remove sets, add a warm-up set, swap an exercise, or
+  add an unplanned one from a skill picker. Done sets stay on the skill they were lifted on.
+- A rest timer that starts after each set and can be skipped or adjusted. When it ends, a local
+  notification fires even if the app is in the background (FR-9.6, DESIGN §2.6). There is also a
+  stopwatch for timed sets.
+- Notes on each exercise and on the session, and a session effort rating (FR-9.7). The screen stays
+  awake while a session is open, if that setting is on.
+- Finish with a summary of duration, total volume (unilateral skills count × 2, FR-1.8), sets
+  completed, effort and note (FR-9.8, FR-9.9). A session can also be discarded after confirming
+  (FR-9.11).
+- A session left in progress reopens on the next launch (FR-9.10, §7.1 launch rule 4).
+- Ad-hoc workouts from Today, outside any plan (FR-9.13). Only one session can be in progress at a
+  time.
+- Development only: a rest-timer notification timing tool on the More tab. It measures how late a
+  notification fires on a locked Android phone (DESIGN §2.6).
+
 - Start a plan from a template (build plan Slice 5, FR-2.1–2.3, FR-3.3, FR-4.1, AC-1): the two
   beginner templates are seeded as Block 1 → Deload → Block 2 (D-37), the Plans tab and template
   detail browse them, and "Use this template" runs the three-step Plan setup — start date (D-38),
