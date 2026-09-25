@@ -5,6 +5,8 @@ import MoreScreen from '../../app/(tabs)/more';
 import { useResetAppData } from '@/features/devTools';
 import { useRestTimerSpike } from '@/features/restTimerSpike';
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { push: (href: string) => mockPush(href) } }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View };
@@ -28,6 +30,12 @@ beforeEach(() => {
 });
 
 describe('the More tab', () => {
+  it('opens History (FR-11.1, §7.1)', async () => {
+    await render(<MoreScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'History' }));
+    expect(mockPush).toHaveBeenCalledWith('/history');
+  });
+
   it('offers the reset in development, and says what it clears', async () => {
     await render(<MoreScreen />);
     expect(screen.getByText('More')).toBeOnTheScreen();

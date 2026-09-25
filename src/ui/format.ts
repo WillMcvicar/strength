@@ -34,6 +34,18 @@ export function spokenDay(date: LocalDate): string {
   return `${p.day} ${p.date} ${p.month}`;
 }
 
+/** A History month heading: "2026-09" → "September 2026" (§7.12). */
+export function formatMonth(yearMonth: string): string {
+  return `${MONTHS[Number(yearMonth.slice(5, 7)) - 1]} ${yearMonth.slice(0, 4)}`;
+}
+
+/** The plan date an event happened on, in the device's zone: "2026-09-16T05:00Z" in Auckland is 16 Sep. */
+export function localDayOf(iso: string): LocalDate {
+  const d = new Date(iso);
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+}
+
 /** Elapsed or remaining time: "0:45", "1:42", "24:13", "1:02:05". */
 export function formatClock(totalSec: number): string {
   const sec = Math.max(0, Math.round(totalSec));

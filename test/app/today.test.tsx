@@ -182,13 +182,47 @@ describe('Today screen (§7.2)', () => {
     expect(screen.getByText('No more workouts in this plan.')).toBeTruthy();
   });
 
-  it("shows today's workout as done once completed (FR-7.5)", async () => {
-    show({ ...workout, card: { ...workout.card, kind: 'completed' } } as TodayView);
+  it("shows today's workout as done, with its figures and PRs, once completed (FR-7.5, FR-10.2)", async () => {
+    show({
+      ...workout,
+      card: {
+        kind: 'completed',
+        workoutId: 'pw1',
+        name: 'Full body A',
+        session: {
+          sessionId: 's1',
+          durationMin: 52,
+          setsCompleted: 16,
+          volumeKg: 6062.5,
+          prs: {
+            prs: [
+              {
+                id: 'p1',
+                skillId: 'skill_bench_press',
+                skillName: 'Bench press',
+                type: 'heaviest',
+                value: 82.5,
+                contextWeightKg: null,
+                perSide: false,
+                achievedAt: '2026-09-16T18:10:00.000Z',
+                sessionId: 's1',
+              },
+            ],
+            firstLog: [],
+          },
+        },
+      },
+    });
     await render(<TodayScreen />);
 
     expect(screen.getByLabelText('Done')).toBeTruthy();
     expect(screen.getByRole('header', { name: 'Full body A' })).toBeTruthy();
+    expect(screen.getByText('52 min · 16 sets · 6,063 kg')).toBeTruthy();
+    expect(screen.getByRole('header', { name: '1 new PR' })).toBeTruthy();
+    expect(screen.getByLabelText('Bench press, heaviest, 82.5 kilograms')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Start workout' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'View session' }));
+    expect(mockPush).toHaveBeenCalledWith('/history/s1');
   });
 
   it('shows the no-plan empty state with both actions (FR-7.8)', async () => {

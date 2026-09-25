@@ -1,7 +1,9 @@
-// Session summary (FR-9.8, DESIGN §7.7): duration, sets and volume, then effort and a note.
+// Session summary (FR-9.8, FR-10.2, DESIGN §7.7): duration, sets and volume, PRs, then effort and
+// a note.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import SessionSummaryScreen from '../../app/session/summary/[id]';
+import type { PrView } from '@/features/prs';
 import { useSession, useSessionActions, type SessionView } from '@/features/session';
 
 const mockReplace = jest.fn();
@@ -31,6 +33,7 @@ const finished: SessionView = {
   id: 's1',
   name: 'Full body A',
   kind: 'planned',
+  localDate: '2026-09-14',
   status: 'completed',
   startedAt: '2026-09-16T17:30:00.000Z',
   endedAt: '2026-09-16T18:22:00.000Z',
@@ -44,7 +47,21 @@ const finished: SessionView = {
   restTimerAlerts: true,
   tips: { rpePicker: false, topSet: false },
   exercises: [],
+  prs: { prs: [], firstLog: [] },
 };
+
+const pr = (id: string, over: Partial<PrView>): PrView => ({
+  id,
+  skillId: 'skill_bench_press',
+  skillName: 'Bench press',
+  type: 'heaviest',
+  value: 82.5,
+  contextWeightKg: null,
+  perSide: false,
+  achievedAt: '2026-09-16T18:10:00.000Z',
+  sessionId: 's1',
+  ...over,
+});
 
 beforeEach(() => {
   mockCanGoBack = true;
@@ -84,5 +101,33 @@ describe('Session summary (§7.7)', () => {
     await render(<SessionSummaryScreen />);
     await fireEvent.press(screen.getByRole('button', { name: 'Back to Today' }));
     expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+});
+
+describe('AC-4 PR detection', () => {
+  it('shows the heaviest and Est. 1RM PRs for 82.5 kg × 5 @ RPE 9 (§7.7)', async () => {
+    const prs = [pr('p1', {}), pr('p2', { type: 'e1rm', value: 82.5 * (1 + 6 / 30) })];
+    jest
+      .mocked(useSession)
+      .mockReturnValue({ status: 'ready', session: { ...finished, prs: { prs, firstLog: [] } } });
+    await render(<SessionSummaryScreen />);
+
+    expect(screen.getByRole('header', { name: '2 new PRs' })).toBeTruthy();
+    expect(screen.getByLabelText('Bench press, heaviest, 82.5 kilograms')).toBeTruthy();
+    expect(screen.getByLabelText('Bench press, estimated 1 rep max, 99 kilograms')).toBeTruthy();
+    expect(screen.getByText('Est. 1RM')).toBeTruthy();
+  });
+});
+
+describe('First log (C-7)', () => {
+  it('names a first-ever log instead of counting its baseline as new PRs', async () => {
+    jest.mocked(useSession).mockReturnValue({
+      status: 'ready',
+      session: { ...finished, prs: { prs: [], firstLog: ['Squat', 'Plank'] } },
+    });
+    await render(<SessionSummaryScreen />);
+
+    expect(screen.getByText('First log: Squat, Plank')).toBeTruthy();
+    expect(screen.queryByText(/new PR/)).toBeNull();
   });
 });
