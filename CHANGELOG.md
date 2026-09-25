@@ -10,6 +10,19 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Added
 
+- Personal records (build plan Slice 7, FR-10.1–10.3, FR-10.5, AC-4, AC-5, AC-23, AC-40, AC-54):
+  finishing a workout records heaviest, estimated 1RM (RIR 0 when no RPE, D-10), reps at a
+  weight, most reps, added load and longest time PRs. They show on the summary and on Today's
+  completed card, and a skill's first log is named rather than celebrated (C-7). A PR never
+  changes the 1RM or TM.
+- History (FR-11.1, FR-11.3, FR-9.12): More → History lists finished workouts by month with ★ for
+  PRs. Session detail shows every set, with Edit (the logging screen without a timer) and Delete.
+  Both recalculate the PRs of the exercises they touch, and Delete puts a planned workout back
+  into the plan (C-4).
+- Progress is the PR board: every logged exercise with its headline record, searchable, opening
+  an exercise detail with current PRs, 1RM history and recent workouts.
+- A timing test for History and PR queries at 500 sessions × 40 sets (DESIGN §4.7).
+
 - Log a session (build plan Slice 6, FR-9 except FR-9.12, AC-3, AC-7, AC-31, AC-37–40, AC-43,
   AC-44, AC-55): Start or Resume on Today opens the session screen with sets pre-filled (D-39), and
   ✓ logs a set as planned. Reps, load and time can be edited before or after.
