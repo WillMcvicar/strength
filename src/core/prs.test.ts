@@ -3,6 +3,7 @@ import {
   bestsOf,
   currentBests,
   detectPrs,
+  firstLogSessions,
   headlinePr,
   prScores,
   replayPrs,
@@ -278,6 +279,23 @@ describe('sessionHighlights (FR-10.2, §7.7, C-7)', () => {
     const mixed = sessionHighlights(rows, new Set(['squat']));
     expect(mixed.firstLog).toEqual(['squat']);
     expect(mixed.prs.map((r) => r.skillId)).toEqual(['bench', 'bench']);
+  });
+});
+
+describe('firstLogSessions (C-7)', () => {
+  it("maps each skill to the session of its oldest record, or null when that's manual", () => {
+    const rows = [
+      aRecord({ skillId: 'squat', sessionId: 's1' }),
+      aRecord({ skillId: 'bench', isManual: true, sessionId: null }),
+      aRecord({ skillId: 'squat', sessionId: 's2' }),
+      aRecord({ skillId: 'bench', sessionId: 's2' }),
+    ];
+    expect(firstLogSessions(rows)).toEqual(
+      new Map([
+        ['squat', 's1'],
+        ['bench', null],
+      ]),
+    );
   });
 });
 

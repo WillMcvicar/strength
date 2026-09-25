@@ -24,16 +24,6 @@ export function personalRecordRepository(o: Orm) {
         .orderBy(asc(personalRecord.achievedAt), asc(sql`rowid`));
     },
 
-    /** Records set in any of these sessions, for the History ★ (FR-11.1). */
-    async bySessions(sessionIds: readonly string[]): Promise<PersonalRecord[]> {
-      if (sessionIds.length === 0) return [];
-      return o
-        .select()
-        .from(personalRecord)
-        .where(inArray(personalRecord.sessionId, [...sessionIds]))
-        .orderBy(asc(personalRecord.achievedAt), asc(sql`rowid`));
-    },
-
     /** Every record for these skills, oldest first. */
     async bySkills(skillIds: readonly string[]): Promise<PersonalRecord[]> {
       if (skillIds.length === 0) return [];

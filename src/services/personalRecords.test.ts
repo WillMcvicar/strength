@@ -1,12 +1,23 @@
 // PRs through the services (DESIGN §3.13, §4.4, §8.2): detection on finish, replay after a past
 // session is edited or deleted, and the 1RM left alone (FR-10.1, FR-10.5, FR-9.12, FR-3.10).
-import { rpeRequired, type PersonalRecord } from '@/core';
+import type { PersonalRecord } from '@/core';
 import type { Db } from '@/data/db';
 import { repositories, type Repositories } from '@/data/repositories';
 
 import { openMigratedTestDb } from '../../test/db/betterSqlite3';
 import { idSequence } from '../../test/fixtures/ids';
-import { aStartedPlan, START } from '../../test/fixtures/sessions';
+import {
+  aStartedPlan,
+  FRI,
+  logAndFinish as logAndFinishOf,
+  logDay as logDayOf,
+  MON,
+  NEXT_MON,
+  on as atDate,
+  START,
+  WED,
+  type SetValues,
+} from '../../test/fixtures/sessions';
 import { addSet } from './addSet';
 import { completeSet } from './completeSet';
 import type { ServiceContext } from './context';
@@ -15,8 +26,6 @@ import { deleteSet } from './deleteSet';
 import { finishSession } from './finishSession';
 import { markSetFailed } from './markSetFailed';
 import { removeExercise } from './removeExercise';
-import type { SetInput } from './setValues';
-import { startSession } from './startSession';
 import { swapExercise } from './swapExercise';
 import { updateSet } from './updateSet';
 
@@ -24,11 +33,6 @@ let db: Db;
 let repos: Repositories;
 let ctx: ServiceContext;
 let planId: string;
-
-const MON = START; // Full body A: squat, dumbbell press, dumbbell row, plank
-const WED = '2026-09-16'; // Full body B: bench, pull-up, run
-const FRI = '2026-09-18'; // Full body A
-const NEXT_MON = '2026-09-21'; // week B: Full body B
 
 beforeEach(async () => {
   db = await openMigratedTestDb();
@@ -41,42 +45,11 @@ afterEach(async () => {
   await db.closeAsync();
 });
 
-const on = (date: string, time = '17:00'): ServiceContext => ({
-  ...ctx,
-  today: date,
-  now: `${date}T${time}:00.000Z`,
-});
-
-type Values = Omit<SetInput, 'setLogId'>;
-
-/**
- * Starts the day's workout and logs every set: working sets of a skill in `values` take those
- * values, and everything else is done as planned. Returns the session, not yet finished.
- */
-async function logDay(date: string, values: Record<string, Values> = {}): Promise<string> {
-  const c = on(date);
-  const workout = (await repos.plannedWorkouts.listByPlan(planId)).find(
-    (w) => w.scheduledDate === date,
-  )!;
-  const started = await startSession(db, { plannedWorkoutId: workout.id }, c);
-  if (!started.ok) throw new Error(started.reason);
-  for (const { exercise, sets } of await repos.sessions.exercises(started.sessionId)) {
-    for (const s of sets) {
-      const given = s.isWarmup ? {} : (values[exercise.skillId] ?? {});
-      const rpe = rpeRequired(exercise, s) ? (s.targetRpeMax ?? 8) : undefined;
-      const done = await completeSet(db, { rpe, ...given, setLogId: s.id }, c);
-      if (!done.ok) throw new Error(`${exercise.skillId}: ${done.reason}`);
-    }
-  }
-  return started.sessionId;
-}
-
-async function logAndFinish(date: string, values: Record<string, Values> = {}) {
-  const sessionId = await logDay(date, values);
-  const finished = await finishSession(db, { sessionId }, on(date, '18:00'));
-  if (!finished.ok) throw new Error(finished.reason);
-  return { sessionId, prs: finished.prs };
-}
+const on = (date: string, time = '17:00') => atDate(ctx, date, time);
+const logDay = (date: string, values: Record<string, SetValues> = {}) =>
+  logDayOf(db, planId, date, ctx, values);
+const logAndFinish = (date: string, values: Record<string, SetValues> = {}) =>
+  logAndFinishOf(db, planId, date, ctx, values);
 
 const brief = (rows: readonly PersonalRecord[], skillId?: string) =>
   rows

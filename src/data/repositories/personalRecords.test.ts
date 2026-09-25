@@ -122,12 +122,6 @@ describe('personal record repository', () => {
       aRecord('later', { sessionId: 's2', achievedAt: '2024-01-02T17:10:00.000Z' }),
     ]);
     expect((await repos.prs.bySession('s1')).map((r) => r.id)).toEqual(['z', 'a']);
-    expect((await repos.prs.bySessions(['s2', 's1'])).map((r) => r.id)).toEqual([
-      'z',
-      'a',
-      'later',
-    ]);
-    expect(await repos.prs.bySessions([])).toEqual([]);
     expect((await repos.prs.bySkills(['skill_back_squat'])).map((r) => r.id)).toEqual([
       'z',
       'a',
@@ -199,12 +193,10 @@ describe('query performance (§4.7, NFR-5)', () => {
       await query();
       return performance.now() - start;
     };
-    const ids = (await repos.sessions.completed()).slice(0, 50).map((s) => s.id);
     const times = {
       history: await timed(() => repos.sessions.completed()),
-      historyPrs: await timed(() => repos.prs.bySessions(ids)),
       board: await timed(() => repos.sessions.loggedSkillIds()),
-      boardPrs: await timed(() => repos.prs.all()),
+      allPrs: await timed(() => repos.prs.all()),
       skillPrs: await timed(() => repos.prs.bySkills(['skill_back_squat'])),
       recent: await timed(() => repos.sessions.completedWithSkill('skill_back_squat', 10)),
       replay: await timed(() => repos.sessions.prSets(['skill_back_squat'])),

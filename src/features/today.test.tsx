@@ -151,7 +151,7 @@ describe('useToday with a session (FR-9.1, FR-9.10, §7.2)', () => {
     });
   });
 
-  it('shows the workout as done once the session is finished (FR-7.5)', async () => {
+  it('shows the workout as done, with its session summary, once finished (FR-7.5)', async () => {
     await startBeginner();
     const [monday] = await repositories(db).plannedWorkouts.listByPlan('plan');
     const started = await startSession(db, { plannedWorkoutId: monday!.id }, ctx);
@@ -160,6 +160,20 @@ describe('useToday with a session (FR-9.1, FR-9.10, §7.2)', () => {
 
     const { result } = await renderHook(() => useToday('2026-09-14'), { wrapper });
     await waitFor(() => expect(result.current.status).toBe('ready'));
-    expect(result.current).toMatchObject({ card: { kind: 'completed' }, inProgress: null });
+    expect(result.current).toMatchObject({
+      card: {
+        kind: 'completed',
+        name: 'Full body A',
+        // Nothing was ticked, so no sets, volume or PRs; the times are the same instant.
+        session: {
+          sessionId: started.sessionId,
+          durationMin: 0,
+          setsCompleted: 0,
+          volumeKg: 0,
+          prs: { prs: [], firstLog: [] },
+        },
+      },
+      inProgress: null,
+    });
   });
 });

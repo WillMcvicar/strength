@@ -191,3 +191,17 @@ export function headlinePr(bests: readonly PersonalRecord[]): PersonalRecord | n
   }
   return bests[0] ?? null;
 }
+
+/**
+ * The session each skill was first logged in, from its oldest record (C-7). A skill whose oldest
+ * record is manual maps to null: it had a best before its first logged session.
+ */
+export function firstLogSessions(
+  oldestFirst: readonly Pick<PersonalRecord, 'skillId' | 'sessionId' | 'isManual'>[],
+): Map<string, string | null> {
+  const first = new Map<string, string | null>();
+  for (const r of oldestFirst) {
+    if (!first.has(r.skillId)) first.set(r.skillId, r.isManual ? null : r.sessionId);
+  }
+  return first;
+}

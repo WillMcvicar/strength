@@ -6,6 +6,7 @@ import {
   cycleFirstWeek,
   estimatedDurationMin,
   progress,
+  sessionTotals,
   todayCard,
   weekDays,
   weekPosition,
@@ -25,14 +26,32 @@ import { today as clockToday } from '@/services/clock';
 import { startAdHocSession } from '@/services/startAdHocSession';
 import { startSession, type StartSessionError } from '@/services/startSession';
 
+import { secondsBetween } from './device';
 import { useDb } from './database';
+import { readSessionPrs, type SessionPrsView } from './prs';
 import { serviceContext } from './serviceContext';
 import { useLiveQuery } from './useLiveQuery';
+
+/** A workout done today (FR-7.5, §7.2): its summary and PR chips, opening to History. */
+export interface CompletedSessionView {
+  sessionId: string;
+  durationMin: number;
+  setsCompleted: number;
+  volumeKg: number;
+  prs: SessionPrsView;
+}
 
 export type TodayCardView =
   | { kind: 'no_plan' }
   | {
-      kind: 'workout' | 'in_progress' | 'completed';
+      kind: 'completed';
+      workoutId: string;
+      name: string;
+      /** Null only if its session has gone missing. */
+      session: CompletedSessionView | null;
+    }
+  | {
+      kind: 'workout' | 'in_progress';
       /** The planned workout, which "Start workout" starts (FR-9.1). */
       workoutId: string;
       name: string;
@@ -118,6 +137,13 @@ async function readToday(
         ? { name: await workoutName(r, card.next), date: card.next.scheduledDate }
         : null,
     };
+  } else if (card.kind === 'completed') {
+    cardView = {
+      kind: 'completed',
+      workoutId: card.workout.id,
+      name: await workoutName(r, card.workout),
+      session: card.workout.sessionId ? await completedSession(r, card.workout.sessionId) : null,
+    };
   } else {
     const workout = card.workout;
     const blueprint = await r.blueprints.loadBlueprint(workout.cycleGroupId);
@@ -152,6 +178,26 @@ async function readToday(
   }
 
   return { unit: settings.unit, card: cardView, plan: planView, inProgress };
+}
+
+async function completedSession(
+  r: Repositories,
+  sessionId: string,
+): Promise<CompletedSessionView | null> {
+  const session = await r.sessions.get(sessionId);
+  if (!session?.endedAt) return null;
+  const [logged, prs] = await Promise.all([
+    r.sessions.exercises(sessionId),
+    readSessionPrs(r, sessionId),
+  ]);
+  const totals = sessionTotals(logged);
+  return {
+    sessionId,
+    durationMin: Math.round(secondsBetween(session.startedAt, session.endedAt) / 60),
+    setsCompleted: totals.setsCompleted,
+    volumeKg: totals.volumeKg,
+    prs,
+  };
 }
 
 async function workoutName(r: Repositories, workout: PlannedWorkout): Promise<string> {
