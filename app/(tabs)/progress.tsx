@@ -72,7 +72,7 @@ function BoardRow({ row, unit }: { row: PrBoardRowView; unit: Unit }) {
   const c = useColors();
   const type = useTypography();
   const text = row.headline ? prText(row.headline, unit) : null;
-  const day = row.headline ? localDayOf(row.headline.achievedAt) : null;
+  const day = row.headline ? (row.headline.day ?? localDayOf(row.headline.achievedAt)) : null;
   const spoken = text && day ? `${text.spoken}, set ${spokenDay(day)}` : `${row.name}, no records`;
   return (
     <Pressable

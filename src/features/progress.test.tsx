@@ -60,7 +60,7 @@ describe('AC-4 PR detection', () => {
     const bench = board.rows.find((row) => row.skillId === 'skill_bench_press');
     expect(bench).toMatchObject({
       name: 'Bench press',
-      headline: { type: 'heaviest', value: 82.5, sessionId: second },
+      headline: { type: 'heaviest', value: 82.5, sessionId: second, day: NEXT_MON },
     });
   });
 });

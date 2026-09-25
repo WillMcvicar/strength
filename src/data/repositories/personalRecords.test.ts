@@ -147,12 +147,21 @@ describe('history queries (FR-11.1, §7.11)', () => {
     await repos.sessions.insertSet(aSet('x2', 'e2', 1));
     await repos.sessions.insertSet(aSet('x3', 'e3', 1, { status: 'pending' }));
     await repos.sessions.insertSet(aSet('x4', 'e4', 1));
+    // Bench was added to "new" but never done, so that session isn't a bench workout.
+    expect(await repos.sessions.completedWithSkill('skill_bench_press', 5)).toEqual([]);
 
     expect((await repos.sessions.completed()).map((s) => s.id)).toEqual(['new', 'old']);
     expect(await repos.sessions.loggedSkillIds()).toEqual(['skill_back_squat']);
     expect(
       (await repos.sessions.completedWithSkill('skill_back_squat', 1)).map((s) => s.id),
     ).toEqual(['new']);
+    expect(await repos.sessions.localDates(['old', 'new', 'old'])).toEqual(
+      new Map([
+        ['old', day(0)],
+        ['new', day(5)],
+      ]),
+    );
+    expect(await repos.sessions.localDates([])).toEqual(new Map());
   });
 });
 

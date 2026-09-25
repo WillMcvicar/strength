@@ -29,6 +29,7 @@ const pr = (id: string, over: Partial<PrView> = {}): PrView => ({
   contextWeightKg: null,
   perSide: false,
   achievedAt: WED_NOON,
+  day: '2026-09-16',
   sessionId: 's2',
   ...over,
 });
@@ -57,6 +58,29 @@ describe('AC-4 PR detection', () => {
 });
 
 describe('the PR board (FR-10.3, §7.11)', () => {
+  it('dates a record by the day its session was logged, not when its set was ticked (D-39)', async () => {
+    // Ticked after midnight in a session logged on the 15th.
+    const late = pr('p1', { day: '2026-09-15', achievedAt: WED_NOON });
+    jest.mocked(usePrBoard).mockReturnValue({
+      status: 'ready',
+      unit: 'kg',
+      rows: [{ skillId: 'skill_bench_press', name: 'Bench press', headline: late }],
+    });
+    await render(<ProgressScreen />);
+    expect(screen.getByText('Heaviest · Tue 15 Sep')).toBeTruthy();
+  });
+
+  it('dates a manual record, which has no session, by when it was set', async () => {
+    const manual = pr('p1', { day: null, sessionId: null });
+    jest.mocked(usePrBoard).mockReturnValue({
+      status: 'ready',
+      unit: 'kg',
+      rows: [{ skillId: 'skill_bench_press', name: 'Bench press', headline: manual }],
+    });
+    await render(<ProgressScreen />);
+    expect(screen.getByText('Heaviest · Wed 16 Sep')).toBeTruthy();
+  });
+
   it('searches by name, and lists a skill with no records', async () => {
     jest.mocked(usePrBoard).mockReturnValue({
       status: 'ready',

@@ -40,7 +40,9 @@ export async function readHistory(db: Db): Promise<HistoryMonthView[]> {
   const bySession = new Map<string, PersonalRecord[]>();
   for (const row of records) {
     if (row.sessionId === null) continue;
-    bySession.set(row.sessionId, [...(bySession.get(row.sessionId) ?? []), row]);
+    const group = bySession.get(row.sessionId);
+    if (group) group.push(row);
+    else bySession.set(row.sessionId, [row]);
   }
 
   const months: HistoryMonthView[] = [];

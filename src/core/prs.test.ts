@@ -149,6 +149,13 @@ describe('detectPrs (§3.13)', () => {
     ]);
   });
 
+  it('treats e1RMs equal but for floating-point noise as a tie, not a PR', () => {
+    // 87.5 × (1 + 10/30) and 100 × (1 + 5/30) are both 116.67, a hair apart in floating point.
+    const bests = bestsOf(detectPrs(new Map(), [aSet({ loadKg: 87.5, reps: 10 })]));
+    const found = detectPrs(bests, [aSet({ loadKg: 100, reps: 5 })]);
+    expect(typesOf(found)).toEqual(['heaviest', 'reps_at_weight']);
+  });
+
   it('keys reps at weight by the exact weight, so a new weight is its own first record', () => {
     const bests = bestsOf(detectPrs(new Map(), [aSet({ loadKg: 80, reps: 8 })]));
     const found = detectPrs(bests, [aSet({ loadKg: 70, reps: 5 })]);

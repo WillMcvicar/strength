@@ -61,7 +61,7 @@ function Detail({ detail }: { detail: ExerciseDetailView }) {
         ) : (
           detail.prs.map((pr) => {
             const text = prText(pr, unit);
-            const day = localDayOf(pr.achievedAt);
+            const day = pr.day ?? localDayOf(pr.achievedAt);
             return (
               <View
                 key={pr.id}

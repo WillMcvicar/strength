@@ -4,8 +4,16 @@
 // is open. With `?edit=1` it edits a finished session from History instead (FR-9.12, §7.12): no
 // clock, rest timer or keep-awake, and Done in place of Finish. Each change replays its PRs.
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  BackHandler,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatLoad, nextSetId, restsAfter, toDisplay, toKg } from '@/core';
@@ -213,6 +221,19 @@ function Session({ session, pastEdit = false }: { session: SessionView; pastEdit
     await flushNote();
     router.back();
   };
+  // Android's Back leaves the same way, so a set still waiting for its RPE isn't dropped silently.
+  const doneRef = useRef(done);
+  useEffect(() => {
+    doneRef.current = done;
+  });
+  useEffect(() => {
+    if (!pastEdit) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      void doneRef.current();
+      return true;
+    });
+    return () => sub.remove();
+  }, [pastEdit]);
 
   const unfinished = session.setsIncomplete;
   const needingRpe = allSets.filter((x) => awaitingRpe.has(x.set.id));

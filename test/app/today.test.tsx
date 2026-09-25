@@ -205,6 +205,7 @@ describe('Today screen (§7.2)', () => {
                 contextWeightKg: null,
                 perSide: false,
                 achievedAt: '2026-09-16T18:10:00.000Z',
+                day: '2026-09-16',
                 sessionId: 's1',
               },
             ],

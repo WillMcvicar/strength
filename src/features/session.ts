@@ -287,7 +287,11 @@ export function useSessionActions(sessionId: string): SessionActions {
       details: (input) => run((d, c) => updateSessionDetails(d, { sessionId, ...input }, c)),
       dismissTip: (key) => run((d, c) => dismissTip(d, { key }, c)),
       discard: () => run((d, c) => discardSession(d, { sessionId }, c)),
-      remove: () => run((d, c) => deleteSession(d, { sessionId }, c)),
+      remove: async () => {
+        const result = await deleteSession(db, { sessionId }, serviceContext());
+        if (result.ok || result.reason !== 'not_found') return toResult(result);
+        return { ok: false, message: 'This workout has already been deleted.' };
+      },
       finish: async () => {
         const result = await finishSession(db, { sessionId }, serviceContext());
         return result.ok ? result : { ok: false as const, message: MESSAGES[result.reason]! };

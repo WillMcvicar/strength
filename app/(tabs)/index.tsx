@@ -223,6 +223,7 @@ function CompletedCard({
   const type = useTypography();
   const done = card.session;
   const volume = done ? formatVolume(done.volumeKg, unit) : null;
+  const sets = done ? `${done.setsCompleted} ${done.setsCompleted === 1 ? 'set' : 'sets'}` : '';
   return (
     <View style={styles.cardBody}>
       <View style={styles.titleRow}>
@@ -234,10 +235,10 @@ function CompletedCard({
       {done && volume && (
         <>
           <Text
-            accessibilityLabel={`${done.durationMin} minutes, ${done.setsCompleted} sets, ${volume.spoken} lifted`}
+            accessibilityLabel={`${done.durationMin} minutes, ${sets}, ${volume.spoken} lifted`}
             style={[type.body, { color: c.ink }]}
           >
-            {done.durationMin} min · {done.setsCompleted} sets · {volume.shown}
+            {done.durationMin} min · {sets} · {volume.shown}
           </Text>
           <PrList prs={done.prs} unit={unit} />
           <Button

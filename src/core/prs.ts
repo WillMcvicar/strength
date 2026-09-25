@@ -30,6 +30,13 @@ export type NewPr = Omit<PersonalRecord, 'id'>;
 
 type Keyed = Pick<PersonalRecord, 'skillId' | 'type' | 'contextWeightKg'>;
 
+/**
+ * Whether a value strictly beats the best so far. Values within a millionth are a tie: e1RMs of
+ * different sets can be equal but for floating-point noise (87.5 × 10 and 100 × 5 are both 116.67).
+ */
+const beats = (value: number, best: number | undefined): boolean =>
+  best === undefined || value > best + 1e-6;
+
 /** The (skill, type, weight) a record competes within. */
 const keyOf = (r: Keyed): string => `${r.skillId}|${r.type}|${r.contextWeightKg ?? ''}`;
 
@@ -92,8 +99,7 @@ export function detectPrs(bests: ReadonlyMap<string, number>, sets: readonly PrS
   for (const s of sets) {
     for (const score of prScores(s)) {
       const key = keyOf({ skillId: s.skillId, ...score });
-      const best = running.get(key);
-      if (best !== undefined && score.value <= best) continue;
+      if (!beats(score.value, running.get(key))) continue;
       running.set(key, score.value);
       found.push({
         skillId: s.skillId,

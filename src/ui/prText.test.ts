@@ -12,6 +12,7 @@ const pr = (over: Partial<PrView>): PrView => ({
   contextWeightKg: null,
   perSide: false,
   achievedAt: '2026-09-16T18:00:00.000Z',
+  day: '2026-09-16',
   sessionId: 's1',
   ...over,
 });

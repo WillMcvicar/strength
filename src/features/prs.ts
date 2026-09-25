@@ -3,6 +3,7 @@
 import {
   firstLogSessions,
   sessionHighlights,
+  type LocalDate,
   type PersonalRecord,
   type PrType,
   type Skill,
@@ -21,6 +22,8 @@ export interface PrView {
   /** Loads of a per-side skill read "22.5 kg × 2" (FR-1.8). */
   perSide: boolean;
   achievedAt: string;
+  /** The day its session was logged (D-39); null for a manual PR, dated by `achievedAt`. */
+  day: LocalDate | null;
   sessionId: string | null;
 }
 
@@ -31,7 +34,11 @@ export interface SessionPrsView {
   firstLog: string[];
 }
 
-export function prView(record: PersonalRecord, skill: Skill | undefined): PrView {
+export function prView(
+  record: PersonalRecord,
+  skill: Skill | undefined,
+  days: ReadonlyMap<string, LocalDate>,
+): PrView {
   return {
     id: record.id,
     skillId: record.skillId,
@@ -41,6 +48,7 @@ export function prView(record: PersonalRecord, skill: Skill | undefined): PrView
     contextWeightKg: record.contextWeightKg,
     perSide: skill?.loadConvention === 'per_side',
     achievedAt: record.achievedAt,
+    day: record.sessionId === null ? null : (days.get(record.sessionId) ?? null),
     sessionId: record.sessionId,
   };
 }
@@ -50,16 +58,17 @@ export async function readSessionPrs(r: Repositories, sessionId: string): Promis
   const rows = await r.prs.bySession(sessionId);
   if (rows.length === 0) return { prs: [], firstLog: [] };
   const skillIds = [...new Set(rows.map((row) => row.skillId))];
-  const [history, skills] = await Promise.all([
+  const [history, skills, days] = await Promise.all([
     r.prs.bySkills(skillIds),
     r.skills.getMany(skillIds),
+    r.sessions.localDates([sessionId]),
   ]);
   const first = firstLogSessions(history);
   const firstLogSkills = new Set(skillIds.filter((id) => first.get(id) === sessionId));
   const shown = sessionHighlights(rows, firstLogSkills);
   const byId = new Map(skills.map((s) => [s.id, s]));
   return {
-    prs: shown.prs.map((row) => prView(row, byId.get(row.skillId))),
+    prs: shown.prs.map((row) => prView(row, byId.get(row.skillId), days)),
     firstLog: shown.firstLog.map((id) => byId.get(id)?.name ?? 'Unknown exercise'),
   };
 }

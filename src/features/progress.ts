@@ -48,14 +48,16 @@ export async function readPrBoard(db: Db): Promise<{ unit: Unit; rows: PrBoardRo
     r.prs.bySkills(skillIds),
   ]);
   const bySkill = groupBySkill(records);
-  const rows = skills.map((skill) => {
-    const headline = headlinePr(currentBests(bySkill.get(skill.id) ?? []));
-    return {
-      skillId: skill.id,
-      name: skill.name,
-      headline: headline ? prView(headline, skill) : null,
-    };
-  });
+  const headlines = skills.map((skill) => ({
+    skill,
+    headline: headlinePr(currentBests(bySkill.get(skill.id) ?? [])),
+  }));
+  const days = await r.sessions.localDates(sessionIdsOf(headlines.map((h) => h.headline)));
+  const rows = headlines.map(({ skill, headline }) => ({
+    skillId: skill.id,
+    name: skill.name,
+    headline: headline ? prView(headline, skill, days) : null,
+  }));
   rows.sort((a, b) => a.name.localeCompare(b.name));
   return { unit: settings.unit, rows };
 }
@@ -110,11 +112,13 @@ export async function readExerciseDetail(
     r.oneRepMax.bySkill(skillId),
     r.sessions.completedWithSkill(skillId, RECENT_SESSIONS),
   ]);
+  const bests = currentBests(records);
+  const days = await r.sessions.localDates(sessionIdsOf(bests));
   return {
     skillId,
     name: skill.name,
     unit: settings.unit,
-    prs: currentBests(records).map((row) => prView(row, skill)),
+    prs: bests.map((row) => prView(row, skill, days)),
     oneRmHistory: oneRms.map((row) => ({
       id: row.id,
       oneRmKg: row.oneRmKg,
@@ -128,6 +132,13 @@ export async function readExerciseDetail(
 
 function groupBySkill(records: readonly PersonalRecord[]): Map<string, PersonalRecord[]> {
   const bySkill = new Map<string, PersonalRecord[]>();
-  for (const row of records) bySkill.set(row.skillId, [...(bySkill.get(row.skillId) ?? []), row]);
+  for (const row of records) {
+    const group = bySkill.get(row.skillId);
+    if (group) group.push(row);
+    else bySkill.set(row.skillId, [row]);
+  }
   return bySkill;
 }
+
+const sessionIdsOf = (records: readonly (PersonalRecord | null)[]): string[] =>
+  records.flatMap((row) => (row?.sessionId ? [row.sessionId] : []));

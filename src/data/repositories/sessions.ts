@@ -3,7 +3,7 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 
 import type { PrSet } from '@/core/prs';
-import type { Session, SessionExercise, SetLog } from '@/core/types';
+import type { LocalDate, Session, SessionExercise, SetLog } from '@/core/types';
 
 import type { Orm } from '../orm';
 import { session, sessionExercise, setLog } from '../schema';
@@ -268,6 +268,16 @@ export function sessionRepository(o: Orm) {
         .orderBy(asc(setLog.completedAt), asc(sessionExercise.sortOrder), asc(setLog.setIndex));
     },
 
+    /** The day each session was logged (D-39), for dating its PRs. */
+    async localDates(sessionIds: readonly string[]): Promise<Map<string, LocalDate>> {
+      if (sessionIds.length === 0) return new Map();
+      const rows = await o
+        .select({ id: session.id, localDate: session.localDate })
+        .from(session)
+        .where(inArray(session.id, [...new Set(sessionIds)]));
+      return new Map(rows.map((row) => [row.id, row.localDate]));
+    },
+
     /** Completed sessions, newest first (FR-11.1). */
     async completed(): Promise<Session[]> {
       return o
@@ -277,13 +287,23 @@ export function sessionRepository(o: Orm) {
         .orderBy(desc(session.startedAt));
     },
 
-    /** The most recent completed sessions that logged this skill (§7.11 exercise detail). */
+    /**
+     * The most recent completed sessions with a completed set of this skill (§7.11 exercise
+     * detail). An exercise added and never done doesn't count.
+     */
     async completedWithSkill(skillId: string, limit: number): Promise<Session[]> {
       return o
         .selectDistinct({ session })
         .from(session)
         .innerJoin(sessionExercise, eq(sessionExercise.sessionId, session.id))
-        .where(and(eq(sessionExercise.skillId, skillId), eq(session.status, 'completed')))
+        .innerJoin(setLog, eq(setLog.sessionExerciseId, sessionExercise.id))
+        .where(
+          and(
+            eq(sessionExercise.skillId, skillId),
+            eq(session.status, 'completed'),
+            eq(setLog.status, 'completed'),
+          ),
+        )
         .orderBy(desc(session.startedAt))
         .limit(limit)
         .then((rows) => rows.map((r) => r.session));

@@ -1,6 +1,8 @@
 // The workout session screen (FR-9, DESIGN §7.6), rendered from view-model states with the
 // services, rest timer and device effects mocked.
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+
+import { BackHandler } from 'react-native';
 
 import SessionScreen from '../../app/session/[id]';
 import { startRest, stopRest, useRestTimerStore } from '@/features/restTimer';
@@ -572,6 +574,25 @@ describe('editing a finished session from History (FR-9.12, §7.12)', () => {
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark back squat set 1 done' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Done editing' }));
     expect(screen.getByText('Pick an RPE to finish the set you ticked.')).toBeTruthy();
+    expect(mockRouter.back).not.toHaveBeenCalled();
+  });
+
+  it('checks the same on Android’s Back, rather than dropping the tick', async () => {
+    let pressBack: (...args: never[]) => boolean | null | undefined = () => false;
+    const listen = jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_, handler) => {
+      pressBack = handler;
+      return { remove: jest.fn() };
+    });
+    mockParams = { id: 's1', edit: '1' };
+    show(past());
+    await render(<SessionScreen />);
+
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark back squat set 1 done' }));
+    await act(async () => {
+      expect(pressBack()).toBe(true);
+    });
+    listen.mockRestore();
+    expect(await screen.findByText('Pick an RPE to finish the set you ticked.')).toBeTruthy();
     expect(mockRouter.back).not.toHaveBeenCalled();
   });
 });
