@@ -157,6 +157,7 @@ const finished: SessionView = {
   status: 'completed',
   startedAt: '2026-09-16T17:00:00.000Z',
   endedAt: '2026-09-16T17:52:00.000Z',
+  durationMin: 52,
   notes: 'Felt strong',
   rpe: 7,
   volumeKg: 450,

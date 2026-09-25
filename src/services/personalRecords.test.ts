@@ -206,6 +206,21 @@ describe('deleteSession (FR-9.12, C-4)', () => {
 });
 
 describe('editing a past session (FR-9.12, FR-10.5)', () => {
+  it('leaves the records of earlier sessions as they are, replaying only from the edited one', async () => {
+    const first = await logAndFinish(WED, { skill_bench_press: { loadKg: 80, reps: 5 } });
+    const second = await logAndFinish(NEXT_MON, { skill_bench_press: { loadKg: 82.5, reps: 5 } });
+    const before = await repos.prs.bySession(first.sessionId);
+    const [bench] = await repos.sessions.exercises(second.sessionId);
+
+    await updateSet(db, { setLogId: bench!.sets[0]!.id, reps: 6 }, on(NEXT_MON, '20:00'));
+    expect(await repos.prs.bySession(first.sessionId)).toEqual(before);
+    expect(brief(await repos.prs.bySession(second.sessionId), 'skill_bench_press')).toEqual([
+      ['heaviest', 82.5, null],
+      ['e1rm', 104.5, null], // 82.5 × (1 + (6 + 2)/30), from the edited first set
+      ['reps_at_weight', 6, 82.5],
+    ]);
+  });
+
   it('replays PRs across later sessions and recomputes the volume', async () => {
     const first = await logAndFinish(WED, { skill_bench_press: { loadKg: 80, reps: 5 } });
     const second = await logAndFinish(NEXT_MON, { skill_bench_press: { loadKg: 82.5, reps: 5 } });

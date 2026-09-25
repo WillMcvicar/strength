@@ -118,10 +118,15 @@ export function detectPrs(bests: ReadonlyMap<string, number>, sets: readonly PrS
 /**
  * Rebuilds the logged PRs of a skill's history (FR-10.5): its sets in `completed_at` order, with
  * its manual PRs taking their place by date. Manual rows are kept as they are, so only the
- * logged PRs are returned. A manual PR comes before a set logged at the same moment.
+ * logged PRs are returned. A manual PR comes before a set logged at the same moment. To replay
+ * from part-way through, pass the bests from before that point; they aren't changed.
  */
-export function replayPrs(manual: readonly PersonalRecord[], sets: readonly PrSet[]): NewPr[] {
-  const running = new Map<string, number>();
+export function replayPrs(
+  manual: readonly PersonalRecord[],
+  sets: readonly PrSet[],
+  bests: ReadonlyMap<string, number> = new Map(),
+): NewPr[] {
+  const running = new Map(bests);
   const found: NewPr[] = [];
   const byTime = [...manual].sort((a, b) => a.achievedAt.localeCompare(b.achievedAt));
   let m = 0;

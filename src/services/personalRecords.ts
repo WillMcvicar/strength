@@ -33,17 +33,26 @@ export async function recordSessionPrs(
   return rows;
 }
 
-/** Rebuilds these skills' logged PRs from their whole history (FR-10.5). */
+/**
+ * Rebuilds these skills' logged PRs from `from` on (FR-10.5), usually a changed session's start.
+ * The records before it stand and seed the bests, since a change to one session can't alter what
+ * came before it, so a skill's whole history isn't walked on every tap.
+ */
 export async function replaySkillPrs(
   r: Repositories,
   skillIds: readonly string[],
   ctx: ServiceContext,
+  from: string,
 ): Promise<void> {
   const skills = [...new Set(skillIds)];
   if (skills.length === 0) return;
-  const manual = (await r.prs.bySkills(skills)).filter((row) => row.isManual);
-  await r.prs.deleteLogged(skills);
-  await r.prs.insertMany(withIds(replayPrs(manual, await r.sessions.prSets(skills)), ctx));
+  const records = await r.prs.bySkills(skills);
+  const since = (row: PersonalRecord) => row.achievedAt >= from;
+  const bests = bestsOf(records.filter((row) => !since(row)));
+  const manual = records.filter((row) => row.isManual && since(row));
+  await r.prs.deleteLogged(skills, from);
+  const sets = await r.sessions.prSets(skills, from);
+  await r.prs.insertMany(withIds(replayPrs(manual, sets, bests), ctx));
 }
 
 /**
@@ -62,7 +71,8 @@ export async function afterSessionChange(
   }
   const { volumeKg } = sessionTotals(await r.sessions.exercises(session.id));
   await r.sessions.update(session.id, { totalVolumeKg: volumeKg, updatedAt: ctx.now });
-  await replaySkillPrs(r, skillIds, ctx);
+  // Its sets were all done after it started, and every earlier session's before (FR-9.13).
+  await replaySkillPrs(r, skillIds, ctx, session.startedAt);
   // TODO(Slice 8): rerun the double-progression update for the exercises changed (§3.12, C-4).
   // TODO(Slice 10): end with reconcile(ctx.today) once it exists (DESIGN §2.5, AC-65).
 }

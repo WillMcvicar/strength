@@ -3,6 +3,7 @@ import {
   formatClock,
   formatDay,
   formatMonth,
+  formatSetCount,
   formatTime,
   formatVolume,
   localDayOf,
@@ -70,5 +71,13 @@ describe('formatMonth and localDayOf (§7.11, §7.12)', () => {
     // Built from local parts, so it's the 16th wherever the test runs.
     expect(localDayOf(new Date(2026, 8, 16, 0, 5).toISOString())).toBe('2026-09-16');
     expect(localDayOf(new Date(2026, 8, 16, 23, 55).toISOString())).toBe('2026-09-16');
+  });
+});
+
+describe('formatSetCount (FR-9.8)', () => {
+  it('says "1 set" and "16 sets"', () => {
+    expect(formatSetCount(1)).toBe('1 set');
+    expect(formatSetCount(16)).toBe('16 sets');
+    expect(formatSetCount(0)).toBe('0 sets');
   });
 });

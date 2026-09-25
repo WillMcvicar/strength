@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Unit } from '@/core';
-import { secondsBetween } from '@/features/device';
 import {
   useSession,
   useSessionActions,
@@ -17,7 +16,7 @@ import { BottomBar } from '@/ui/components/BottomBar';
 import { Button } from '@/ui/components/Button';
 import { ConfirmSheet } from '@/ui/components/ConfirmSheet';
 import { PrList } from '@/ui/components/PrList';
-import { formatDay, formatVolume, spokenDay } from '@/ui/format';
+import { formatDay, formatSetCount, formatVolume, spokenDay } from '@/ui/format';
 import { loadText, repsText, spokenSet } from '@/ui/setText';
 import { useColors } from '@/ui/theme';
 import { radius, spacing } from '@/ui/tokens';
@@ -57,9 +56,9 @@ function Detail({ session }: { session: SessionView }) {
   const actions = useSessionActions(session.id);
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const minutes = Math.round(secondsBetween(session.startedAt, session.endedAt!) / 60);
+  const minutes = session.durationMin ?? 0;
   const volume = formatVolume(session.volumeKg, session.unit);
-  const sets = `${session.setsCompleted} ${session.setsCompleted === 1 ? 'set' : 'sets'}`;
+  const sets = formatSetCount(session.setsCompleted);
 
   const remove = async () => {
     setConfirming(false);

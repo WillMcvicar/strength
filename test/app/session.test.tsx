@@ -174,6 +174,7 @@ const session = (over: Partial<SessionView> = {}): SessionView => ({
   status: 'in_progress',
   startedAt: '2026-09-14T17:30:00.000Z',
   endedAt: null,
+  durationMin: null,
   notes: null,
   rpe: null,
   volumeKg: 0,

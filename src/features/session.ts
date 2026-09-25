@@ -37,6 +37,7 @@ import { updateSessionDetails } from '@/services/updateSessionDetails';
 import { updateSet } from '@/services/updateSet';
 
 import { useDb } from './database';
+import { durationMin } from './device';
 import { readSessionPrs, type SessionPrsView } from './prs';
 import { serviceContext } from './serviceContext';
 import { useLiveQuery } from './useLiveQuery';
@@ -84,6 +85,8 @@ export interface SessionView {
   localDate: LocalDate;
   startedAt: string;
   endedAt: string | null;
+  /** Whole minutes, once finished (FR-9.8). */
+  durationMin: number | null;
   notes: string | null;
   rpe: number | null;
   /** The FR-9.8 figures, as logged so far (§3.14). */
@@ -190,6 +193,7 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
     localDate: session.localDate,
     startedAt: session.startedAt,
     endedAt: session.endedAt,
+    durationMin: session.endedAt ? durationMin(session.startedAt, session.endedAt) : null,
     notes: session.notes,
     rpe: session.rpe,
     volumeKg: totals.volumeKg,

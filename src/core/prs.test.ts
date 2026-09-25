@@ -240,6 +240,18 @@ describe('replayPrs (FR-10.5)', () => {
     expect(replayPrs([aRecord({ isManual: true })], [unfinished])).toEqual([]);
   });
 
+  it('replays from part-way through, starting from the bests before that point', () => {
+    // Everything up to the edited session is kept; only the sets from it onward are replayed.
+    const kept = new Map([['bench|heaviest|', 90]]);
+    const found = replayPrs(
+      [],
+      [aSet({ loadKg: 85, reps: 1 }), aSet({ loadKg: 95, reps: 1 })],
+      kept,
+    );
+    expect(found.filter((r) => r.type === 'heaviest').map((r) => r.value)).toEqual([95]);
+    expect([...kept]).toEqual([['bench|heaviest|', 90]]);
+  });
+
   it('puts a manual PR before a set logged at the same moment', () => {
     const set = aSet({ loadKg: 100, reps: 1 });
     const manual = aRecord({ value: 100, isManual: true, achievedAt: set.completedAt! });

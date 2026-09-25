@@ -28,7 +28,7 @@ export function deleteSession(
       });
     }
     await r.sessions.delete(session.id);
-    await replaySkillPrs(r, skillIds, ctx);
+    await replaySkillPrs(r, skillIds, ctx, session.startedAt);
     // TODO(Slice 8): rerun the double-progression update from the previous session (C-4).
     // TODO(Slice 10): end with reconcile(ctx.today) once it exists (DESIGN §2.5, D-21).
     return { ok: true };

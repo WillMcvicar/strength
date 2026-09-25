@@ -26,7 +26,7 @@ import { today as clockToday } from '@/services/clock';
 import { startAdHocSession } from '@/services/startAdHocSession';
 import { startSession, type StartSessionError } from '@/services/startSession';
 
-import { secondsBetween } from './device';
+import { durationMin } from './device';
 import { useDb } from './database';
 import { readSessionPrs, type SessionPrsView } from './prs';
 import { serviceContext } from './serviceContext';
@@ -193,7 +193,7 @@ async function completedSession(
   const totals = sessionTotals(logged);
   return {
     sessionId,
-    durationMin: Math.round(secondsBetween(session.startedAt, session.endedAt) / 60),
+    durationMin: durationMin(session.startedAt, session.endedAt),
     setsCompleted: totals.setsCompleted,
     volumeKg: totals.volumeKg,
     prs,

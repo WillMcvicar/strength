@@ -6,13 +6,12 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { secondsBetween } from '@/features/device';
 import { useSession, useSessionActions } from '@/features/session';
 import { BottomBar } from '@/ui/components/BottomBar';
 import { Button } from '@/ui/components/Button';
 import { EffortPicker } from '@/ui/components/EffortPicker';
 import { PrList } from '@/ui/components/PrList';
-import { formatVolume } from '@/ui/format';
+import { formatSetCount, formatVolume } from '@/ui/format';
 import { useColors } from '@/ui/theme';
 import { radius, spacing, touch } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
@@ -49,9 +48,9 @@ export default function SessionSummaryScreen() {
     );
   }
 
-  const minutes = Math.round(secondsBetween(session.startedAt, session.endedAt) / 60);
+  const minutes = session.durationMin ?? 0;
   const volume = formatVolume(session.volumeKg, session.unit);
-  const sets = `${session.setsCompleted} ${session.setsCompleted === 1 ? 'set' : 'sets'}`;
+  const sets = formatSetCount(session.setsCompleted);
   const done = async () => {
     if (notes !== null) await actions.details({ notes });
     backToToday();

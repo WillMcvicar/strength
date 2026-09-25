@@ -1,6 +1,6 @@
 // Logged sessions (FR-9, DESIGN §4.3): the session, its exercises with their snapshots (FR-1.10),
 // and their sets. At most one session is in progress (`uq_session_in_progress`, FR-9.13).
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray } from 'drizzle-orm';
 
 import type { PrSet } from '@/core/prs';
 import type { LocalDate, Session, SessionExercise, SetLog } from '@/core/types';
@@ -234,9 +234,9 @@ export function sessionRepository(o: Orm) {
     },
     /**
      * The completed sets of these skills from completed sessions, in the order they were done:
-     * the history a PR replay walks (DESIGN §3.13, FR-10.5).
+     * the history a PR replay walks (DESIGN §3.13, FR-10.5). With `from`, only sets done since.
      */
-    async prSets(skillIds: readonly string[]): Promise<PrSet[]> {
+    async prSets(skillIds: readonly string[], from?: string): Promise<PrSet[]> {
       if (skillIds.length === 0) return [];
       return o
         .select(prSetColumns)
@@ -248,6 +248,7 @@ export function sessionRepository(o: Orm) {
             inArray(sessionExercise.skillId, [...skillIds]),
             eq(session.status, 'completed'),
             eq(setLog.status, 'completed'),
+            from === undefined ? undefined : gte(setLog.completedAt, from),
           ),
         )
         .orderBy(

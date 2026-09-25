@@ -1,7 +1,7 @@
 // Personal records (FR-10, DESIGN §3.13): an event log that services append to on finish and
 // rebuild by replay after a past session changes (FR-10.5). Deleting a session removes its rows
 // through `ON DELETE CASCADE`. Rows from one set share a time, so ties keep insertion order.
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import type { PersonalRecord } from '@/core/types';
 
@@ -42,13 +42,20 @@ export function personalRecordRepository(o: Orm) {
         .orderBy(asc(personalRecord.achievedAt), asc(sql`rowid`));
     },
 
-    /** Clears the logged records of these skills before a replay; manual ones stay (FR-10.6). */
-    async deleteLogged(skillIds: readonly string[]): Promise<void> {
+    /**
+     * Clears the logged records of these skills before a replay, from `from` on when given; manual
+     * ones stay (FR-10.6).
+     */
+    async deleteLogged(skillIds: readonly string[], from?: string): Promise<void> {
       if (skillIds.length === 0) return;
       await o
         .delete(personalRecord)
         .where(
-          and(inArray(personalRecord.skillId, [...skillIds]), eq(personalRecord.isManual, false)),
+          and(
+            inArray(personalRecord.skillId, [...skillIds]),
+            eq(personalRecord.isManual, false),
+            from === undefined ? undefined : gte(personalRecord.achievedAt, from),
+          ),
         );
     },
   };

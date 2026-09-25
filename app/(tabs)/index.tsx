@@ -21,7 +21,7 @@ import { PrList } from '@/ui/components/PrList';
 import { ProgressMeter } from '@/ui/components/ProgressMeter';
 import { StatusChip } from '@/ui/components/StatusChip';
 import { WeekStrip } from '@/ui/components/WeekStrip';
-import { formatDay, formatTime, formatVolume, spokenDay } from '@/ui/format';
+import { formatDay, formatSetCount, formatTime, formatVolume, spokenDay } from '@/ui/format';
 import { useColors } from '@/ui/theme';
 import { radius, spacing } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
@@ -223,7 +223,7 @@ function CompletedCard({
   const type = useTypography();
   const done = card.session;
   const volume = done ? formatVolume(done.volumeKg, unit) : null;
-  const sets = done ? `${done.setsCompleted} ${done.setsCompleted === 1 ? 'set' : 'sets'}` : '';
+  const sets = done ? formatSetCount(done.setsCompleted) : '';
   return (
     <View style={styles.cardBody}>
       <View style={styles.titleRow}>

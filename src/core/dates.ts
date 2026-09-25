@@ -30,6 +30,15 @@ const toUtc = (value: LocalDate): number => {
 
 const fromUtc = (ms: number): LocalDate => new Date(ms).toISOString().slice(0, 10);
 
+/**
+ * A plan date from calendar parts (month 1–12), such as a device clock's local reading. The one
+ * place a date's text form is built from parts; the caller supplies the reading (§3.15).
+ */
+export function localDateFrom(year: number, month: number, day: number): LocalDate {
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${year}-${two(month)}-${two(day)}`;
+}
+
 /** Calendar arithmetic: `n` may be negative. */
 export function addDays(d: LocalDate, n: number): LocalDate {
   return fromUtc(toUtc(d) + n * DAY_MS);

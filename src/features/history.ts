@@ -5,7 +5,7 @@ import { firstLogSessions, sessionHighlights, type LocalDate, type PersonalRecor
 import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
-import { secondsBetween } from './device';
+import { durationMin } from './device';
 import { useLiveQuery } from './useLiveQuery';
 
 export interface HistoryItemView {
@@ -55,7 +55,7 @@ export async function readHistory(db: Db): Promise<HistoryMonthView[]> {
       id: s.id,
       localDate: s.localDate,
       name: s.name,
-      durationMin: s.endedAt ? Math.round(secondsBetween(s.startedAt, s.endedAt) / 60) : 0,
+      durationMin: s.endedAt ? durationMin(s.startedAt, s.endedAt) : 0,
       hasPrs: sessionHighlights(rows, firstLogs).prs.length > 0,
     };
     const month = s.localDate.slice(0, 7);

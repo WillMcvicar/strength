@@ -1,5 +1,7 @@
 import { Tabs } from 'expo-router';
 
+import { ActiveWhileFocused } from '@/features/screenActivity';
+
 import { useColors } from '@/ui/theme';
 import { useTypography } from '@/ui/typography';
 
@@ -18,6 +20,10 @@ export default function TabsLayout() {
         tabBarLabelStyle: { ...type.label, fontSize: 15 },
         sceneStyle: { backgroundColor: c.bg },
       }}
+      // Tabs stay mounted; only the one in front keeps its live reads running (§4.7).
+      screenLayout={({ children, navigation }) => (
+        <ActiveWhileFocused navigation={navigation}>{children}</ActiveWhileFocused>
+      )}
     >
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
       <Tabs.Screen name="week" options={{ title: 'Week' }} />
