@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 import { DatabaseProvider, useOpenDatabase } from '@/features/database';
 import { useDisclaimer } from '@/features/disclaimer';
 import { useOnboarding } from '@/features/onboarding';
+import { ActiveWhileFocused } from '@/features/screenActivity';
 import { fontSources } from '@/ui/fonts';
 import { useColors } from '@/ui/theme';
 import { spacing } from '@/ui/tokens';
@@ -49,7 +50,13 @@ function AppStack() {
   const onboarded = onboarding.status === 'done';
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{ headerShown: false }}
+      // Live reads pause on screens behind the top one (§4.7).
+      screenLayout={({ children, navigation }) => (
+        <ActiveWhileFocused navigation={navigation}>{children}</ActiveWhileFocused>
+      )}
+    >
       <Stack.Protected guard={!acknowledged}>
         <Stack.Screen name="disclaimer" options={{ gestureEnabled: false }} />
       </Stack.Protected>

@@ -9,6 +9,7 @@ import {
   incrementFor,
   rpePrompt,
   sessionTotals,
+  type LocalDate,
   type SessionExercise,
   type SessionKind,
   type SetLog,
@@ -21,6 +22,7 @@ import { addExercise } from '@/services/addExercise';
 import { addSet } from '@/services/addSet';
 import { completeSet } from '@/services/completeSet';
 import type { ServiceContext } from '@/services/context';
+import { deleteSession } from '@/services/deleteSession';
 import { deleteSet } from '@/services/deleteSet';
 import { discardSession } from '@/services/discardSession';
 import { dismissTip } from '@/services/dismissTip';
@@ -35,6 +37,8 @@ import { updateSessionDetails } from '@/services/updateSessionDetails';
 import { updateSet } from '@/services/updateSet';
 
 import { useDb } from './database';
+import { durationMin } from './device';
+import { readSessionPrs, type SessionPrsView } from './prs';
 import { serviceContext } from './serviceContext';
 import { useLiveQuery } from './useLiveQuery';
 
@@ -77,8 +81,12 @@ export interface SessionView {
   name: string;
   kind: SessionKind;
   status: SessionStatus;
+  /** The day it was logged (D-39). */
+  localDate: LocalDate;
   startedAt: string;
   endedAt: string | null;
+  /** Whole minutes, once finished (FR-9.8). */
+  durationMin: number | null;
   notes: string | null;
   rpe: number | null;
   /** The FR-9.8 figures, as logged so far (§3.14). */
@@ -92,6 +100,8 @@ export interface SessionView {
   /** One-time tips still to show (FR-6.2). */
   tips: { rpePicker: boolean; topSet: boolean };
   exercises: SessionExerciseView[];
+  /** The PRs it set, once finished (FR-10.2); none while in progress. */
+  prs: SessionPrsView;
 }
 
 export type SessionScreenView =
@@ -132,9 +142,10 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
   if (!session) return null;
   const [settings, logged] = await Promise.all([r.settings.get(), r.sessions.exercises(sessionId)]);
   const skillIds = [...new Set(logged.map((e) => e.exercise.skillId))];
-  const [skills, lastTop] = await Promise.all([
+  const [skills, lastTop, prs] = await Promise.all([
     r.skills.getMany(skillIds),
     r.sessions.lastTopSetBySkill(skillIds),
+    readSessionPrs(r, sessionId),
   ]);
   const skillById = new Map(skills.map((s) => [s.id, s]));
   const unit = settings.unit;
@@ -179,8 +190,10 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
     name: session.name,
     kind: session.kind,
     status: session.status,
+    localDate: session.localDate,
     startedAt: session.startedAt,
     endedAt: session.endedAt,
+    durationMin: session.endedAt ? durationMin(session.startedAt, session.endedAt) : null,
     notes: session.notes,
     rpe: session.rpe,
     volumeKg: totals.volumeKg,
@@ -197,6 +210,7 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
       topSet: settings.tipsEnabled && !seen.has('tip_top_set'),
     },
     exercises,
+    prs,
   };
 }
 
@@ -208,8 +222,8 @@ const MESSAGES: Record<string, string> = {
   missing_time: 'Enter the time you held it.',
   bad_rpe: 'That RPE can’t be used. Pick one from 6 to 10.',
   bad_value: 'That number can’t be used.',
-  session_not_in_progress: 'This workout has already finished.',
   not_in_progress: 'This workout has already finished.',
+  in_progress: 'This workout is still in progress.',
   not_found: 'That set is no longer in this workout.',
   skill_not_found: 'That exercise isn’t available.',
 };
@@ -249,6 +263,8 @@ export interface SessionActions {
   details: (input: { notes?: string | null; rpe?: number | null }) => Promise<ActionResult>;
   dismissTip: (key: string) => Promise<ActionResult>;
   discard: () => Promise<ActionResult>;
+  /** Deletes a finished session from History; its PRs are recalculated (FR-9.12, FR-10.5). */
+  remove: () => Promise<ActionResult>;
   finish: () => Promise<{ ok: true; summary: SessionSummary } | { ok: false; message: string }>;
 }
 
@@ -275,6 +291,11 @@ export function useSessionActions(sessionId: string): SessionActions {
       details: (input) => run((d, c) => updateSessionDetails(d, { sessionId, ...input }, c)),
       dismissTip: (key) => run((d, c) => dismissTip(d, { key }, c)),
       discard: () => run((d, c) => discardSession(d, { sessionId }, c)),
+      remove: async () => {
+        const result = await deleteSession(db, { sessionId }, serviceContext());
+        if (result.ok || result.reason !== 'not_found') return toResult(result);
+        return { ok: false, message: 'This workout has already been deleted.' };
+      },
       finish: async () => {
         const result = await finishSession(db, { sessionId }, serviceContext());
         return result.ok ? result : { ok: false as const, message: MESSAGES[result.reason]! };

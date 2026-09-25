@@ -1,6 +1,13 @@
 // DESIGN §3.15, §9.4 (NFR-12). Every case must hold under TZ=Pacific/Auckland, America/New_York
 // and UTC, which CI runs; the functions use Date.UTC only, so local time can never leak in.
-import { addDays, daysBetween, firstOnOrAfter, isLocalDate, weekday } from './dates';
+import { addDays, daysBetween, firstOnOrAfter, isLocalDate, localDateFrom, weekday } from './dates';
+
+describe('localDateFrom', () => {
+  it('pads month and day to YYYY-MM-DD', () => {
+    expect(localDateFrom(2026, 9, 5)).toBe('2026-09-05');
+    expect(localDateFrom(2026, 12, 31)).toBe('2026-12-31');
+  });
+});
 
 describe('addDays', () => {
   it.each([

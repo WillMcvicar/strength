@@ -1,6 +1,8 @@
 // The workout session screen (FR-9, DESIGN §7.6), rendered from view-model states with the
 // services, rest timer and device effects mocked.
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+
+import { BackHandler } from 'react-native';
 
 import SessionScreen from '../../app/session/[id]';
 import { startRest, stopRest, useRestTimerStore } from '@/features/restTimer';
@@ -22,8 +24,9 @@ jest.mock('expo-router', () => ({
     replace: (href: string) => mockRouter.replace(href),
     push: (href: string) => mockRouter.push(href),
   },
-  useLocalSearchParams: () => ({ id: 's1' }),
+  useLocalSearchParams: () => mockParams,
 }));
+let mockParams: { id: string; edit?: string } = { id: 's1' };
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return { SafeAreaView: View };
@@ -167,9 +170,11 @@ const session = (over: Partial<SessionView> = {}): SessionView => ({
   id: 's1',
   name: 'Full body A',
   kind: 'planned',
+  localDate: '2026-09-14',
   status: 'in_progress',
   startedAt: '2026-09-14T17:30:00.000Z',
   endedAt: null,
+  durationMin: null,
   notes: null,
   rpe: null,
   volumeKg: 0,
@@ -180,6 +185,7 @@ const session = (over: Partial<SessionView> = {}): SessionView => ({
   restTimerAlerts: true,
   tips: { rpePicker: false, topSet: false },
   exercises: [squat, row],
+  prs: { prs: [], firstLog: [] },
   ...over,
 });
 
@@ -188,6 +194,7 @@ const show = (view: SessionView) =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockParams = { id: 's1' };
   jest.mocked(useSessionActions).mockReturnValue(actions);
   (useRestTimerStore as unknown as { state: { endsAt: string | null } }).state.endsAt = null;
 });
@@ -527,5 +534,66 @@ describe('finishing and leaving (FR-9.8, FR-9.9, FR-9.11)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Save and exit' }));
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
     expect(actions.details).toHaveBeenCalledWith({ notes: 'Knee felt off' });
+  });
+});
+
+describe('editing a finished session from History (FR-9.12, §7.12)', () => {
+  const past = () =>
+    session({ status: 'completed', endedAt: '2026-09-14T18:22:00.000Z', setsIncomplete: 3 });
+
+  it('shows nothing for a just-finished session opened without ?edit', async () => {
+    show(past());
+    await render(<SessionScreen />);
+    expect(screen.queryByRole('header')).toBeNull();
+  });
+
+  it('edits without a clock, rest timer, keep-awake or discard, and Done goes back', async () => {
+    const { useKeepAwakeWhile } = jest.requireMock('@/features/device');
+    mockParams = { id: 's1', edit: '1' };
+    show(past());
+    await render(<SessionScreen />);
+
+    expect(screen.getByRole('header', { name: 'Edit Full body A' })).toBeTruthy();
+    expect(screen.queryByText('24:13')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Finish workout' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close workout' })).toBeNull();
+    expect(useKeepAwakeWhile).toHaveBeenCalledWith(false);
+
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark barbell row set 1 done' }));
+    expect(actions.completeSet).toHaveBeenCalledWith({ setLogId: 'r1' });
+    expect(startRest).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Done editing' }));
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
+  });
+
+  it('won’t leave while a ticked set still waits for its RPE', async () => {
+    mockParams = { id: 's1', edit: '1' };
+    show(past());
+    await render(<SessionScreen />);
+
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark back squat set 1 done' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Done editing' }));
+    expect(screen.getByText('Pick an RPE to finish the set you ticked.')).toBeTruthy();
+    expect(mockRouter.back).not.toHaveBeenCalled();
+  });
+
+  it('checks the same on Android’s Back, rather than dropping the tick', async () => {
+    let pressBack: (...args: never[]) => boolean | null | undefined = () => false;
+    const listen = jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_, handler) => {
+      pressBack = handler;
+      return { remove: jest.fn() };
+    });
+    mockParams = { id: 's1', edit: '1' };
+    show(past());
+    await render(<SessionScreen />);
+
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Mark back squat set 1 done' }));
+    await act(async () => {
+      expect(pressBack()).toBe(true);
+    });
+    listen.mockRestore();
+    expect(await screen.findByText('Pick an RPE to finish the set you ticked.')).toBeTruthy();
+    expect(mockRouter.back).not.toHaveBeenCalled();
   });
 });

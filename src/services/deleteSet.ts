@@ -3,7 +3,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressSet, type AccessError } from './sessionAccess';
+import { afterSessionChange } from './personalRecords';
+import { editableSet, type AccessError } from './sessionAccess';
 
 export type DeleteSetResult = ServiceResult<AccessError>;
 
@@ -14,13 +15,13 @@ export function deleteSet(
 ): Promise<DeleteSetResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressSet(r, input.setLogId);
+    const found = await editableSet(r, input.setLogId);
     if (!found.ok) return found;
 
     await r.sessions.deleteSet(found.set.id);
     const rest = await r.sessions.setsOf(found.exercise.id);
     await r.sessions.renumberSets(rest.map((s) => s.id));
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
     return { ok: true };
   });
 }

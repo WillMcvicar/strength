@@ -1,5 +1,15 @@
 // Plan dates as the §7 sketches show them: "Wed 16 Sep".
-import { formatClock, formatDay, formatTime, formatVolume, spokenClock, spokenDay } from './format';
+import {
+  formatClock,
+  formatDay,
+  formatMonth,
+  formatSetCount,
+  formatTime,
+  formatVolume,
+  localDayOf,
+  spokenClock,
+  spokenDay,
+} from './format';
 
 describe('formatDay', () => {
   it.each([
@@ -48,5 +58,26 @@ describe('formatTime (§7.2)', () => {
     // Built in local time, so the test holds in every CI time zone (§9.4).
     expect(formatTime(new Date(2026, 8, 14, 18, 2).toISOString())).toBe('18:02');
     expect(formatTime(new Date(2026, 8, 14, 7, 30).toISOString())).toBe('07:30');
+  });
+});
+
+describe('formatMonth and localDayOf (§7.11, §7.12)', () => {
+  it('heads a History month', () => {
+    expect(formatMonth('2026-09')).toBe('September 2026');
+    expect(formatMonth('2027-01')).toBe('January 2027');
+  });
+
+  it('dates an event by the local day it happened on, in every CI zone', () => {
+    // Built from local parts, so it's the 16th wherever the test runs.
+    expect(localDayOf(new Date(2026, 8, 16, 0, 5).toISOString())).toBe('2026-09-16');
+    expect(localDayOf(new Date(2026, 8, 16, 23, 55).toISOString())).toBe('2026-09-16');
+  });
+});
+
+describe('formatSetCount (FR-9.8)', () => {
+  it('says "1 set" and "16 sets"', () => {
+    expect(formatSetCount(1)).toBe('1 set');
+    expect(formatSetCount(16)).toBe('16 sets');
+    expect(formatSetCount(0)).toBe('0 sets');
   });
 });

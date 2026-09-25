@@ -46,6 +46,14 @@ describe('oneRepMax repository', () => {
     expect((await r.listByPlan('plan')).map((x) => x.id)).toEqual(['a1', 'a2', 'b']);
     expect(await r.listByPlan('plan')).toContainEqual(row('a1'));
   });
+
+  it("lists a skill's rows from every plan and none, newest first (§7.11)", async () => {
+    const r = repositories(db).oneRepMax;
+    await r.insert(row('old'));
+    await r.insert(row('new', { planId: null, setAt: '2026-10-01T08:00:00.000Z' }));
+    await r.insert(row('bench', { skillId: 'skill_bench_press' }));
+    expect((await r.bySkill('skill_back_squat')).map((x) => x.id)).toEqual(['new', 'old']);
+  });
 });
 
 describe('skills.getMany', () => {

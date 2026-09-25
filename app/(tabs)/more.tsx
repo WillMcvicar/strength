@@ -1,28 +1,51 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useResetAppData } from '@/features/devTools';
 import { lateBySec, useRestTimerSpike } from '@/features/restTimerSpike';
 import { Button } from '@/ui/components/Button';
-import { Placeholder } from '@/ui/components/Placeholder';
 import { useColors } from '@/ui/theme';
-import { radius, spacing } from '@/ui/tokens';
+import { radius, spacing, touch } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
 
-// More (DESIGN §7.1). History, the Skill Library and Settings arrive in Slices 7, 13 and 14; until
-// then this is a placeholder with the development tools that make testing the launch flow bearable.
+// More (DESIGN §7.1): History, then the Skill Library and Settings when Slices 13 and 14 build
+// them. Development builds add the tools that make testing the launch flow bearable.
 export default function MoreScreen() {
   const c = useColors();
-  if (!__DEV__) return <Placeholder title="More" />;
+  const type = useTypography();
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: c.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Placeholder title="More" />
-        <DevTools />
-        <RestTimerSpike />
+        <Text accessibilityRole="header" style={[type.display, { color: c.ink }]}>
+          More
+        </Text>
+        <LinkRow label="History" onPress={() => router.push('/history')} />
+        {__DEV__ && (
+          <>
+            <DevTools />
+            <RestTimerSpike />
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
+  const c = useColors();
+  const type = useTypography();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={[styles.link, { backgroundColor: c.surface, borderColor: c.line }]}
+    >
+      <Text style={[type.body, styles.grow, { color: c.ink }]}>{label}</Text>
+      <Text style={[type.title, { color: c.inkMuted }]}>›</Text>
+    </Pressable>
   );
 }
 
@@ -100,4 +123,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: spacing.screen, gap: spacing.cardGap },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.card, gap: spacing.sm },
+  link: {
+    minHeight: touch.min,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: spacing.card,
+  },
+  grow: { flexGrow: 1 },
 });

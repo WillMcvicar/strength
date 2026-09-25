@@ -391,3 +391,28 @@ export interface SetLog {
   status: SetStatus;
   completedAt: string | null;
 }
+
+/** FR-10.1, DESIGN §3.13 */
+export type PrType =
+  | 'heaviest'
+  | 'e1rm'
+  | 'reps_at_weight'
+  | 'max_reps'
+  | 'heaviest_added'
+  | 'reps_at_added'
+  | 'longest_time';
+
+/** A row of the PR event log (DESIGN §4.3 `personal_record`). */
+export interface PersonalRecord {
+  id: string;
+  skillId: string;
+  type: PrType;
+  value: number;
+  /** The exact stored kg a `reps_at_*` PR was lifted at; null for the other types. */
+  contextWeightKg: number | null;
+  sessionId: string | null;
+  setLogId: string | null;
+  achievedAt: string;
+  isManual: boolean;
+  note: string | null;
+}

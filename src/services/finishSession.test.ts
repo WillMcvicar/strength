@@ -70,6 +70,8 @@ describe('AC-3 Log a session', () => {
         setsCompleted: 8,
         setsIncomplete: 0,
       },
+      // The skills' first logs set their baselines (§3.13, C-7).
+      prs: expect.any(Array),
     });
 
     const session = (await repos.sessions.get(sessionId))!;
@@ -107,14 +109,16 @@ describe('AC-37 Cardio completion', () => {
 });
 
 describe('AC-44 No-login persistence', () => {
-  it('keeps a finished session and its completed workout after the app is closed', async () => {
+  it('keeps a finished session, its completed workout and its PRs after the app is closed', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'wp-ac44-'));
     const file = join(dir, 'app.db');
     try {
       const first = await openMigratedTestDb(file);
       const { planId } = await aStartedPlan(first, ctx);
       const sessionId = await logAsPlanned(first, planId, START);
-      await finishSession(first, { sessionId }, { ...ctx, now: FINISHED });
+      const finished = await finishSession(first, { sessionId }, { ...ctx, now: FINISHED });
+      if (!finished.ok) throw new Error(finished.reason);
+      expect(finished.prs.length).toBeGreaterThan(0);
       await first.closeAsync();
 
       const reopened = await openMigratedTestDb(file);
@@ -123,6 +127,7 @@ describe('AC-44 No-login persistence', () => {
         expect(await r.sessions.get(sessionId)).toMatchObject({ status: 'completed' });
         const [monday] = await r.plannedWorkouts.listByPlan(planId);
         expect(monday).toMatchObject({ status: 'completed', sessionId });
+        expect(await r.prs.bySession(sessionId)).toEqual(finished.prs);
       } finally {
         await reopened.closeAsync();
       }
@@ -130,8 +135,6 @@ describe('AC-44 No-login persistence', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-
-  it.todo('keeps any PRs the session set (Slice 7)');
 });
 
 describe('finishSession (FR-9.8, FR-9.9)', () => {

@@ -33,6 +33,15 @@ export function oneRepMaxRepository(o: Orm) {
       return latest;
     },
 
+    /** A skill's rows across every plan, newest first (§7.11 exercise detail). */
+    async bySkill(skillId: string): Promise<OneRepMaxHistory[]> {
+      return o
+        .select()
+        .from(oneRepMaxHistory)
+        .where(eq(oneRepMaxHistory.skillId, skillId))
+        .orderBy(desc(oneRepMaxHistory.setAt));
+    },
+
     async insert(row: OneRepMaxHistory): Promise<void> {
       await o.insert(oneRepMaxHistory).values(row);
     },

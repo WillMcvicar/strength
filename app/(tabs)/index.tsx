@@ -17,10 +17,11 @@ import { Button } from '@/ui/components/Button';
 import { EmptyState } from '@/ui/components/EmptyState';
 import { ExerciseCard } from '@/ui/components/ExerciseCard';
 import { PlanRibbon } from '@/ui/components/PlanRibbon';
+import { PrList } from '@/ui/components/PrList';
 import { ProgressMeter } from '@/ui/components/ProgressMeter';
 import { StatusChip } from '@/ui/components/StatusChip';
 import { WeekStrip } from '@/ui/components/WeekStrip';
-import { formatDay, formatTime, spokenDay } from '@/ui/format';
+import { formatDay, formatSetCount, formatTime, formatVolume, spokenDay } from '@/ui/format';
 import { useColors } from '@/ui/theme';
 import { radius, spacing } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
@@ -176,6 +177,8 @@ function MainCard({
     );
   }
 
+  if (card.kind === 'completed') return <CompletedCard card={card} unit={unit} />;
+
   return (
     <View style={styles.cardBody}>
       <View style={styles.titleRow}>
@@ -190,7 +193,6 @@ function MainCard({
             ~{card.durationMin} min
           </Text>
         )}
-        {card.kind === 'completed' && <StatusChip status="completed" />}
         {card.kind === 'in_progress' && <StatusChip status="in_progress" />}
       </View>
       {card.rows.map((row) => (
@@ -205,6 +207,47 @@ function MainCard({
           inSuperset={row.inSuperset}
         />
       ))}
+    </View>
+  );
+}
+
+/** FR-7.5, §7.2: the finished workout's figures and PR chips, opening to its detail. */
+function CompletedCard({
+  card,
+  unit,
+}: {
+  card: Extract<TodayCardView, { kind: 'completed' }>;
+  unit: 'kg' | 'lb';
+}) {
+  const c = useColors();
+  const type = useTypography();
+  const done = card.session;
+  const volume = done ? formatVolume(done.volumeKg, unit) : null;
+  const sets = done ? formatSetCount(done.setsCompleted) : '';
+  return (
+    <View style={styles.cardBody}>
+      <View style={styles.titleRow}>
+        <Text accessibilityRole="header" style={[type.title, styles.title, { color: c.ink }]}>
+          {card.name}
+        </Text>
+        <StatusChip status="completed" />
+      </View>
+      {done && volume && (
+        <>
+          <Text
+            accessibilityLabel={`${done.durationMin} minutes, ${sets}, ${volume.spoken} lifted`}
+            style={[type.body, { color: c.ink }]}
+          >
+            {done.durationMin} min · {sets} · {volume.shown}
+          </Text>
+          <PrList prs={done.prs} unit={unit} />
+          <Button
+            label="View session"
+            variant="secondary"
+            onPress={() => router.push(`/history/${done.sessionId}`)}
+          />
+        </>
+      )}
     </View>
   );
 }

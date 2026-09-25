@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import type { Db } from '@/data/db';
 import { liveDb } from '@/data/live';
 import { DatabaseProvider } from '@/features/database';
+import { ScreenActiveContext } from '@/features/screenActivity';
 import { useLiveQuery } from '@/features/useLiveQuery';
 
 /** Just enough of `Db` for a transaction to commit or roll back. */
@@ -176,6 +177,54 @@ describe('useLiveQuery (D-32)', () => {
     await unmount();
     await commit();
 
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useLiveQuery on a hidden screen (§4.7)', () => {
+  it('holds commits while hidden, then re-reads once when shown again', async () => {
+    const live = liveDb(fakeDb);
+    let active = true;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <DatabaseProvider value={live}>
+        <ScreenActiveContext.Provider value={active}>{children}</ScreenActiveContext.Provider>
+      </DatabaseProvider>
+    );
+    const commit = () => act(() => live.db.withExclusiveTransactionAsync(async () => {}));
+    const { read, set } = counter();
+    const { result, rerender } = await renderHook(() => useLiveQuery(read, []), { wrapper });
+    await waitFor(() => expect(result.current).toEqual({ status: 'ready', data: 0 }));
+
+    active = false;
+    await rerender({});
+    set(3);
+    await commit();
+    await commit();
+    await commit();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(result.current).toEqual({ status: 'ready', data: 0 });
+
+    active = true;
+    await rerender({});
+    await waitFor(() => expect(result.current).toEqual({ status: 'ready', data: 3 }));
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not re-read on return when nothing was committed meanwhile', async () => {
+    const live = liveDb(fakeDb);
+    let active = true;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <DatabaseProvider value={live}>
+        <ScreenActiveContext.Provider value={active}>{children}</ScreenActiveContext.Provider>
+      </DatabaseProvider>
+    );
+    const { read } = counter();
+    const { result, rerender } = await renderHook(() => useLiveQuery(read, []), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    active = false;
+    await rerender({});
+    active = true;
+    await rerender({});
     expect(read).toHaveBeenCalledTimes(1);
   });
 });

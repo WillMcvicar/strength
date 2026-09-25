@@ -6,6 +6,7 @@ import { useEffect, useState, type DependencyList } from 'react';
 import type { Db } from '@/data/db';
 
 import { toError, useLiveDb } from './database';
+import { useScreenActive } from './screenActivity';
 
 export type LiveQuery<T> =
   { status: 'loading' } | { status: 'ready'; data: T } | { status: 'failed'; error: Error };
@@ -13,7 +14,8 @@ export type LiveQuery<T> =
 /**
  * `read` re-runs when `deps` change and after each commit. After a commit the last result stays on
  * screen while the re-read runs; after a `deps` change it is a different query, so the hook
- * reports loading. A result that arrives after a newer read has started is dropped.
+ * reports loading. A result that arrives after a newer read has started is dropped. While its
+ * screen is hidden, commits are only counted: it re-reads once when it comes back (§4.7).
  */
 export function useLiveQuery<T>(read: (db: Db) => Promise<T>, deps: DependencyList): LiveQuery<T> {
   const live = useLiveDb();
@@ -25,6 +27,11 @@ export function useLiveQuery<T>(read: (db: Db) => Promise<T>, deps: DependencyLi
   // Bumped on each commit. React batches the bumps from several quick commits into one render,
   // so they cause one re-read.
   const [commits, setCommits] = useState(0);
+  // The commits last read for. It follows `commits` while the screen is active and holds still
+  // while it's hidden (set during render: React's "adjust state when a prop changes" pattern).
+  const active = useScreenActive();
+  const [readFor, setReadFor] = useState(commits);
+  if (active && readFor !== commits) setReadFor(commits);
 
   useEffect(() => live.subscribe(() => setCommits((n) => n + 1)), [live]);
 
@@ -40,7 +47,7 @@ export function useLiveQuery<T>(read: (db: Db) => Promise<T>, deps: DependencyLi
     };
     // `read` is usually an inline closure; `deps` says when it really changes, as with useMemo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, commits, ...deps]);
+  }, [live, readFor, ...deps]);
 
   return sameDeps(state.deps, deps) ? state.result : { status: 'loading' };
 }

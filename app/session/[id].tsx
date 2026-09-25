@@ -1,10 +1,19 @@
 // The workout session (FR-9, DESIGN §7.6): a full-screen modal. Each exercise lists its sets;
 // ✓ logs a set as planned, the RPE picker follows where one is asked for, and the rest timer
 // starts. Rules live in src/core and writes in src/services; this screen only decides which sheet
-// is open.
+// is open. With `?edit=1` it edits a finished session from History instead (FR-9.12, §7.12): no
+// clock, rest timer or keep-awake, and Done in place of Finish. Each change replays its PRs.
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  BackHandler,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatLoad, nextSetId, restsAfter, toDisplay, toKg } from '@/core';
@@ -65,14 +74,17 @@ type Sheet =
   | null;
 
 export default function SessionScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const view = useSession(id);
   const c = useColors();
   const type = useTypography();
 
   if (view.status === 'loading') return null;
-  // A session that has just finished is on its way to the summary; that isn't an error.
-  if (view.status === 'ready' && view.session?.status === 'completed') return null;
+  if (view.status === 'ready' && view.session?.status === 'completed') {
+    // Opened from History to edit; otherwise it has just finished and is on its way to the
+    // summary, which isn't an error.
+    return edit ? <Session session={view.session} pastEdit /> : null;
+  }
   if (view.status === 'failed' || !view.session) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
@@ -90,7 +102,7 @@ export default function SessionScreen() {
   return <Session session={view.session} />;
 }
 
-function Session({ session }: { session: SessionView }) {
+function Session({ session, pastEdit = false }: { session: SessionView; pastEdit?: boolean }) {
   const c = useColors();
   const type = useTypography();
   const actions = useSessionActions(session.id);
@@ -104,7 +116,7 @@ function Session({ session }: { session: SessionView }) {
   const scroll = useRef<ScrollView>(null);
   const exerciseY = useRef(new Map<string, number>());
   const reduceMotion = useReduceMotion();
-  useKeepAwakeWhile(session.keepAwake);
+  useKeepAwakeWhile(session.keepAwake && !pastEdit);
 
   const allSets = session.exercises.flatMap((e) => e.sets.map((s) => ({ exercise: e, set: s })));
   const find = (setId: string) => allSets.find((x) => x.set.id === setId);
@@ -124,7 +136,7 @@ function Session({ session }: { session: SessionView }) {
   };
 
   const rest = (exercise: SessionExerciseView, setId: string) => {
-    if (restsAfter(session.exercises, setId)) {
+    if (!pastEdit && restsAfter(session.exercises, setId)) {
       void startRest(exercise.restSec, session.restTimerAlerts);
     }
     // §7.6: after the last set of an exercise, the next exercise scrolls to the top.
@@ -202,36 +214,73 @@ function Session({ session }: { session: SessionView }) {
     router.replace(`/session/summary/${session.id}`);
   };
 
+  /** Edit mode's Done: a set still waiting for its RPE would be left undone, so say so. */
+  const done = async () => {
+    const waiting = allSets.find((x) => awaitingRpe.has(x.set.id));
+    if (waiting) return setMessage('Pick an RPE to finish the set you ticked.');
+    await flushNote();
+    router.back();
+  };
+  // Android's Back leaves the same way, so a set still waiting for its RPE isn't dropped silently.
+  const doneRef = useRef(done);
+  useEffect(() => {
+    doneRef.current = done;
+  });
+  useEffect(() => {
+    if (!pastEdit) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      void doneRef.current();
+      return true;
+    });
+    return () => sub.remove();
+  }, [pastEdit]);
+
   const unfinished = session.setsIncomplete;
   const needingRpe = allSets.filter((x) => awaitingRpe.has(x.set.id));
   const firstTopSetId = allSets.find((x) => x.set.isTopSet && x.set.status === 'pending')?.set.id;
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: c.bg }]}>
-      <View style={[styles.header, { borderColor: c.line }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close workout"
-          onPress={() => setSheet({ kind: 'close' })}
-          style={styles.iconButton}
-        >
-          <Text style={[type.title, { color: c.ink }]}>✕</Text>
-        </Pressable>
-        <Text accessibilityRole="header" style={[type.title, styles.title, { color: c.ink }]}>
-          {session.name}
-        </Text>
-        <ElapsedClock startedAt={session.startedAt} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Finish workout"
-          onPress={() =>
-            unfinished > 0 || needingRpe.length > 0 ? setSheet({ kind: 'finish' }) : void finish()
-          }
-          style={styles.iconButton}
-        >
-          <Text style={[type.label, { color: c.plateBlue }]}>Finish</Text>
-        </Pressable>
-      </View>
+      {pastEdit ? (
+        <View style={[styles.header, { borderColor: c.line }]}>
+          <Text accessibilityRole="header" style={[type.title, styles.title, { color: c.ink }]}>
+            Edit {session.name}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Done editing"
+            onPress={() => void done()}
+            style={styles.iconButton}
+          >
+            <Text style={[type.label, { color: c.plateBlue }]}>Done</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={[styles.header, { borderColor: c.line }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close workout"
+            onPress={() => setSheet({ kind: 'close' })}
+            style={styles.iconButton}
+          >
+            <Text style={[type.title, { color: c.ink }]}>✕</Text>
+          </Pressable>
+          <Text accessibilityRole="header" style={[type.title, styles.title, { color: c.ink }]}>
+            {session.name}
+          </Text>
+          <ElapsedClock startedAt={session.startedAt} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Finish workout"
+            onPress={() =>
+              unfinished > 0 || needingRpe.length > 0 ? setSheet({ kind: 'finish' }) : void finish()
+            }
+            style={styles.iconButton}
+          >
+            <Text style={[type.label, { color: c.plateBlue }]}>Finish</Text>
+          </Pressable>
+        </View>
+      )}
 
       <ScrollView ref={scroll} contentContainerStyle={styles.content}>
         {message && (
@@ -358,7 +407,7 @@ function Session({ session }: { session: SessionView }) {
         />
       </ScrollView>
 
-      <RestBar />
+      {!pastEdit && <RestBar />}
 
       <EditSheet
         editing={editing}

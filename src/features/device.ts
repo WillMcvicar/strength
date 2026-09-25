@@ -22,6 +22,11 @@ export function secondsBetween(from: string, to: string): number {
   return Math.floor((Date.parse(to) - Date.parse(from)) / 1000);
 }
 
+/** A finished workout's length in whole minutes, as the summary, History and Today show it. */
+export function durationMin(startedAt: string, endedAt: string): number {
+  return Math.round(secondsBetween(startedAt, endedAt) / 60);
+}
+
 /** A light tap on set completion (§6.4). Haptics never block logging. */
 export function tapHaptic(): void {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});

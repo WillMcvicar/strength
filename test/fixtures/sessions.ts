@@ -2,9 +2,15 @@
 // squat 1RM 125 kg → TM 112.5 kg, so 80% is 90 kg. It also carries a per-side dumbbell press
 // (AC-39), a unilateral row with the total convention (AC-55) and a timed plank. Full body B has
 // a bench press, a pull-up with added load (AC-40) and a completion-only run (AC-37).
+import { rpeRequired } from '@/core';
 import type { Db } from '@/data/db';
-import { startPlan } from '@/services/startPlan';
+import { repositories } from '@/data/repositories';
+import { completeSet } from '@/services/completeSet';
 import type { ServiceContext } from '@/services/context';
+import { finishSession } from '@/services/finishSession';
+import type { SetInput } from '@/services/setValues';
+import { startSession } from '@/services/startSession';
+import { startPlan } from '@/services/startPlan';
 
 import { aPlan, sets, type BuiltPlan } from './plans';
 
@@ -100,4 +106,64 @@ export async function aStartedPlan(db: Db, ctx: ServiceContext): Promise<BuiltPl
   const started = await startPlan(db, { planId: built.planId, startDate: START }, ctx);
   if (!started.ok) throw new Error(`Plan didn't start: ${started.reason}`);
   return built;
+}
+
+/** Plan dates of the started plan: Full body A on Mon/Fri and B on Wed in week A (week B swaps). */
+export const MON = START;
+export const WED = '2026-09-16';
+export const FRI = '2026-09-18';
+export const NEXT_MON = '2026-09-21';
+
+/** A context for a plan date, at 17:00 UTC by default. */
+export const on = (ctx: ServiceContext, date: string, time = '17:00'): ServiceContext => ({
+  ...ctx,
+  today: date,
+  now: `${date}T${time}:00.000Z`,
+});
+
+export type SetValues = Omit<SetInput, 'setLogId'>;
+
+/**
+ * Starts the day's workout and logs every set: working sets of a skill in `values` take those
+ * values, and everything else is done as planned (RPE at the top of its target, or 8, where one is
+ * required). Returns the session, still in progress.
+ */
+export async function logDay(
+  db: Db,
+  planId: string,
+  date: string,
+  ctx: ServiceContext,
+  values: Record<string, SetValues> = {},
+): Promise<string> {
+  const r = repositories(db);
+  const c = on(ctx, date);
+  const workout = (await r.plannedWorkouts.listByPlan(planId)).find(
+    (w) => w.scheduledDate === date,
+  );
+  if (!workout) throw new Error(`No workout on ${date}`);
+  const started = await startSession(db, { plannedWorkoutId: workout.id }, c);
+  if (!started.ok) throw new Error(started.reason);
+  for (const { exercise, sets } of await r.sessions.exercises(started.sessionId)) {
+    for (const s of sets) {
+      const given = s.isWarmup ? {} : (values[exercise.skillId] ?? {});
+      const rpe = rpeRequired(exercise, s) ? (s.targetRpeMax ?? 8) : undefined;
+      const done = await completeSet(db, { rpe, ...given, setLogId: s.id }, c);
+      if (!done.ok) throw new Error(`${exercise.skillId}: ${done.reason}`);
+    }
+  }
+  return started.sessionId;
+}
+
+/** `logDay`, then Finish at 18:00. */
+export async function logAndFinish(
+  db: Db,
+  planId: string,
+  date: string,
+  ctx: ServiceContext,
+  values: Record<string, SetValues> = {},
+) {
+  const sessionId = await logDay(db, planId, date, ctx, values);
+  const finished = await finishSession(db, { sessionId }, on(ctx, date, '18:00'));
+  if (!finished.ok) throw new Error(finished.reason);
+  return { sessionId, prs: finished.prs };
 }

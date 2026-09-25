@@ -1,6 +1,6 @@
 // Plan dates for display (DESIGN §7): "Wed 16 Sep", spoken as "Wednesday 16 September". Dates stay
 // YYYY-MM-DD strings; weekday comes from src/core/dates, never from Date in the local zone.
-import { toDisplay, weekday, type LocalDate, type Unit } from '@/core';
+import { localDateFrom, toDisplay, weekday, type LocalDate, type Unit } from '@/core';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = [
@@ -34,6 +34,17 @@ export function spokenDay(date: LocalDate): string {
   return `${p.day} ${p.date} ${p.month}`;
 }
 
+/** A History month heading: "2026-09" → "September 2026" (§7.12). */
+export function formatMonth(yearMonth: string): string {
+  return `${MONTHS[Number(yearMonth.slice(5, 7)) - 1]} ${yearMonth.slice(0, 4)}`;
+}
+
+/** The plan date an event happened on, in the device's zone: "2026-09-16T05:00Z" in Auckland is 16 Sep. */
+export function localDayOf(iso: string): LocalDate {
+  const d = new Date(iso);
+  return localDateFrom(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
 /** Elapsed or remaining time: "0:45", "1:42", "24:13", "1:02:05". */
 export function formatClock(totalSec: number): string {
   const sec = Math.max(0, Math.round(totalSec));
@@ -53,6 +64,11 @@ export function spokenClock(totalSec: number): string {
     sec % 60 && unit(sec % 60, 'second'),
   ].filter((p): p is string => Boolean(p));
   return parts.length > 0 ? parts.join(' ') : '0 seconds';
+}
+
+/** "1 set", "16 sets" (FR-9.8). */
+export function formatSetCount(n: number): string {
+  return `${n} ${n === 1 ? 'set' : 'sets'}`;
 }
 
 /** Session volume, rounded to a whole number with thousands separators: "6,063 kg" (§7.7). */

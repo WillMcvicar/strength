@@ -1,37 +1,36 @@
-// Lookups shared by the in-session edits (DESIGN §8.2, FR-9.3, FR-9.4). Each finds a row and its
-// session and refuses one that has finished: past sessions are edited from History (FR-9.12).
+// Lookups shared by the session edits (DESIGN §8.2, FR-9.3, FR-9.4, FR-9.12). Each finds a row
+// and its session. A session in progress is edited as it is logged; a finished one is edited
+// from History, and the caller then replays its PRs (`afterSessionChange`).
 import type { Session, SessionExercise, SetLog } from '@/core';
 import type { Repositories } from '@/data/repositories';
 
-export type AccessError = 'not_found' | 'session_not_in_progress';
+export type AccessError = 'not_found';
 type Found<T> = ({ ok: true } & T) | { ok: false; reason: AccessError };
 
-export async function inProgressSession(
+export async function editableSession(
   r: Repositories,
   sessionId: string,
 ): Promise<Found<{ session: Session }>> {
   const session = await r.sessions.get(sessionId);
-  if (!session) return { ok: false, reason: 'not_found' };
-  if (session.status !== 'in_progress') return { ok: false, reason: 'session_not_in_progress' };
-  return { ok: true, session };
+  return session ? { ok: true, session } : { ok: false, reason: 'not_found' };
 }
 
-export async function inProgressExercise(
+export async function editableExercise(
   r: Repositories,
   sessionExerciseId: string,
 ): Promise<Found<{ exercise: SessionExercise; session: Session }>> {
   const exercise = await r.sessions.getExercise(sessionExerciseId);
   if (!exercise) return { ok: false, reason: 'not_found' };
-  const found = await inProgressSession(r, exercise.sessionId);
+  const found = await editableSession(r, exercise.sessionId);
   return found.ok ? { ...found, exercise } : found;
 }
 
-export async function inProgressSet(
+export async function editableSet(
   r: Repositories,
   setLogId: string,
 ): Promise<Found<{ set: SetLog; exercise: SessionExercise; session: Session }>> {
   const set = await r.sessions.getSet(setLogId);
   if (!set) return { ok: false, reason: 'not_found' };
-  const found = await inProgressExercise(r, set.sessionExerciseId);
+  const found = await editableExercise(r, set.sessionExerciseId);
   return found.ok ? { ...found, set } : found;
 }

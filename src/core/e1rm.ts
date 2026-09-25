@@ -23,6 +23,6 @@ export function isQualifyingSet(s: LoggedSet): boolean {
 }
 
 /** Whether a set may set an estimated-1RM personal record — a wider net than suggestions (D-10). */
-export function isPrEligibleE1rm(s: LoggedSet): boolean {
+export function isPrEligibleE1rm(s: Pick<LoggedSet, 'status' | 'isWarmup' | 'reps'>): boolean {
   return s.status === 'completed' && !s.isWarmup && s.reps != null && s.reps >= 1 && s.reps <= 10;
 }

@@ -1,17 +1,17 @@
-// Session summary (FR-9.8, DESIGN §7.7): duration, sets completed and total volume, then the
-// effort rating and a note. PRs join it in Slice 7, and a finished cycle leads into its Cycle
-// Review in Slice 11.
+// Session summary (FR-9.8, FR-10.2, DESIGN §7.7): duration, sets completed and total volume, the
+// PRs it set (a first log is named, not celebrated, C-7), then the effort rating and a note. A
+// finished cycle leads into its Cycle Review in Slice 11.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { secondsBetween } from '@/features/device';
 import { useSession, useSessionActions } from '@/features/session';
 import { BottomBar } from '@/ui/components/BottomBar';
 import { Button } from '@/ui/components/Button';
 import { EffortPicker } from '@/ui/components/EffortPicker';
-import { formatVolume } from '@/ui/format';
+import { PrList } from '@/ui/components/PrList';
+import { formatSetCount, formatVolume } from '@/ui/format';
 import { useColors } from '@/ui/theme';
 import { radius, spacing, touch } from '@/ui/tokens';
 import { useTypography } from '@/ui/typography';
@@ -48,8 +48,9 @@ export default function SessionSummaryScreen() {
     );
   }
 
-  const minutes = Math.round(secondsBetween(session.startedAt, session.endedAt) / 60);
+  const minutes = session.durationMin ?? 0;
   const volume = formatVolume(session.volumeKg, session.unit);
+  const sets = formatSetCount(session.setsCompleted);
   const done = async () => {
     if (notes !== null) await actions.details({ notes });
     backToToday();
@@ -66,12 +67,13 @@ export default function SessionSummaryScreen() {
         </Text>
         <View
           accessible
-          accessibilityLabel={`${session.setsCompleted} sets, ${volume.spoken} lifted`}
+          accessibilityLabel={`${sets}, ${volume.spoken} lifted`}
           style={[styles.figures, { backgroundColor: c.surface, borderColor: c.line }]}
         >
-          <Text style={[type.scoreboard, { color: c.ink }]}>{session.setsCompleted} sets</Text>
+          <Text style={[type.scoreboard, { color: c.ink }]}>{sets}</Text>
           <Text style={[type.scoreboard, { color: c.ink }]}>{volume.shown}</Text>
         </View>
+        <PrList prs={session.prs} unit={session.unit} />
         <EffortPicker value={session.rpe} onPick={(rpe) => void actions.details({ rpe })} />
         <Text style={[type.label, { color: c.inkMuted }]}>Note</Text>
         <TextInput

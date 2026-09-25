@@ -5,7 +5,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressSet, type AccessError } from './sessionAccess';
+import { afterSessionChange } from './personalRecords';
+import { editableSet, type AccessError } from './sessionAccess';
 
 export type MarkSetWarmupResult = ServiceResult<AccessError | CompletionError>;
 
@@ -16,7 +17,7 @@ export function markSetWarmup(
 ): Promise<MarkSetWarmupResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressSet(r, input.setLogId);
+    const found = await editableSet(r, input.setLogId);
     if (!found.ok) return found;
     const { set, exercise } = found;
 
@@ -25,7 +26,7 @@ export function markSetWarmup(
       if (error) return { ok: false, reason: error };
     }
     await r.sessions.updateSet(set.id, { isWarmup: input.isWarmup });
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
     return { ok: true };
   });
 }
