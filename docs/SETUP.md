@@ -72,7 +72,10 @@ yours, because they need your GitHub account and an interactive terminal.
 
 - `app/_layout.tsx` and `app/index.tsx` are placeholders; Slice 4 replaces them.
 - The README needs screenshots to satisfy NFR-13; they can only be taken once Slice 4 has UI.
-- The remaining Slice 0 spike is Android rest-timer notification timing (§2.6, before Slice 6).
+- The remaining Slice 0 spike is Android rest-timer notification timing (§2.6, Slice 6). The
+  measuring tool is built (More tab, development builds only): schedule 60, 120 and 180 s runs with
+  the phone locked, then record how late each one fired under "Spike results" below. Slice 6 can't
+  be marked done until this result is recorded.
 
 ### Spike results (Slice 0)
 
