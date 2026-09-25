@@ -20,9 +20,9 @@ can be checked. Its "Done when" check must pass before the next slice starts.
 | 3 | Schedule engine | **Done** |
 | 4 | Shell, design system, Today (read-only) | **Done** |
 | 5 | Start a plan from a template | **Done** |
-| 6 | Log a session | Next |
+| 6 | Log a session | **Done** |
 | ✓ | Checkpoint: gym test (runs alongside 7–9) | |
-| 7 | PRs and history | |
+| 7 | PRs and history | Next |
 | 8 | Double progression | |
 | 9 | Week and progress | |
 | 10 | Missed workouts and schedule changes | |
@@ -126,6 +126,11 @@ two beginner template seeds.
 **Starts with the Android rest-timer notification spike** carried over from Slice 0: time a
 background notification on a real Android phone (DESIGN §2.6). If it fires late, the in-app
 countdown stays authoritative.
+
+**Deferred:** the spike wasn't run before the slice closed, because no Android phone was to hand.
+The measuring tool is built (More tab, development builds only). Run it at the gym-test checkpoint
+or, at the latest, as the rest-timer item in `docs/RELEASE_CHECKLIST.md`, and record the result in
+`docs/SETUP.md`.
 
 The full logging flow: pre-filled sets, one-tap "done as planned", the inline RPE picker with RPE
 required on main lifts and top sets, top-set display, warm-ups, failed sets, add/remove/swap (needs

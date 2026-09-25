@@ -74,8 +74,9 @@ yours, because they need your GitHub account and an interactive terminal.
 - The README needs screenshots to satisfy NFR-13; they can only be taken once Slice 4 has UI.
 - The remaining Slice 0 spike is Android rest-timer notification timing (§2.6, Slice 6). The
   measuring tool is built (More tab, development builds only): schedule 60, 120 and 180 s runs with
-  the phone locked, then record how late each one fired under "Spike results" below. Slice 6 can't
-  be marked done until this result is recorded.
+  the phone locked, then record how late each one fired under "Spike results" below. **Deferred** to
+  a later device test: Slice 6 closed without it (no Android phone to hand). It must be run before
+  the rest-timer item in `docs/RELEASE_CHECKLIST.md` can be ticked.
 
 ### Spike results (Slice 0)
 

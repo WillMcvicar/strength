@@ -35,6 +35,8 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
   time.
 - Development only: a rest-timer notification timing tool on the More tab. It measures how late a
   notification fires on a locked Android phone (DESIGN §2.6).
+- Build plan Slice 6 is done. The Android notification timing test is deferred to a later device
+  test.
 
 - Start a plan from a template (build plan Slice 5, FR-2.1–2.3, FR-3.3, FR-4.1, AC-1): the two
   beginner templates are seeded as Block 1 → Deload → Block 2 (D-37), the Plans tab and template
