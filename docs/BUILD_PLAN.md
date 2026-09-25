@@ -127,7 +127,7 @@ two beginner template seeds.
 background notification on a real Android phone (DESIGN §2.6). If it fires late, the in-app
 countdown stays authoritative.
 
-**Deferred:** the spike wasn't run before the slice closed, because no Android phone was to hand.
+**Deferred (D-43):** the spike wasn't run before the slice closed, because no Android phone was to hand.
 The measuring tool is built (More tab, development builds only). Run it at the gym-test checkpoint
 or, at the latest, as the rest-timer item in `docs/RELEASE_CHECKLIST.md`, and record the result in
 `docs/SETUP.md`.

@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Document version** | 0.21 (swaps keep done sets; superset warm-ups first) |
-| **Date** | 24 September 2026 |
+| **Document version** | 0.22 (PRs and History details; Android timing spike deferred) |
+| **Date** | 26 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
 | **Location** | `docs/DESIGN.md` |
@@ -74,6 +74,8 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-39 | **Starting and pre-filling a session.** Building Slice 6 found five gaps in §8.2. (1) Only today's open workout can be started. A missed one goes through its options (§8.4), which move it to today first; otherwise a missed session could complete without the schedule moving. (2) `session.local_date` is the day the session is logged, from `today`. (3) Sets that aren't double progression pre-fill reps at the bottom of their range (`repsMin`), and AMRAP reps stay empty until entered (§7.6). (4) With no double-progression state, the load pre-fill is the skill's most recent completed working set from a completed session (§3.12). (5) The rest timer's end time is kept in memory, in the session's UI store, and never stored: after a crash the timer doesn't reappear, but its scheduled notification still fires. `expo-haptics` joins §2.3 for the set-completion tap (§6). | DESIGN §2.3, §2.6, §3.12, §4.3, §8.2; FR-9.1, FR-9.2, FR-9.6 (no SRS change) | `startSession` and `prefillSets` tests (§9) |
 | D-40 | **Changing a session in progress.** FR-9.4, FR-9.7 and FR-9.13 leave several details open. (1) An ad-hoc workout is named "Workout" unless the lifter names it. (2) A swap never moves a done set to the new skill, because a set belongs to the skill it was lifted on (its PRs, pre-fills and volume). If no set is done yet, the exercise itself becomes the new skill. Otherwise the done and failed sets stay on the old skill, and the sets still to do move to a new substituted exercise straight after it, with no link to the plan's exercise. Sets that move lose any value the new skill doesn't track (swapping squat for push-ups keeps the reps and clears the load). The TM snapshot and "↑" badge are cleared, since they belonged to the replaced skill. A swap with no set left to do is refused. (3) An added exercise goes last with one blank working set. (4) An added warm-up goes after the existing warm-ups with nothing prescribed. An added working set goes last and copies the last working set's prescription and values, but never as a top set or AMRAP: after one of those it's a plain back-off set with only the values carried over. (5) Archived skills can't be swapped in or added. (6) The session effort rating is a whole number from 1 to 10. The session note and effort can still be set on the summary after finishing, because neither affects PRs or volume; every other change to a finished session goes through History (FR-9.12). (7) `src/core/session.ts` holds the set pre-fill and completion rules. | DESIGN §2.2, §7.6, §7.7, §8.2; FR-9.4, FR-9.7, FR-9.13, FR-9.14 (no SRS change) | session edit service tests, `newSet` tests (§9) |
 | D-41 | **Session screen details.** Building §7.6 found six gaps. (1) The set menu offered "Add note", but `set_log` has no note column; exercise notes (FR-9.7) cover the need, so the set menu has no note. (2) An ad-hoc workout (FR-9.13) starts from "Log a workout without a plan", a text button under Today's main card, shown whenever no session is in progress. (3) Set rows and their controls name the exercise ("Back squat, set 1, …", "Mark back squat set 1 done"), because two exercises' set 1s otherwise read the same. (4) The top-set reference (FR-9.2b) is the skill's most recent completed top set from a finished session; top sets come once a cycle, so this is last cycle's. (5) A set waiting for a required RPE is held in memory only: if the app closes before one is picked, the set is back to not done, and its values are kept. (6) "Add warm-up set" sits in the exercise ⋯ menu (FR-9.14). (7) In a superset, each exercise's warm-ups come first, one exercise at a time, and only the working sets are paired into rounds, so a warm-up on one exercise can't put the rounds out of step. | DESIGN §7.2, §7.6, §7.17; FR-9.2b, FR-9.13, FR-9.14 (no SRS change) | session screen and Today tests (§9) |
+| D-42 | **PRs and History details.** Building Slice 7 found nine gaps in §3.13, §4.4, §7.7, §7.11 and §7.12. (1) There is no separate `editSession`. History's Edit reopens the logging screen in edit mode, and the in-session edits (§8.2) also accept a finished session: each change to one recomputes its volume and replays PRs for the skills it touched. (2) A replay after an edit or delete starts at that session's `started_at`. Records before it stand and seed the bests, because sessions never overlap (FR-9.13), so nothing earlier can change. (3) A set completed or failed while editing a finished session is dated at the session's `ended_at`, so replay order stays within the session. (4) "Strictly greater" allows for floating-point noise: values within 10⁻⁶ are a tie (87.5 × 10 and 100 × 5 both estimate 116.67 kg). (5) Like `reps_at_weight`, `reps_at_added` is hidden when the same set was also the `heaviest_added` PR. (6) A skill is a first log (C-7) in the session holding its oldest PR row; if that row is manual, it is never a first log. History's ★ counts only new PRs, not first logs. (7) A `bodyweight_plus_load` set with no added load scores as +0 kg ("Reps at BW"). (8) An Est. 1RM PR shows one decimal in the display unit (106.7 kg, AC-54). A PR is dated by its session's `local_date` (D-39), and a manual one by `achieved_at`. The PR board's headline is heaviest, else heaviest added load, most reps, then longest time. (9) Live reads pause while their screen is hidden (a tab not in front, or anything under a full-screen modal) and re-read once when it returns, so logging a set doesn't re-run History, the PR board or Today in the background. | DESIGN §2.4, §3.13, §4.4, §7.7, §7.11, §7.12; FR-9.12, FR-10.1–10.3, FR-10.5, C-7 (no SRS change) | PR core, service, live-query and screen tests (§9) |
+| D-43 | **Android rest-timer timing spike deferred.** No Android phone was available when Slice 6 closed, so the §2.6 timing test moves from before logging to a later device test. It must run before the rest-timer item in `docs/RELEASE_CHECKLIST.md` is ticked, and its result goes in `docs/SETUP.md`. The measuring tool is built (More tab, development builds only). Until then the in-app countdown stays authoritative, as §2.6 already requires if notifications fire late. | DESIGN §2.6, §11; `docs/BUILD_PLAN.md` Slice 6 (no SRS change) | release checklist rest-timer item |
 
 ### 1.2 Open design questions
 
@@ -209,7 +211,7 @@ No analytics, ads or crash-reporting SDKs (NFR-11). Dates use a small in-house `
 
 ### 2.4 Data flow and state
 
-- **Source of truth:** SQLite. Screens read through view-model hooks built on `useLiveQuery` in `src/features`, which re-runs a repository read whenever an exclusive transaction commits (**D-32**). The signal comes from `liveDb(db)` in `src/data`, which wraps `withExclusiveTransactionAsync`, so it fires only after `COMMIT` and never after a rollback. Commits that finish in the same tick cause a single re-read.
+- **Source of truth:** SQLite. Screens read through view-model hooks built on `useLiveQuery` in `src/features`, which re-runs a repository read whenever an exclusive transaction commits (**D-32**). The signal comes from `liveDb(db)` in `src/data`, which wraps `withExclusiveTransactionAsync`, so it fires only after `COMMIT` and never after a rollback. Commits that finish in the same tick cause a single re-read. A hidden screen (a tab not in front, or anything under a full-screen modal) only counts commits, and re-reads once when it is shown again (D-42).
 - **Derived values are never stored** unless noted: prescribed loads (until snapshotted), TM, missed status, progress %, adherence, volume.
 - **Active session:** every set change writes to SQLite immediately (NFR-8). A Zustand store holds UI-only state (focused set, open RPE picker, rest-timer end time) and is rebuilt from the DB on launch (FR-9.10).
 - **Transactions:** every service runs inside one **exclusive** transaction (C-15). A service either fully applies or leaves nothing behind.
@@ -229,7 +231,7 @@ It is idempotent: running it twice changes nothing. It also runs at the end of `
 - **Rest timer (FR-9.6):** when a set is completed and rest timer alerts are on (FR-12.5), schedule a local notification for `now + restSec` and store its ID. Skipping or adjusting the timer cancels and reschedules it. The in-app countdown is computed from the stored end time, so it stays correct after backgrounding. The end time lives in memory, in the session's UI store, and isn't written to the database (D-39): after a crash the timer doesn't reappear, but the scheduled notification still fires.
 - **Workout reminder (FR-12.5):** one scheduled notification for the next workout date at the chosen time, rescheduled by `reconcile` and after any schedule change.
 - Permission is requested the first time it is needed (the first rest timer, or turning on reminders), not at launch.
-- **Android timing risk:** recent Android versions restrict exact alarms, which can delay time-based notifications. Test rest-timer notifications on a real Android phone before logging is built (`docs/BUILD_PLAN.md`, Slice 6). If they fire late, keep the in-app countdown authoritative, and request the exact-alarm permission only if it is really needed.
+- **Android timing risk:** recent Android versions restrict exact alarms, which can delay time-based notifications. Test rest-timer notifications on a real Android phone. This was planned before logging was built, but is deferred to a later device test and must pass before the release checklist's rest-timer item (D-43). If they fire late, keep the in-app countdown authoritative, and request the exact-alarm permission only if it is really needed.
 
 ### 2.7 Storage location and OS backup (NFR-4)
 
@@ -524,7 +526,7 @@ AC-25 check (top set): 100 × (1 + 5/30) = 116.67 → **117.5**. AC-61: only bac
 - `refreshReviews(plan, today)` runs inside `reconcile`, and when a review is opened. It goes through pending reviews oldest first:
   - If the review's cycle is no longer resolved (or, for the Final Review, the program has been reopened), the review and its items are deleted.
   - Otherwise it recomputes `sessions_completed`, `sessions_planned`, and each item's `previous_one_rm_kg`, suggestion and reference figures, using the results of earlier completed reviews.
-- `finishSession`, `editSession`, `deleteSession`, shifts, moves and undo all end with `reconcile`, so a review never shows stale figures (AC-65).
+- `finishSession`, edits to a finished session (D-42), `deleteSession`, shifts, moves and undo all end with `reconcile`, so a review never shows stale figures (AC-65).
 - Deleting a pending review has no side effects, because nothing is written to 1RM history until completion.
 - Completed reviews are frozen. If their cycle later gains a session (a workout shifted after completion), that session uses its cycle's snapshot loads and doesn't touch the review.
 - Completing the Final Review also sets the plan to `completed`, with `ended_at` and `ended_on` (FR-4.14).
@@ -566,7 +568,7 @@ AC-28: 3 × 12 at 15 kg → 16 kg × 8, badge "↑ +1 kg". AC-29: 12/11/10 → s
 
 ### 3.13 Personal records (FR-10)
 
-PRs are an **event log rebuilt by replay**. Recalculation (FR-10.5) deletes a skill's non-manual PR rows and replays that skill's sets in `completed_at` order, together with its manual PRs.
+PRs are an **event log rebuilt by replay**. Recalculation (FR-10.5) deletes a skill's non-manual PR rows from the changed session's `started_at` on, and replays that skill's sets from the same point in `completed_at` order, together with its manual PRs. The records before that point stand and seed the bests (D-42).
 
 | Tracking type | PR types | Value | Key |
 |---|---|---|---|
@@ -580,9 +582,10 @@ PRs are an **event log rebuilt by replay**. Recalculation (FR-10.5) deletes a sk
 | `completion_only` | none | – | – |
 
 - **Eligible sets:** completed, not warm-up, not failed.
-- A set is a PR only if it is **strictly greater** than the previous best for that (type, key). A skill's first-ever sets set the baseline: they are stored as PRs, but the summary shows "First log" instead of "New PR" (C-7).
+- A set is a PR only if it is **strictly greater** than the previous best for that (type, key); values within 10⁻⁶ are a tie, so floating-point noise never makes a PR (D-42). A skill's first-ever sets set the baseline: they are stored as PRs, but the summary shows "First log" instead of "New PR" (C-7). A skill is a first log in the session that holds its oldest PR row, unless that row is manual.
+- A `bodyweight_plus_load` set with no added load scores as +0 kg (D-42).
 - **After finishing a session**, PRs are detected incrementally against current bests (the new session is the latest). A full replay runs only when a past session is edited or deleted.
-- `reps_at_weight` is only shown when the set isn't also a `heaviest` PR, to avoid noise.
+- `reps_at_weight` is only shown when the set isn't also a `heaviest` PR, and `reps_at_added` when it isn't also a `heaviest_added` PR, to avoid noise (D-42). The summary shows the best record per (type, key) from the session.
 - The PR board shows the current best for each type.
 
 AC-4: 82.5 × 5 after 80 × 5 gives `heaviest` + `e1rm` PRs (and `reps_at_weight` for 82.5 kg is suppressed). AC-54: 80 × 10 with no RPE gives an `e1rm` PR of 106.7 kg.
@@ -1032,7 +1035,7 @@ CREATE INDEX idx_pr_session ON personal_record(session_id);
 | A phase can be deleted only if it has no sessions; its reviews are deleted with it | `deletePhase` | FR-2.11, C-16 |
 | Templates are never written after seeding, except user templates on save | repository | FR-2.8 |
 | Tracking type and load convention are read-only once a skill has logs | `updateSkill` | D-16 |
-| Editing or deleting a session triggers PR replay for its skills and recomputes volume | `editSession`, `deleteSession` | FR-10.5 |
+| Editing or deleting a session triggers PR replay for its skills and recomputes volume. Edits are the in-session services acting on a finished session; a set completed during one is dated at the session's `ended_at` | session edits (`afterSessionChange`), `deleteSession` | FR-10.5, D-42 |
 | Deleting a session sets its planned workout back to `upcoming`, then reruns reconcile and the double-progression update for that exercise from the previous session | `deleteSession` | FR-9.12, C-4 |
 | A continuation's blueprint, rules and review mode are read from its original phase | repositories | FR-2.11 |
 | Deleting a plan clears `plan_id` on its sessions and 1RM history, and keeps PRs | FKs (`SET NULL`) | SRS §4 |
@@ -1415,7 +1418,7 @@ The most important screen. It is a full-screen modal, with keep-awake on when th
 └─────────────────────────────────────┘
 ```
 
-If this session completed a cycle, **Done** leads straight into the Cycle Review. In the example, the lifter did the last bench set at 82.5 kg × 5 @ RPE 9 instead of the planned 80 kg, which set both PRs (82.5 × (1 + 6/30) = 99). Volume is squat 5 × 5 × 90 (2,250) + bench 4 × 5 × 80 + 1 × 5 × 82.5 (2,012.5) + row 3 × 10 × 60 (1,800) = 6,062.5, shown rounded. Plank sets count as sets but add no volume.
+If this session completed a cycle, **Done** leads straight into the Cycle Review. In the example, the lifter did the last bench set at 82.5 kg × 5 @ RPE 9 instead of the planned 80 kg, which set both PRs (82.5 × (1 + 6/30) = 99). An Est. 1RM shows one decimal in the display unit, so 99.0 reads "99 kg" and AC-54's 106.67 reads "106.7 kg" (D-42). Volume is squat 5 × 5 × 90 (2,250) + bench 4 × 5 × 80 + 1 × 5 × 82.5 (2,012.5) + row 3 × 10 × 60 (1,800) = 6,062.5, shown rounded. Plank sets count as sets but add no volume.
 
 ### 7.8 Cycle Review and Final Review (FR-3.8, FR-3.9)
 
@@ -1537,7 +1540,7 @@ A single scrolling editor with collapsible sections (not a wizard), matching the
 
 ### 7.11 Progress (FR-10)
 
-- **PR board (FR-10.3):** searchable list of skills with logged sets. Each row shows the headline PR (heaviest or max reps/time) and its date, with a chevron.
+- **PR board (FR-10.3):** searchable list of skills with logged sets. Each row shows the headline PR (heaviest, else heaviest added load, most reps, then longest time) and the day of the session that set it, with a chevron (D-42).
 - **Exercise detail:**
   - v1.0: current 1RM with its history (source, date, note), current PRs, recent sessions, and **Update 1RM** when no plan is active (FR-3.11).
   - v1.2 adds PR history per type and a chart with a "Top set / Est. 1RM" toggle (FR-10.4), and **Add PR manually** (FR-10.6).
@@ -1546,7 +1549,7 @@ A single scrolling editor with collapsible sections (not a wizard), matching the
 
 - Reverse-chronological list grouped by month: date, workout name, duration, ★ if PRs. Filters by plan and exercise (v1.2).
 - Ended plans section with adherence (v1.1).
-- **Session detail:** full sets table (warm-ups muted, failed sets struck through with a "Failed" label), notes, effort, PRs. Actions: **Edit** (reuses the logging screen in edit mode, without a timer) and **Delete** (ConfirmSheet: "PRs from this workout will be recalculated").
+- **Session detail:** full sets table (warm-ups muted, failed sets struck through with a "Failed" label), notes, effort, PRs. Actions: **Edit** (reuses the logging screen in edit mode: no clock, rest timer, keep-awake or discard, and **Done** in place of Finish; Done and Android's Back both wait while a ticked set still needs its RPE) and **Delete** (ConfirmSheet: "PRs from this workout will be recalculated"). Each edit recalculates PRs and volume as it is made (D-42).
 
 ### 7.13 Skill Library (FR-1)
 
@@ -1749,6 +1752,6 @@ The ordering rules behind it:
 - **Riskiest, UI-free work first.** Core maths, the schema and the schedule engine are built and tested in Jest before any screen.
 - **Core loop next.** Today, starting a plan and logging a session come before keeping a plan alive (missed workouts, reviews) and before the builder.
 - **Gym test before the rest of the UI.** The owner trains with the core loop for 1–2 weeks, and the findings update §6 and §7 before the remaining screens are built.
-- **Spikes before the slice that needs them:** `useLiveQuery` before Today, rest-timer notification timing on Android (§2.6) before logging, and OQ-2 before any FR-12.9 work.
+- **Spikes before the slice that needs them:** `useLiveQuery` before Today, rest-timer notification timing on Android (§2.6), deferred to a later device test before release (D-43), and OQ-2 before any FR-12.9 work.
 - **Long lead times start on day one:** developer accounts, the privacy policy page (NFR-13), recruiting the Play closed-test group (NFR-15), and an owner and date for OQ-1.
 - **Scope stays gated by SRS §11.** A slice never enables work tagged for a later release (§10).
