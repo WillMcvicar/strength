@@ -94,15 +94,19 @@ describe('completeSet (FR-9.2 "done as planned")', () => {
     expect(await repos.sessions.getSet(squatSet(1).id)).toMatchObject({ status: 'pending' });
   });
 
-  it('refuses a set that does not exist or whose session has finished', async () => {
+  it('refuses a set that does not exist', async () => {
     expect(await completeSet(db, { setLogId: 'nope' }, ctx)).toEqual({
       ok: false,
       reason: 'not_found',
     });
+  });
+
+  it('completes a set of a finished session as of its end, when edited from History (FR-9.12)', async () => {
     await repos.sessions.update(sessionId, { status: 'completed', endedAt: LATER });
-    expect(await completeSet(db, { setLogId: pressSet().id }, ctx)).toEqual({
-      ok: false,
-      reason: 'session_not_in_progress',
+    expect(await completeSet(db, { setLogId: pressSet().id }, ctx)).toEqual({ ok: true });
+    expect(await repos.sessions.getSet(pressSet().id)).toMatchObject({
+      status: 'completed',
+      completedAt: LATER,
     });
   });
 });

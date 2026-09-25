@@ -4,7 +4,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressExercise, type AccessError } from './sessionAccess';
+import { afterSessionChange } from './personalRecords';
+import { editableExercise, type AccessError } from './sessionAccess';
 
 export type AddSetResult = ServiceResult<AccessError, { setLogId: string }>;
 
@@ -15,7 +16,7 @@ export function addSet(
 ): Promise<AddSetResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressExercise(r, input.sessionExerciseId);
+    const found = await editableExercise(r, input.sessionExerciseId);
     if (!found.ok) return found;
 
     const sets = await r.sessions.setsOf(found.exercise.id);
@@ -34,7 +35,7 @@ export function addSet(
     const order = sets.map((s) => s.id);
     order.splice(position, 0, setLogId);
     await r.sessions.renumberSets(order);
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
     return { ok: true, setLogId };
   });
 }

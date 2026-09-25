@@ -4,7 +4,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressSet, type AccessError } from './sessionAccess';
+import { afterSessionChange, completionTime } from './personalRecords';
+import { editableSet, type AccessError } from './sessionAccess';
 
 export type MarkSetFailedResult = ServiceResult<AccessError>;
 
@@ -15,16 +16,16 @@ export function markSetFailed(
 ): Promise<MarkSetFailedResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressSet(r, input.setLogId);
+    const found = await editableSet(r, input.setLogId);
     if (!found.ok) return found;
 
     await r.sessions.updateSet(
       found.set.id,
       input.failed
-        ? { status: 'failed', completedAt: ctx.now }
+        ? { status: 'failed', completedAt: completionTime(found.session, ctx) }
         : { status: 'pending', completedAt: null },
     );
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
     return { ok: true };
   });
 }

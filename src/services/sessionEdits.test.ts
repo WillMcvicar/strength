@@ -336,7 +336,7 @@ describe('AC-40 Weighted pull-up', () => {
     expect(finished).toMatchObject({ ok: true, summary: { volumeKg: 0, setsCompleted: 1 } });
   });
 
-  it.todo('records a "heaviest added load" PR and computes no e1RM (Slice 7)');
+  // The PR half ("heaviest added load", no e1RM) is in personalRecords.test.ts.
 });
 
 describe('notes and effort (FR-9.7)', () => {
@@ -408,26 +408,27 @@ describe('startAdHocSession (FR-9.13)', () => {
 });
 
 describe('edits after a session has finished', () => {
-  it('are refused; past sessions are edited from History (FR-9.12)', async () => {
+  it('are allowed, since History edits past sessions (FR-9.12)', async () => {
     const { sessionId, exercises } = await mondaySession();
     await finishSession(db, { sessionId }, ctx);
     const exerciseId = exercises[0]!.exercise.id;
     const setLogId = exercises[0]!.sets[0]!.id;
-    const refused = { ok: false, reason: 'session_not_in_progress' };
+    const ok = { ok: true };
 
-    expect(await addSet(db, { sessionExerciseId: exerciseId }, ctx)).toEqual(refused);
-    expect(await deleteSet(db, { setLogId }, ctx)).toEqual(refused);
-    expect(await markSetWarmup(db, { setLogId, isWarmup: false }, ctx)).toEqual(refused);
-    expect(await markSetFailed(db, { setLogId, failed: true }, ctx)).toEqual(refused);
+    expect(await markSetWarmup(db, { setLogId, isWarmup: false }, ctx)).toEqual(ok);
+    expect(await markSetFailed(db, { setLogId, failed: true }, ctx)).toEqual(ok);
+    expect(await deleteSet(db, { setLogId }, ctx)).toEqual(ok);
+    expect(await addSet(db, { sessionExerciseId: exerciseId }, ctx)).toMatchObject(ok);
     expect(
       await swapExercise(db, { sessionExerciseId: exerciseId, skillId: 'skill_front_squat' }, ctx),
-    ).toEqual(refused);
-    expect(await addExercise(db, { sessionId, skillId: 'skill_front_squat' }, ctx)).toEqual(
-      refused,
+    ).toMatchObject(ok);
+    expect(await addExercise(db, { sessionId, skillId: 'skill_front_squat' }, ctx)).toMatchObject(
+      ok,
     );
-    expect(await removeExercise(db, { sessionExerciseId: exerciseId }, ctx)).toEqual(refused);
     expect(
       await updateExerciseNote(db, { sessionExerciseId: exerciseId, notes: 'x' }, ctx),
-    ).toEqual(refused);
+    ).toEqual(ok);
+    expect(await removeExercise(db, { sessionExerciseId: exerciseId }, ctx)).toEqual(ok);
+    expect(await repos.sessions.get(sessionId)).toMatchObject({ status: 'completed' });
   });
 });

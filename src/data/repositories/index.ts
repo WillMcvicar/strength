@@ -6,6 +6,7 @@ import { orm } from '../orm';
 import { appMetaRepository } from './appMeta';
 import { blueprintRepository } from './blueprints';
 import { oneRepMaxRepository } from './oneRepMax';
+import { personalRecordRepository } from './personalRecords';
 import { plannedWorkoutRepository } from './plannedWorkouts';
 import { planRepository } from './plans';
 import { sessionRepository } from './sessions';
@@ -25,6 +26,7 @@ export function repositories(db: Db) {
     plannedWorkouts: plannedWorkoutRepository(o),
     oneRepMax: oneRepMaxRepository(o),
     sessions: sessionRepository(o),
+    prs: personalRecordRepository(o),
   };
 }
 

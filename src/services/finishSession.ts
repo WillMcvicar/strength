@@ -1,10 +1,11 @@
 // Finish Workout (DESIGN §8.2, FR-9.8, FR-9.9). Unfinished sets are kept as they are, and the
 // session still counts as completed.
-import { sessionTotals } from '@/core';
+import { sessionTotals, type PersonalRecord } from '@/core';
 import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
+import { recordSessionPrs } from './personalRecords';
 
 export interface SessionSummary {
   name: string;
@@ -17,7 +18,10 @@ export interface SessionSummary {
   setsIncomplete: number;
 }
 
-export type FinishSessionResult = ServiceResult<'not_in_progress', { summary: SessionSummary }>;
+export type FinishSessionResult = ServiceResult<
+  'not_in_progress',
+  { summary: SessionSummary; prs: PersonalRecord[] }
+>;
 
 export function finishSession(
   db: Db,
@@ -49,7 +53,9 @@ export function finishSession(
       });
     }
 
-    // TODO(Slice 7): step 3, incremental PR detection (§3.13), returned for the summary.
+    // Step 3: PRs against the current bests (§3.13). They never touch the 1RM (FR-3.10, AC-23).
+    const prs = await recordSessionPrs(r, session.id, ctx);
+
     // TODO(Slice 8): step 4, the double-progression update for each linked exercise (§3.12).
     // TODO(Slice 10): step 5, finish with reconcile(ctx.today) once it exists (DESIGN §2.5).
 
@@ -66,6 +72,7 @@ export function finishSession(
           0,
         ),
       },
+      prs,
     };
   });
 }

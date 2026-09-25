@@ -5,7 +5,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressSession, type AccessError } from './sessionAccess';
+import { afterSessionChange } from './personalRecords';
+import { editableSession, type AccessError } from './sessionAccess';
 
 export type AddExerciseResult = ServiceResult<
   AccessError | 'skill_not_found',
@@ -19,7 +20,7 @@ export function addExercise(
 ): Promise<AddExerciseResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressSession(r, input.sessionId);
+    const found = await editableSession(r, input.sessionId);
     if (!found.ok) return found;
     const skill = await r.skills.get(input.skillId);
     if (!skill || skill.isArchived) return { ok: false, reason: 'skill_not_found' };
@@ -52,7 +53,7 @@ export function addExercise(
       status: 'pending',
       completedAt: null,
     });
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [skill.id], ctx);
     return { ok: true, sessionExerciseId };
   });
 }

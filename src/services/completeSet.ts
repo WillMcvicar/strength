@@ -5,7 +5,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressSet, type AccessError } from './sessionAccess';
+import { afterSessionChange, completionTime } from './personalRecords';
+import { editableSet, type AccessError } from './sessionAccess';
 import { mergeSetValues, type SetInput } from './setValues';
 
 export type { SetInput } from './setValues';
@@ -19,7 +20,7 @@ export function completeSet(
 ): Promise<CompleteSetResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressSet(r, input.setLogId);
+    const found = await editableSet(r, input.setLogId);
     if (!found.ok) return found;
     const values = mergeSetValues(found.set, input);
     if (!values) return { ok: false, reason: 'bad_value' };
@@ -29,9 +30,9 @@ export function completeSet(
     await r.sessions.updateSet(found.set.id, {
       ...values,
       status: 'completed',
-      completedAt: ctx.now,
+      completedAt: completionTime(found.session, ctx),
     });
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
     return { ok: true };
   });
 }

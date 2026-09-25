@@ -8,7 +8,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressExercise, type AccessError } from './sessionAccess';
+import { afterSessionChange } from './personalRecords';
+import { editableExercise, type AccessError } from './sessionAccess';
 
 export type SwapExerciseResult = ServiceResult<
   AccessError | 'skill_not_found' | 'nothing_to_swap',
@@ -35,7 +36,7 @@ export function swapExercise(
 ): Promise<SwapExerciseResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressExercise(r, input.sessionExerciseId);
+    const found = await editableExercise(r, input.sessionExerciseId);
     if (!found.ok) return found;
     const skill = await r.skills.get(input.skillId);
     if (!skill || skill.isArchived) return { ok: false, reason: 'skill_not_found' };
@@ -77,7 +78,7 @@ export function swapExercise(
     for (const set of toDo) {
       await r.sessions.updateSet(set.id, valuesForTracking(set, skill.trackingType));
     }
-    await r.sessions.update(session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, session, [exercise.skillId, skill.id], ctx);
     return { ok: true, sessionExerciseId: target };
   });
 }

@@ -3,7 +3,8 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
-import { inProgressExercise, type AccessError } from './sessionAccess';
+import { afterSessionChange } from './personalRecords';
+import { editableExercise, type AccessError } from './sessionAccess';
 
 export type RemoveExerciseResult = ServiceResult<AccessError>;
 
@@ -14,10 +15,10 @@ export function removeExercise(
 ): Promise<RemoveExerciseResult> {
   return exclusive(db, async (tx) => {
     const r = repositories(tx);
-    const found = await inProgressExercise(r, input.sessionExerciseId);
+    const found = await editableExercise(r, input.sessionExerciseId);
     if (!found.ok) return found;
     await r.sessions.deleteExercise(found.exercise.id);
-    await r.sessions.update(found.session.id, { updatedAt: ctx.now });
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
     return { ok: true };
   });
 }

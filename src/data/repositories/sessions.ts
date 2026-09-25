@@ -2,6 +2,7 @@
 // and their sets. At most one session is in progress (`uq_session_in_progress`, FR-9.13).
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 
+import type { PrSet } from '@/core/prs';
 import type { Session, SessionExercise, SetLog } from '@/core/types';
 
 import type { Orm } from '../orm';
@@ -44,6 +45,21 @@ export interface LoggedExercise {
   exercise: SessionExercise;
   sets: SetLog[];
 }
+
+/** The columns PR detection reads, joined across a set, its exercise and its session. */
+const prSetColumns = {
+  skillId: sessionExercise.skillId,
+  sessionId: sessionExercise.sessionId,
+  setLogId: setLog.id,
+  trackingType: sessionExercise.trackingType,
+  status: setLog.status,
+  isWarmup: setLog.isWarmup,
+  reps: setLog.reps,
+  loadKg: setLog.loadKg,
+  timeSec: setLog.timeSec,
+  rpe: setLog.rpe,
+  completedAt: setLog.completedAt,
+};
 
 export function sessionRepository(o: Orm) {
   return {
@@ -215,6 +231,73 @@ export function sessionRepository(o: Orm) {
         if (row.loadKg != null && !last.has(row.skillId)) last.set(row.skillId, row.loadKg);
       }
       return last;
+    },
+    /**
+     * The completed sets of these skills from completed sessions, in the order they were done:
+     * the history a PR replay walks (DESIGN §3.13, FR-10.5).
+     */
+    async prSets(skillIds: readonly string[]): Promise<PrSet[]> {
+      if (skillIds.length === 0) return [];
+      return o
+        .select(prSetColumns)
+        .from(setLog)
+        .innerJoin(sessionExercise, eq(setLog.sessionExerciseId, sessionExercise.id))
+        .innerJoin(session, eq(sessionExercise.sessionId, session.id))
+        .where(
+          and(
+            inArray(sessionExercise.skillId, [...skillIds]),
+            eq(session.status, 'completed'),
+            eq(setLog.status, 'completed'),
+          ),
+        )
+        .orderBy(
+          asc(setLog.completedAt),
+          asc(session.startedAt),
+          asc(sessionExercise.sortOrder),
+          asc(setLog.setIndex),
+        );
+    },
+
+    /** One session's completed sets in the order they were done, for detection on finish. */
+    async prSetsOfSession(sessionId: string): Promise<PrSet[]> {
+      return o
+        .select(prSetColumns)
+        .from(setLog)
+        .innerJoin(sessionExercise, eq(setLog.sessionExerciseId, sessionExercise.id))
+        .where(and(eq(sessionExercise.sessionId, sessionId), eq(setLog.status, 'completed')))
+        .orderBy(asc(setLog.completedAt), asc(sessionExercise.sortOrder), asc(setLog.setIndex));
+    },
+
+    /** Completed sessions, newest first (FR-11.1). */
+    async completed(): Promise<Session[]> {
+      return o
+        .select()
+        .from(session)
+        .where(eq(session.status, 'completed'))
+        .orderBy(desc(session.startedAt));
+    },
+
+    /** The most recent completed sessions that logged this skill (§7.11 exercise detail). */
+    async completedWithSkill(skillId: string, limit: number): Promise<Session[]> {
+      return o
+        .selectDistinct({ session })
+        .from(session)
+        .innerJoin(sessionExercise, eq(sessionExercise.sessionId, session.id))
+        .where(and(eq(sessionExercise.skillId, skillId), eq(session.status, 'completed')))
+        .orderBy(desc(session.startedAt))
+        .limit(limit)
+        .then((rows) => rows.map((r) => r.session));
+    },
+
+    /** Skills with at least one completed set in a completed session: the PR board (FR-10.3). */
+    async loggedSkillIds(): Promise<string[]> {
+      const rows = await o
+        .selectDistinct({ skillId: sessionExercise.skillId })
+        .from(setLog)
+        .innerJoin(sessionExercise, eq(setLog.sessionExerciseId, sessionExercise.id))
+        .innerJoin(session, eq(sessionExercise.sessionId, session.id))
+        .where(and(eq(session.status, 'completed'), eq(setLog.status, 'completed')));
+      return rows.map((r) => r.skillId);
     },
   };
 }
