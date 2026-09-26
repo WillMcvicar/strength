@@ -1,5 +1,6 @@
 // DESIGN §8.2 and §7.6: pre-filling a session's sets and deciding when a set may complete
 // (FR-3.12, FR-9.2, FR-9.2a, FR-9.2b, FR-9.3, FR-9.14).
+import { NEW_PROGRESSION } from './doubleProgression';
 import {
   completionError,
   isValidSetRpe,
@@ -87,6 +88,68 @@ describe('prefillSets (FR-3.12, FR-9.2)', () => {
     const dp = set({ loadType: 'double_progression', loadPercent: null, repsMin: 8, repsMax: 12 });
     expect(prefillSets([dp], 'weight_reps', { ...ctx, lastLoadKg: 15 })[0]!.loadKg).toBe(15);
     expect(prefillSets([dp], 'weight_reps', ctx)[0]!.loadKg).toBeNull();
+  });
+
+  describe('double progression (§3.12, D-12)', () => {
+    const dp = (setIndex: number) =>
+      set({
+        setIndex,
+        loadType: 'double_progression',
+        loadPercent: null,
+        repsMin: 8,
+        repsMax: 12,
+      });
+    const warmup = set({
+      setIndex: 1,
+      isWarmup: true,
+      loadType: 'fixed',
+      loadPercent: null,
+      fixedLoadKg: 10,
+    });
+    const held = { ...NEW_PROGRESSION, workingLoadKg: 15, lastReps: [12, 11, 10] };
+
+    it("pre-fills the working load and last session's reps, set by set, skipping warm-ups", () => {
+      const rows = prefillSets([warmup, dp(2), dp(3), dp(4)], 'weight_reps', {
+        ...ctx,
+        dpState: held,
+        lastLoadKg: 40,
+      });
+      expect(rows.map((r) => [r.loadKg, r.reps])).toEqual([
+        [10, 5],
+        [15, 12],
+        [15, 11],
+        [15, 10],
+      ]);
+    });
+
+    it('pre-fills the bottom of the range after an increase', () => {
+      const up = { ...held, workingLoadKg: 16, lastIncreaseSessionId: 's1' };
+      const rows = prefillSets([dp(1), dp(2)], 'weight_reps', {
+        ...ctx,
+        increment: 1,
+        dpState: up,
+      });
+      expect(rows.map((r) => [r.loadKg, r.reps])).toEqual([
+        [16, 8],
+        [16, 8],
+      ]);
+    });
+
+    it('pre-fills the bottom of the range, and the reduced load, in a deload', () => {
+      const [row] = prefillSets([dp(1)], 'weight_reps', {
+        ...ctx,
+        increment: 1,
+        phase: { type: 'deload', loadFactor: 0.9 },
+        dpState: { ...held, workingLoadKg: 16 },
+      });
+      // AC-53's figures: 16 × 0.9 = 14.4 → 14 kg.
+      expect([row!.loadKg, row!.reps]).toEqual([14, 8]);
+    });
+
+    it('leaves AMRAP reps empty', () => {
+      const amrap = { ...dp(1), isAmrap: true };
+      expect(prefillSets([amrap], 'weight_reps', { ...ctx, dpState: held })[0]!.reps).toBeNull();
+    });
   });
 
   it('applies the deload load factor', () => {

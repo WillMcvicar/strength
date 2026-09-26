@@ -1,11 +1,13 @@
 // DESIGN §3.3 and §7.2 — what Today shows (FR-7.2, FR-7.4, FR-7.5, FR-7.8; C-9).
 import { addDays, weekday } from './dates';
+import { progressionKey } from './doubleProgression';
 import { prescribedLoadKg, tmKg } from './loads';
 import { incrementFor } from './rounding';
 import { effectiveStatus, type EffectiveStatus } from './schedule/status';
 import type {
   CycleExercise,
   CycleSet,
+  DoubleProgressionState,
   IncrementSettings,
   LocalDate,
   PhaseLoadSettings,
@@ -116,6 +118,10 @@ export interface WorkoutRowsInput {
   unit: Unit;
   increments: IncrementSettings;
   defaultRestSec: number;
+  /** Double-progression tracks by cycle exercise (§3.12); a deload reads its source's. */
+  dpStates?: ReadonlyMap<string, Pick<DoubleProgressionState, 'workingLoadKg'>>;
+  /** Each skill's last logged working load, for a track with no history (D-39). */
+  lastLoads?: ReadonlyMap<string, number>;
 }
 
 export interface WorkoutRow {
@@ -146,8 +152,8 @@ const LOADED: ReadonlySet<RowSkill['trackingType']> = new Set([
 
 /**
  * Today's exercise list (FR-7.2): working sets × target × calculated load. The target and load
- * come from the first working set; loads follow §3.3 with the cycle's 1RM (C-9). Double
- * progression has no history until Slice 8, so its loads are empty for now.
+ * come from the first working set; loads follow §3.3 with the cycle's 1RM (C-9), and double
+ * progression reads the workout's track (§3.12).
  */
 export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
   return input.exercises.map(({ exercise, sets }) => {
@@ -173,7 +179,8 @@ export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
               unit: input.unit,
               increment: incrementFor(skill, input.increments, input.unit),
               phase: input.phase,
-              dpState: null,
+              dpState: input.dpStates?.get(progressionKey(exercise)) ?? null,
+              lastLoadKg: input.lastLoads?.get(exercise.skillId) ?? null,
             });
       if (kg !== null || first.loadType === 'bodyweight') {
         load = {

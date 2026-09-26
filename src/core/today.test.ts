@@ -298,26 +298,41 @@ describe('workoutRows (FR-7.2, §3.3)', () => {
     expect(row?.load).toBeNull();
   });
 
-  it('has no load for a double-progression set with no history yet (Slice 8)', () => {
-    const [row] = workoutRows(
-      base({
-        exercises: [
-          {
-            exercise: exercise('row_x', 'row'),
-            sets: [
-              set(1, {
-                repsMin: 8,
-                repsMax: 12,
-                loadType: 'double_progression',
-                loadPercent: null,
-              }),
-            ],
-          },
-        ],
-        skills: new Map([['row', skill('Barbell row')]]),
-      }),
-    );
-    expect(row?.load).toBeNull();
+  describe('double progression (§3.12)', () => {
+    const dpSet = set(1, {
+      repsMin: 8,
+      repsMax: 12,
+      loadType: 'double_progression',
+      loadPercent: null,
+    });
+    const rowOf = (over: Partial<WorkoutRowsInput> = {}, ex = exercise('row_x', 'row')) =>
+      workoutRows(
+        base({
+          exercises: [{ exercise: ex, sets: [dpSet] }],
+          skills: new Map([['row', skill('Barbell row')]]),
+          ...over,
+        }),
+      )[0];
+
+    it('has no load when the skill has no history yet', () => {
+      expect(rowOf()?.load).toBeNull();
+    });
+
+    it("shows the working load from the workout's own track", () => {
+      const dpStates = new Map([['row_x', { workingLoadKg: 62.5 }]]);
+      expect(rowOf({ dpStates })?.load?.kg).toBe(62.5);
+    });
+
+    it("falls back to the skill's last logged load", () => {
+      expect(rowOf({ lastLoads: new Map([['row', 60]]) })?.load?.kg).toBe(60);
+    });
+
+    it("reads a deload copy's source track and applies the load factor (D-9)", () => {
+      const copy = exercise('row_deload', 'row', { sourceCycleExerciseId: 'row_x' });
+      const dpStates = new Map([['row_x', { workingLoadKg: 60 }]]);
+      const deload = { type: 'deload' as const, loadFactor: 0.9 };
+      expect(rowOf({ dpStates, phase: deload }, copy)?.load?.kg).toBe(55);
+    });
   });
 
   it('keeps a bodyweight set on an added-load skill as bodyweight', () => {

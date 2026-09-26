@@ -1,7 +1,8 @@
 // DESIGN §8.2 and §7.6 — pre-filling a session's sets when it starts, and deciding when a set may
 // be marked complete (FR-3.12, FR-9.2, FR-9.2a, FR-9.2b, FR-9.3, FR-9.14).
+import { progressionReps } from './doubleProgression';
 import { prescribedLoadKg } from './loads';
-import type { CycleSet, LoadContext, SetLog, TrackingType } from './types';
+import type { CycleSet, DoubleProgressionState, LoadContext, SetLog, TrackingType } from './types';
 
 /** A `set_log` row as it is written at session start, before any ids or results. */
 export type SetPrefill = Omit<
@@ -9,8 +10,14 @@ export type SetPrefill = Omit<
   'id' | 'sessionExerciseId' | 'rpe' | 'status' | 'completedAt'
 >;
 
-/** `LoadContext`, except that the TM is null when the skill has no 1RM yet. */
-export type PrefillContext = Omit<LoadContext, 'tmKg'> & { tmKg: number | null };
+/**
+ * `LoadContext`, except that the TM is null when the skill has no 1RM yet, and double
+ * progression brings its whole state for the rep pre-fill (D-12).
+ */
+export type PrefillContext = Omit<LoadContext, 'tmKg' | 'dpState'> & {
+  tmKg: number | null;
+  dpState?: DoubleProgressionState | null;
+};
 
 const LOADED: ReadonlySet<TrackingType> = new Set(['weight_reps', 'bodyweight_plus_load']);
 const REPS: ReadonlySet<TrackingType> = new Set([
@@ -21,41 +28,50 @@ const REPS: ReadonlySet<TrackingType> = new Set([
 
 /**
  * The sets of one exercise, in set order, with the prescription snapshotted and the values that
- * "done as planned" will log (FR-9.2). Reps start at the bottom of the range (D-39); an AMRAP set's reps
- * stay empty until the lifter enters them (§7.6). A top set's load is its starting-% pre-fill
- * (FR-3.12). %-based loads are empty while the skill has no 1RM.
+ * "done as planned" will log (FR-9.2). Reps start at the bottom of the range (D-39), except that
+ * double-progression sets follow last session's reps (D-12); an AMRAP set's reps stay empty until
+ * the lifter enters them (§7.6). A top set's load is its starting-% pre-fill (FR-3.12). %-based
+ * loads are empty while the skill has no 1RM.
  */
 export function prefillSets(
   sets: readonly CycleSet[],
   trackingType: TrackingType,
   ctx: PrefillContext,
 ): SetPrefill[] {
-  return [...sets]
-    .sort((a, b) => a.setIndex - b.setIndex)
-    .map((s) => {
-      const needsTm = s.loadType === 'percent_tm' || s.loadType === 'top_set';
-      const load =
-        !LOADED.has(trackingType) || (needsTm && ctx.tmKg === null)
-          ? null
-          : prescribedLoadKg(s, { ...ctx, tmKg: ctx.tmKg ?? 0 });
-      const reps = REPS.has(trackingType);
-      const time = trackingType === 'time' ? s.targetTimeSec : null;
-      return {
-        setIndex: s.setIndex,
-        isWarmup: s.isWarmup,
-        isAmrap: s.isAmrap,
-        isTopSet: s.loadType === 'top_set',
-        prescribedRepsMin: reps ? s.repsMin : null,
-        prescribedRepsMax: reps ? s.repsMax : null,
-        prescribedLoadKg: load,
-        prescribedTimeSec: time,
-        targetRpeMin: s.targetRpeMin,
-        targetRpeMax: s.targetRpeMax,
-        reps: reps && !s.isAmrap ? s.repsMin : null,
-        loadKg: load,
-        timeSec: time,
-      };
-    });
+  const ordered = [...sets].sort((a, b) => a.setIndex - b.setIndex);
+  const working = ordered.filter((s) => !s.isWarmup);
+  const dpReps = ctx.dpState
+    ? progressionReps(ctx.dpState, working, { paused: ctx.phase.type !== 'training' })
+    : [];
+  return ordered.map((s) => {
+    const needsTm = s.loadType === 'percent_tm' || s.loadType === 'top_set';
+    const load =
+      !LOADED.has(trackingType) || (needsTm && ctx.tmKg === null)
+        ? null
+        : prescribedLoadKg(s, { ...ctx, tmKg: ctx.tmKg ?? 0 });
+    const reps = REPS.has(trackingType);
+    const time = trackingType === 'time' ? s.targetTimeSec : null;
+    return {
+      setIndex: s.setIndex,
+      isWarmup: s.isWarmup,
+      isAmrap: s.isAmrap,
+      isTopSet: s.loadType === 'top_set',
+      prescribedRepsMin: reps ? s.repsMin : null,
+      prescribedRepsMax: reps ? s.repsMax : null,
+      prescribedLoadKg: load,
+      prescribedTimeSec: time,
+      targetRpeMin: s.targetRpeMin,
+      targetRpeMax: s.targetRpeMax,
+      reps:
+        reps && !s.isAmrap
+          ? s.loadType === 'double_progression'
+            ? (dpReps[working.indexOf(s)] ?? s.repsMin)
+            : s.repsMin
+          : null,
+      loadKg: load,
+      timeSec: time,
+    };
+  });
 }
 
 /** FR-9.2a: main lifts and every top set need an RPE; warm-ups never do (FR-9.14). */
