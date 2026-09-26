@@ -9,6 +9,7 @@ import { repositories } from '@/data/repositories';
 import { DatabaseProvider } from '@/features/database';
 import {
   blockedBeforeRpe,
+  lastTimeLabel,
   loadLabel,
   useSession,
   useSessionActions,
@@ -20,8 +21,17 @@ import { startSession } from '@/services/startSession';
 
 import { openMigratedTestDb } from '../../test/db/betterSqlite3';
 import { idSequence } from '../../test/fixtures/ids';
-import { aStartedPlan, START } from '../../test/fixtures/sessions';
-import { topSet } from '../../test/fixtures/plans';
+import { aPlan, sets, topSet } from '../../test/fixtures/plans';
+import {
+  FRI,
+  MON,
+  NEXT_MON,
+  WED,
+  aStartedPlan,
+  logAndFinish,
+  on,
+  START,
+} from '../../test/fixtures/sessions';
 
 jest.mock('@/features/serviceContext', () => {
   const { idSequence: ids } = jest.requireActual('../../test/fixtures/ids');
@@ -211,5 +221,131 @@ describe('blockedBeforeRpe (§7.6)', () => {
     expect(blockedBeforeRpe(squat.exercise, { ...set, loadKg: null })).toBe(
       'Enter the weight you used.',
     );
+  });
+});
+
+describe('double progression on the session screen (FR-3.15, FR-9.5, §7.6)', () => {
+  const CURL = 'skill_dumbbell_curl';
+  const curlSets = sets(3, {
+    loadType: 'double_progression',
+    loadPercent: null,
+    repsMin: 8,
+    repsMax: 12,
+    targetRpeMin: 8,
+    targetRpeMax: 9,
+  });
+
+  /** Full body A (Mon, Fri) and B (Wed) both curl, so each has its own track (D-20). */
+  async function curlPlan(): Promise<string> {
+    const { startPlan } = jest.requireActual('@/services/startPlan');
+    await repositories(db).skills.update(CURL, { loadIncrementKg: 1 });
+    await aPlan('dp')
+      .startingOn(START)
+      .withWorkouts('Full body A', 'Full body B')
+      .withExercises('Full body A', [{ skill: CURL, sets: curlSets }])
+      .withExercises('Full body B', [{ skill: CURL, sets: curlSets }])
+      .withSchedule({
+        A: { Mon: 'Full body A', Wed: 'Full body B', Fri: 'Full body A' },
+        B: { Mon: 'Full body A', Wed: 'Full body B', Fri: 'Full body A' },
+      })
+      .build(db);
+    await startPlan(db, { planId: 'dp', startDate: START }, ctx);
+    return 'dp';
+  }
+
+  async function startOn(planId: string, date: string): Promise<string> {
+    const workout = (await repositories(db).plannedWorkouts.listByPlan(planId)).find(
+      (w) => w.scheduledDate === date,
+    )!;
+    const result = await startSession(db, { plannedWorkoutId: workout.id }, on(ctx, date));
+    if (!result.ok) throw new Error(result.reason);
+    return result.sessionId;
+  }
+
+  const curl = (reps: number, loadKg = 15) => ({ reps, loadKg, rpe: 8 });
+
+  it('shows the "↑ +1 kg" badge and last time, and Revert takes the badge away (AC-28)', async () => {
+    const planId = await curlPlan();
+    await logAndFinish(db, planId, MON, ctx, { [CURL]: [curl(12), curl(12), curl(12)] });
+    await logAndFinish(db, planId, WED, ctx, { [CURL]: [curl(9, 10), curl(9, 10), curl(8, 10)] });
+    const friday = await startOn(planId, FRI);
+
+    const view = await viewOf(friday);
+    // Last time follows the workout: Monday's Full body A, not Wednesday's B (FR-2.15).
+    expect(view.exercises[0]).toMatchObject({
+      increase: { text: '↑ +1 kg', kg: 1 },
+      lastTime: 'Last: 3×12 @ 15 kg × 2',
+      reduceHint: false,
+    });
+
+    const { result } = await renderHook(() => useSessionActions(friday), { wrapper });
+    let outcome: unknown;
+    await act(async () => {
+      outcome = await result.current.revertIncrease(view.exercises[0]!.id);
+    });
+    expect(outcome).toEqual({ ok: true });
+    expect((await viewOf(friday)).exercises[0]).toMatchObject({ increase: null });
+    await act(async () => {
+      outcome = await result.current.revertIncrease(view.exercises[0]!.id);
+    });
+    expect(outcome).toEqual({ ok: false, message: 'There’s no increase to undo.' });
+  });
+
+  it("falls back to the skill's last time before this workout has one", async () => {
+    const planId = await curlPlan();
+    await logAndFinish(db, planId, MON, ctx, { [CURL]: [curl(12), curl(11), curl(10)] });
+    const wednesday = await startOn(planId, WED);
+    expect((await viewOf(wednesday)).exercises[0]).toMatchObject({
+      increase: null,
+      lastTime: 'Last: 12, 11, 10 @ 15 kg × 2',
+    });
+  });
+
+  it('shows the reduce hint after two sessions below the range, and no badge once finished', async () => {
+    const planId = await curlPlan();
+    const low = { [CURL]: [curl(7), curl(6), curl(6)] };
+    await logAndFinish(db, planId, MON, ctx, low);
+    const friday = await logAndFinish(db, planId, FRI, ctx, low);
+    const next = await startOn(planId, NEXT_MON);
+    expect((await viewOf(next)).exercises[0]).toMatchObject({ reduceHint: true });
+    // A finished session shows neither: its track has already moved on.
+    expect((await viewOf(friday.sessionId)).exercises[0]).toMatchObject({
+      reduceHint: false,
+      increase: null,
+      lastTime: 'Last: 7, 6, 6 @ 15 kg × 2',
+    });
+  });
+});
+
+describe('lastTimeLabel (FR-9.5)', () => {
+  const as = (over: object) =>
+    ({ trackingType: 'weight_reps', loadConvention: 'total', ...over }) as unknown as Parameters<
+      typeof lastTimeLabel
+    >[1];
+
+  it('reads "3×8 @ 60 kg", listing reps that differ, with runs at other loads after a dot', () => {
+    expect(lastTimeLabel([{ loadKg: 60, values: [8, 8, 8] }], as({}), 'kg')).toBe(
+      'Last: 3×8 @ 60 kg',
+    );
+    expect(
+      lastTimeLabel(
+        [
+          { loadKg: 15, values: [10] },
+          { loadKg: 16, values: [9, 9] },
+        ],
+        as({}),
+        'kg',
+      ),
+    ).toBe('Last: 10 @ 15 kg · 2×9 @ 16 kg');
+  });
+
+  it('reads reps alone, times in seconds, and nothing when there is nothing to show', () => {
+    expect(
+      lastTimeLabel([{ loadKg: null, values: [10, 8] }], as({ trackingType: 'reps_only' }), 'kg'),
+    ).toBe('Last: 10, 8');
+    expect(
+      lastTimeLabel([{ loadKg: null, values: [60, 60] }], as({ trackingType: 'time' }), 'kg'),
+    ).toBe('Last: 2×60 s');
+    expect(lastTimeLabel([], as({}), 'kg')).toBeNull();
   });
 });

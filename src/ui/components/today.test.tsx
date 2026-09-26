@@ -46,6 +46,22 @@ describe('ExerciseCard (§6.5, §7.2)', () => {
     expect(card).toHaveTextContent(/90 kg/);
   });
 
+  it('marks a load that went up with "↑", and says so (§7.2, FR-3.15)', async () => {
+    await render(
+      <ExerciseCard
+        name="Barbell row"
+        sets={3}
+        target={{ reps: [8, 12] }}
+        load={{ kg: 60, unit: 'kg' }}
+        increased
+      />,
+    );
+    const card = screen.getByLabelText(
+      'Barbell row, 3 sets of 8 to 12 reps, 60 kilograms, up from last time',
+    );
+    expect(card).toHaveTextContent(/60 kg\s*↑/);
+  });
+
   it('marks a superset with a bracket and says so', async () => {
     await render(<ExerciseCard name="Dips" sets={3} target={{ reps: [10] }} inSuperset />);
     expect(screen.getByLabelText('Superset: Dips, 3 sets of 10 reps')).toBeTruthy();

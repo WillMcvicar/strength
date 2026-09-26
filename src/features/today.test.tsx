@@ -177,3 +177,47 @@ describe('useToday with a session (FR-9.1, FR-9.10, §7.2)', () => {
     });
   });
 });
+
+describe('useToday with double progression (FR-7.2, FR-3.15)', () => {
+  it("shows Friday's curl at the working load Monday's Full body A moved it to", async () => {
+    const CURL = 'skill_dumbbell_curl';
+    const { logAndFinish } = jest.requireActual('../../test/fixtures/sessions');
+    await repositories(db).skills.update(CURL, { loadIncrementKg: 1 });
+    await aPlan('dp')
+      .startingOn('2026-09-14')
+      .withWorkouts('Full body A', 'Full body B')
+      .withExercises('Full body A', [
+        {
+          skill: CURL,
+          sets: sets(3, {
+            loadType: 'double_progression',
+            loadPercent: null,
+            repsMin: 8,
+            repsMax: 12,
+            targetRpeMin: 8,
+            targetRpeMax: 9,
+          }),
+        },
+      ])
+      .withExercises('Full body B', [
+        { skill: 'skill_plank', sets: sets(1, { repsMin: null, loadType: 'bodyweight' }) },
+      ])
+      .withSchedule(FULL_BODY_AB)
+      .build(db);
+    const ctx = { today: '2026-09-14', now: '2026-09-14T17:00:00.000Z', newId: idSequence('d') };
+    await startPlan(db, { planId: 'dp', startDate: '2026-09-14' }, ctx);
+
+    const { result: before } = await renderHook(() => useToday('2026-09-14'), { wrapper });
+    await waitFor(() => expect(before.current.status).toBe('ready'));
+    // Never logged: nothing to pre-fill yet (§3.12).
+    expect(before.current).toMatchObject({ card: { rows: [{ load: null }] } });
+
+    const top = { reps: 12, loadKg: 15, rpe: 8 };
+    await logAndFinish(db, 'dp', '2026-09-14', ctx, { [CURL]: top });
+    const { result } = await renderHook(() => useToday('2026-09-18'), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current).toMatchObject({
+      card: { name: 'Full body A', rows: [{ name: 'Dumbbell curl', load: { kg: 16 } }] },
+    });
+  });
+});

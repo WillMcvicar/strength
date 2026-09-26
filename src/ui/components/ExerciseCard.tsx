@@ -21,6 +21,8 @@ export interface ExerciseCardProps {
   rpe?: { min: number; max: number } | null;
   /** A top set reads "Work up to 1–3 @ RPE 8" (D-19, D-36). */
   topSet?: boolean;
+  /** "60 kg ↑": the load went up since last time (double progression, FR-3.15). */
+  increased?: boolean;
   inSuperset?: boolean;
 }
 
@@ -61,6 +63,7 @@ export function ExerciseCard({
   load,
   rpe = null,
   topSet = false,
+  increased = false,
   inSuperset = false,
 }: ExerciseCardProps) {
   const c = useColors();
@@ -72,6 +75,7 @@ export function ExerciseCard({
     ...(target ? [`${count(sets, 'set', 'sets')} of ${prescription(target).spoken}`] : []),
     ...(rpeLine ? [rpeLine.spoken] : []),
     ...(load ? [spokenLoad(load.kg, load.unit, load.perSide, load.added)] : []),
+    ...(load && increased ? ['up from last time'] : []),
   ].join(', ');
 
   return (
@@ -84,6 +88,7 @@ export function ExerciseCard({
         <Text style={[type.body, styles.name, { color: c.ink }]}>{name}</Text>
         {shown && <Text style={[type.body, { color: c.inkMuted }]}>{shown}</Text>}
         {load && <LoadText {...load} />}
+        {load && increased && <Text style={[type.body, { color: c.plateGreen }]}>↑</Text>}
       </View>
       {rpeLine && (
         <Text style={[type.caption, { color: topSet ? c.plateBlue : c.inkMuted }]}>

@@ -204,6 +204,7 @@ function MainCard({
           load={row.load ? { ...row.load, unit } : undefined}
           rpe={row.rpe}
           topSet={row.topSet}
+          increased={row.increased}
           inSuperset={row.inSuperset}
         />
       ))}
