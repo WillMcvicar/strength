@@ -1,11 +1,14 @@
 // DESIGN §3.3 and §7.2 — what Today shows (FR-7.2, FR-7.4, FR-7.5, FR-7.8; C-9).
 import { addDays, weekday } from './dates';
+import { increaseKg, progressionKey } from './doubleProgression';
+import { LOADED_TRACKING as LOADED } from './tracking';
 import { prescribedLoadKg, tmKg } from './loads';
 import { incrementFor } from './rounding';
 import { effectiveStatus, type EffectiveStatus } from './schedule/status';
 import type {
   CycleExercise,
   CycleSet,
+  DoubleProgressionState,
   IncrementSettings,
   LocalDate,
   PhaseLoadSettings,
@@ -116,6 +119,10 @@ export interface WorkoutRowsInput {
   unit: Unit;
   increments: IncrementSettings;
   defaultRestSec: number;
+  /** Double-progression tracks by cycle exercise (§3.12); a deload reads its source's. */
+  dpStates?: ReadonlyMap<string, DoubleProgressionState>;
+  /** Each skill's last logged working load, for a track with no history (D-39). */
+  lastLoads?: ReadonlyMap<string, number>;
 }
 
 export interface WorkoutRow {
@@ -135,19 +142,16 @@ export interface WorkoutRow {
   rpe: { min: number; max: number } | null;
   /** A top set's RPE is its prescription and its load a pre-fill (D-19). */
   topSet: boolean;
+  /** "60 kg ↑": a double-progression increase waits to be lifted (§7.2, FR-3.15). */
+  increased: boolean;
   restSec: number;
   inSuperset: boolean;
 }
 
-const LOADED: ReadonlySet<RowSkill['trackingType']> = new Set([
-  'weight_reps',
-  'bodyweight_plus_load',
-]);
-
 /**
  * Today's exercise list (FR-7.2): working sets × target × calculated load. The target and load
- * come from the first working set; loads follow §3.3 with the cycle's 1RM (C-9). Double
- * progression has no history until Slice 8, so its loads are empty for now.
+ * come from the first working set; loads follow §3.3 with the cycle's 1RM (C-9), and double
+ * progression reads the workout's track (§3.12).
  */
 export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
   return input.exercises.map(({ exercise, sets }) => {
@@ -155,6 +159,7 @@ export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
     const working = sets.filter((s) => !s.isWarmup);
     const first = working[0];
 
+    const track = input.dpStates?.get(progressionKey(exercise)) ?? null;
     let load: WorkoutRow['load'] = null;
     if (skill && first && LOADED.has(skill.trackingType)) {
       const planSkill = input.planSkills.get(exercise.skillId);
@@ -173,7 +178,8 @@ export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
               unit: input.unit,
               increment: incrementFor(skill, input.increments, input.unit),
               phase: input.phase,
-              dpState: null,
+              dpState: track,
+              lastLoadKg: input.lastLoads?.get(exercise.skillId) ?? null,
             });
       if (kg !== null || first.loadType === 'bodyweight') {
         load = {
@@ -204,6 +210,13 @@ export function workoutRows(input: WorkoutRowsInput): WorkoutRow[] {
       load,
       rpe: rpeMin !== null && rpeMax !== null ? { min: rpeMin, max: rpeMax } : null,
       topSet: first?.loadType === 'top_set',
+      // Paused in deloads, so a deload copy never shows one (FR-3.15).
+      increased:
+        load !== null &&
+        input.phase.type === 'training' &&
+        first?.loadType === 'double_progression' &&
+        track !== null &&
+        increaseKg(track) !== null,
       restSec: exercise.restSec ?? input.defaultRestSec,
       inSuperset: exercise.supersetGroup !== null,
     };

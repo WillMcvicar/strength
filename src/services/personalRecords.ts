@@ -12,6 +12,7 @@ import {
 import type { Repositories } from '@/data/repositories';
 
 import type { ServiceContext } from './context';
+import { replaySessionProgression } from './doubleProgression';
 
 const withIds = (rows: readonly NewPr[], ctx: ServiceContext): PersonalRecord[] =>
   rows.map((row) => ({ ...row, id: ctx.newId() }));
@@ -57,23 +58,33 @@ export async function replaySkillPrs(
 
 /**
  * Marks the session changed. A finished one is being edited from History (FR-9.12), so its
- * volume is recomputed and the PRs of the skills it touched are replayed (§4.4).
+ * volume is recomputed, and the PRs of the skills it touched and the double-progression tracks
+ * of their exercises are replayed (§4.4, §3.12, C-4, D-44). `removedTracks` names the tracks of
+ * exercises the change took out of the session, which can no longer be found from it.
  */
 export async function afterSessionChange(
   r: Repositories,
   session: Session,
   skillIds: readonly string[],
   ctx: ServiceContext,
+  removedTracks: readonly (string | null)[] = [],
 ): Promise<void> {
   if (session.status !== 'completed') {
     await r.sessions.update(session.id, { updatedAt: ctx.now });
     return;
   }
-  const { volumeKg } = sessionTotals(await r.sessions.exercises(session.id));
+  const exercises = await r.sessions.exercises(session.id);
+  const { volumeKg } = sessionTotals(exercises);
   await r.sessions.update(session.id, { totalVolumeKg: volumeKg, updatedAt: ctx.now });
   // Its sets were all done after it started, and every earlier session's before (FR-9.13).
   await replaySkillPrs(r, skillIds, ctx, session.startedAt);
-  // TODO(Slice 8): rerun the double-progression update for the exercises changed (§3.12, C-4).
+  const touched = new Set(skillIds);
+  await replaySessionProgression(r, session, [
+    ...exercises
+      .filter((e) => touched.has(e.exercise.skillId))
+      .map((e) => e.exercise.cycleExerciseId),
+    ...removedTracks,
+  ]);
   // TODO(Slice 10): end with reconcile(ctx.today) once it exists (DESIGN §2.5, AC-65).
 }
 

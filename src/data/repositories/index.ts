@@ -5,6 +5,7 @@ import type { Db } from '../db';
 import { orm } from '../orm';
 import { appMetaRepository } from './appMeta';
 import { blueprintRepository } from './blueprints';
+import { doubleProgressionRepository } from './doubleProgression';
 import { oneRepMaxRepository } from './oneRepMax';
 import { personalRecordRepository } from './personalRecords';
 import { plannedWorkoutRepository } from './plannedWorkouts';
@@ -27,10 +28,12 @@ export function repositories(db: Db) {
     oneRepMax: oneRepMaxRepository(o),
     sessions: sessionRepository(o),
     prs: personalRecordRepository(o),
+    progression: doubleProgressionRepository(o),
   };
 }
 
 export type Repositories = ReturnType<typeof repositories>;
 export type { Blueprint, BlueprintExercise, BlueprintWorkout } from './blueprints';
+export type { ProgressionRow } from './doubleProgression';
 export type { LoggedExercise, SessionExercisePatch, SessionPatch, SetLogPatch } from './sessions';
 export type { SkillSearch } from './skills';

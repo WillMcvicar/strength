@@ -7,8 +7,11 @@ import {
   formatLoad,
   completionError,
   incrementFor,
+  lastTimeGroups,
   rpePrompt,
   sessionTotals,
+  showReduceHint,
+  type LastTimeGroup,
   type LocalDate,
   type SessionExercise,
   type SessionKind,
@@ -17,7 +20,7 @@ import {
   type Unit,
 } from '@/core';
 import type { Db } from '@/data/db';
-import { repositories } from '@/data/repositories';
+import { repositories, type LoggedExercise, type Repositories } from '@/data/repositories';
 import { addExercise } from '@/services/addExercise';
 import { addSet } from '@/services/addSet';
 import { completeSet } from '@/services/completeSet';
@@ -30,6 +33,7 @@ import { finishSession, type SessionSummary } from '@/services/finishSession';
 import { markSetFailed } from '@/services/markSetFailed';
 import { markSetWarmup } from '@/services/markSetWarmup';
 import { removeExercise } from '@/services/removeExercise';
+import { revertIncrease } from '@/services/revertIncrease';
 import type { SetInput } from '@/services/setValues';
 import { swapExercise } from '@/services/swapExercise';
 import { updateExerciseNote } from '@/services/updateExerciseNote';
@@ -73,6 +77,12 @@ export interface SessionExerciseView {
   increment: number;
   /** Last cycle's top set, "Last: 100 kg × 2 @ RPE 8" (FR-9.2b). */
   lastTopSet: string | null;
+  /** "Last: 3×8 @ 60 kg", from this workout's last session, else the skill's (FR-9.5). */
+  lastTime: string | null;
+  /** The "↑ +1 kg" badge while this session is in progress (FR-3.15); Revert undoes it. */
+  increase: { text: string; amount: string; kg: number } | null;
+  /** "Consider reducing the load": the range was missed twice running (FR-3.15). */
+  reduceHint: boolean;
   sets: SessionSetView[];
 }
 
@@ -136,24 +146,70 @@ export function loadLabel(kg: number, exercise: SessionExercise, unit: Unit): st
   return formatLoad(kg, unit, { perSide: exercise.loadConvention === 'per_side' });
 }
 
+/** One run of sets: "3×8", or "12, 11, 10" when the values differ. */
+const runLabel = (values: readonly number[]) =>
+  values.length > 1 && values.every((v) => v === values[0])
+    ? `${values.length}×${values[0]}`
+    : values.join(', ');
+
+/** "Last: 3×8 @ 60 kg", "Last: 10 @ 15 kg · 2×9 @ 16 kg", "Last: 2×60 s" (FR-9.5). */
+export function lastTimeLabel(
+  groups: readonly LastTimeGroup[],
+  exercise: SessionExercise,
+  unit: Unit,
+): string | null {
+  if (groups.length === 0) return null;
+  const parts = groups.map(({ loadKg, values }) => {
+    const run = runLabel(values);
+    if (exercise.trackingType === 'time') return `${run} s`;
+    return loadKg === null ? run : `${run} @ ${loadLabel(loadKg, exercise, unit)}`;
+  });
+  return `Last: ${parts.join(' · ')}`;
+}
+
+/** This workout's last time for the exercise, else the skill's last time anywhere (D-44). */
+async function lastOf(
+  r: Repositories,
+  exercise: SessionExercise,
+  before: string,
+): Promise<LoggedExercise | null> {
+  const { skillId, cycleExerciseId } = exercise;
+  const sameWorkout =
+    cycleExerciseId === null
+      ? null
+      : await r.sessions.lastLogged({ skillId, cycleExerciseId }, before);
+  return sameWorkout ?? (await r.sessions.lastLogged({ skillId }, before));
+}
+
 export async function readSession(db: Db, sessionId: string): Promise<SessionView | null> {
   const r = repositories(db);
   const session = await r.sessions.get(sessionId);
   if (!session) return null;
   const [settings, logged] = await Promise.all([r.settings.get(), r.sessions.exercises(sessionId)]);
   const skillIds = [...new Set(logged.map((e) => e.exercise.skillId))];
-  const [skills, lastTop, prs] = await Promise.all([
+  const inProgress = session.status === 'in_progress';
+  const trackIds = logged.flatMap((e) => e.exercise.cycleExerciseId ?? []);
+  const [skills, lastTop, prs, past, tracks] = await Promise.all([
     r.skills.getMany(skillIds),
     r.sessions.lastTopSetBySkill(skillIds),
     readSessionPrs(r, sessionId),
+    Promise.all(logged.map((e) => lastOf(r, e.exercise, session.startedAt))),
+    // Hints are for the workout being lifted; a finished one has already moved its track on.
+    inProgress ? r.progression.getMany(trackIds) : new Map(),
   ]);
   const skillById = new Map(skills.map((s) => [s.id, s]));
   const unit = settings.unit;
 
-  const exercises = logged.map(({ exercise, sets }): SessionExerciseView => {
+  const exercises = logged.map(({ exercise, sets }, i): SessionExerciseView => {
     const skill = skillById.get(exercise.skillId);
     let number = 0;
     const last = lastTop.get(exercise.skillId);
+    const previous = past[i];
+    const track = exercise.cycleExerciseId ? tracks.get(exercise.cycleExerciseId) : undefined;
+    const amount =
+      exercise.dpIncreaseKg === null
+        ? null
+        : formatLoad(exercise.dpIncreaseKg, unit, { signed: true });
     return {
       id: exercise.id,
       skillId: exercise.skillId,
@@ -168,6 +224,18 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
         last && last.loadKg !== null && last.reps !== null
           ? `Last: ${loadLabel(last.loadKg, exercise, unit)} × ${last.reps}${last.rpe === null ? '' : ` @ RPE ${last.rpe}`}`
           : null,
+      lastTime: previous
+        ? lastTimeLabel(
+            lastTimeGroups(previous.sets, previous.exercise.trackingType),
+            previous.exercise,
+            unit,
+          )
+        : null,
+      increase:
+        inProgress && exercise.dpIncreaseKg !== null && amount !== null
+          ? { text: `↑ ${amount}`, amount, kg: exercise.dpIncreaseKg }
+          : null,
+      reduceHint: !exercise.wasSubstituted && track !== undefined && showReduceHint(track),
       sets: sets.map((s) => {
         if (!s.isWarmup) number += 1;
         const rpe = rpeRange(s.targetRpeMin, s.targetRpeMax);
@@ -226,6 +294,7 @@ const MESSAGES: Record<string, string> = {
   in_progress: 'This workout is still in progress.',
   not_found: 'That set is no longer in this workout.',
   skill_not_found: 'That exercise isn’t available.',
+  nothing_to_revert: 'There’s no increase to undo.',
 };
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
@@ -259,6 +328,8 @@ export interface SessionActions {
   swapExercise: (sessionExerciseId: string, skillId: string) => Promise<ActionResult>;
   addExercise: (skillId: string) => Promise<ActionResult>;
   removeExercise: (sessionExerciseId: string) => Promise<ActionResult>;
+  /** Undoes a "↑" increase for the sets still to do (FR-3.15). */
+  revertIncrease: (sessionExerciseId: string) => Promise<ActionResult>;
   exerciseNote: (sessionExerciseId: string, notes: string | null) => Promise<ActionResult>;
   details: (input: { notes?: string | null; rpe?: number | null }) => Promise<ActionResult>;
   dismissTip: (key: string) => Promise<ActionResult>;
@@ -286,6 +357,8 @@ export function useSessionActions(sessionId: string): SessionActions {
       addExercise: (skillId) => run((d, c) => addExercise(d, { sessionId, skillId }, c)),
       removeExercise: (sessionExerciseId) =>
         run((d, c) => removeExercise(d, { sessionExerciseId }, c)),
+      revertIncrease: (sessionExerciseId) =>
+        run((d, c) => revertIncrease(d, { sessionExerciseId }, c)),
       exerciseNote: (sessionExerciseId, notes) =>
         run((d, c) => updateExerciseNote(d, { sessionExerciseId, notes }, c)),
       details: (input) => run((d, c) => updateSessionDetails(d, { sessionId, ...input }, c)),

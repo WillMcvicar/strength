@@ -142,6 +142,9 @@ const squat: SessionExerciseView = {
   tmKg: 112.5,
   increment: 2.5,
   lastTopSet: null,
+  lastTime: null,
+  increase: null,
+  reduceHint: false,
   sets: [
     set('w1', { isWarmup: true, number: 0, loadKg: 60, rpe: null, prompt: 'none' }),
     set('q1', {}),

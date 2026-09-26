@@ -6,6 +6,7 @@ import {
   cycleFirstWeek,
   estimatedDurationMin,
   progress,
+  progressionKey,
   sessionTotals,
   todayCard,
   weekDays,
@@ -150,10 +151,12 @@ async function readToday(
     const planned = blueprint?.workouts.find((w) => w.workout.id === workout.cycleWorkoutId);
     const exercises = planned?.exercises ?? [];
     const skillIds = [...new Set(exercises.map((e) => e.exercise.skillId))];
-    const [skills, planSkills, oneRms] = await Promise.all([
+    const [skills, planSkills, oneRms, dpStates, lastLoads] = await Promise.all([
       r.skills.getMany(skillIds),
       r.plans.skills(plan.id),
       r.oneRepMax.listByPlan(plan.id),
+      r.progression.getMany(exercises.map((e) => progressionKey(e.exercise))),
+      r.sessions.lastLoadBySkill(skillIds),
     ]);
     const phase = phases.find((p) => p.id === workout.phaseId);
     const rows = workoutRows({
@@ -167,6 +170,8 @@ async function readToday(
       unit: settings.unit,
       increments: settings,
       defaultRestSec: settings.defaultRestSec,
+      dpStates,
+      lastLoads,
     });
     cardView = {
       kind: card.kind,

@@ -10,6 +10,17 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Added
 
+- Double progression (build plan Slice 8, FR-3.15, FR-9.5, FR-2.15, AC-28, AC-29, AC-56, AC-64):
+  when every working set of an accessory reaches the top of its range at or below the target
+  RPE, the next session pre-fills the load plus the skill's increment at the bottom of the range,
+  with a "↑ +1 kg" badge and Revert increase in the exercise menu. Otherwise the most-lifted load
+  carries forward and reps pre-fill from last time. Every appearance of a workout shares one
+  track, deloads read it without changing it, and editing or deleting a past session replays it
+  (D-44). After two sessions below the range on every set, a neutral "consider reducing the
+  load" hint appears; loads never drop on their own.
+- "Last: 3×8 @ 60 kg" under each exercise in a session (FR-9.5), and double-progression loads
+  on Today, with "↑" when an increase is waiting.
+
 - Personal records (build plan Slice 7, FR-10.1–10.3, FR-10.5, AC-4, AC-5, AC-23, AC-40, AC-54):
   finishing a workout records heaviest, estimated 1RM (RIR 0 when no RPE, D-10), reps at a
   weight, most reps, added load and longest time PRs. They show on the summary and on Today's

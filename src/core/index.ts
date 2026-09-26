@@ -15,3 +15,5 @@ export * from './today';
 export * from './volume';
 export * from './session';
 export * from './prs';
+export * from './doubleProgression';
+export * from './tracking';

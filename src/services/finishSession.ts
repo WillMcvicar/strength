@@ -5,6 +5,7 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
+import { recordSessionProgression } from './doubleProgression';
 import { recordSessionPrs } from './personalRecords';
 
 export interface SessionSummary {
@@ -56,7 +57,8 @@ export function finishSession(
     // Step 3: PRs against the current bests (§3.13). They never touch the 1RM (FR-3.10, AC-23).
     const prs = await recordSessionPrs(r, session.id, ctx);
 
-    // TODO(Slice 8): step 4, the double-progression update for each linked exercise (§3.12).
+    // Step 4: each linked exercise moves its workout's track on (§3.12).
+    await recordSessionProgression(r, session, exercises, ctx.now);
     // TODO(Slice 10): step 5, finish with reconcile(ctx.today) once it exists (DESIGN §2.5).
 
     return {

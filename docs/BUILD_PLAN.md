@@ -22,9 +22,9 @@ can be checked. Its "Done when" check must pass before the next slice starts.
 | 5 | Start a plan from a template | **Done** |
 | 6 | Log a session | **Done** |
 | ✓ | Checkpoint: gym test (runs alongside 7–9) | |
-| 7 | PRs and history | Next |
-| 8 | Double progression | |
-| 9 | Week and progress | |
+| 7 | PRs and history | **Done** |
+| 8 | Double progression | **Done** |
+| 9 | Week and progress | Next |
 | 10 | Missed workouts and schedule changes | |
 | 11 | Cycle Review and Final Review | |
 | 12 | Plan builder | |
@@ -168,6 +168,7 @@ the neutral reduce hint, and pausing during deloads.
   C-10. AC-28, AC-29, AC-56, AC-64.
 - AC-64's second half (editing a workout changes every open appearance) is tested here at service
   level. The builder UI for it comes in Slice 12.
+- **Built:** AC-28, AC-29, AC-56 and AC-64 have tests; the details the docs left open are D-44.
 
 ### Slice 9 — Week and progress
 
@@ -235,7 +236,7 @@ validation and a pre-import backup, backup status and the 30-day reminder, the t
 About → Disclaimer, and the "Export raw database" option on the launch failure screen.
 
 - **IDs:** FR-12.1–12.8, FR-5.3, FR-6.2, NFR-4 import rules, DESIGN §4.6 (raw export). AC-41,
-  AC-42, AC-69.
+  AC-42, AC-45 (the backup reminder on Today), AC-69.
 
 ### Slice 15 — Release hardening and v1.0
 

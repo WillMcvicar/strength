@@ -45,6 +45,7 @@ import { ConfirmSheet } from '@/ui/components/ConfirmSheet';
 import { EffortPicker } from '@/ui/components/EffortPicker';
 import { targetEffort } from '@/ui/components/ExerciseCard';
 import { InfoTip } from '@/ui/components/InfoTip';
+import { spokenLoad } from '@/ui/components/LoadText';
 import { MenuSheet, type MenuAction } from '@/ui/components/MenuSheet';
 import { NumberSheet } from '@/ui/components/NumberSheet';
 import { RestTimerBar } from '@/ui/components/RestTimerBar';
@@ -318,6 +319,14 @@ function Session({ session, pastEdit = false }: { session: SessionView; pastEdit
                   <InfoTip term="tm" />
                 </>
               )}
+              {exercise.increase && (
+                <Text
+                  accessibilityLabel={`Load up ${spokenLoad(exercise.increase.kg, session.unit)} since last time`}
+                  style={[type.label, { color: c.plateGreen }]}
+                >
+                  {exercise.increase.text}
+                </Text>
+              )}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`More for ${exercise.name}`}
@@ -329,6 +338,15 @@ function Session({ session, pastEdit = false }: { session: SessionView; pastEdit
             </View>
             {exercise.supersetGroup !== null && (
               <Text style={[type.caption, { color: c.plateBlue }]}>Superset</Text>
+            )}
+            {exercise.lastTime && (
+              <Text style={[type.caption, { color: c.inkMuted }]}>{exercise.lastTime}</Text>
+            )}
+            {exercise.reduceHint && (
+              // Neutral, never a warning: the app doesn't lower loads by itself (FR-3.15).
+              <Text style={[type.caption, { color: c.inkMuted }]}>
+                Consider reducing the load: the bottom of the range was missed twice in a row.
+              </Text>
             )}
             {exercise.notes && (
               <Text style={[type.caption, { color: c.inkMuted }]}>Note: {exercise.notes}</Text>
@@ -566,6 +584,14 @@ function Menus({
             label: 'Add warm-up set',
             onPress: () => void actions.addSet(exercise.id, true).then(report),
           },
+          ...(exercise.increase
+            ? [
+                {
+                  label: `Revert increase (${exercise.increase.amount})`,
+                  onPress: () => void actions.revertIncrease(exercise.id).then(report),
+                },
+              ]
+            : []),
           {
             label: 'Remove exercise',
             destructive: true,

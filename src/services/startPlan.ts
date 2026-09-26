@@ -1,5 +1,6 @@
 // Start a draft plan (DESIGN §8.1, FR-4.2, FR-4.3). This slice covers steps 2, 4 and 6: pin the
 // slots, set the start date, generate the schedule and make the plan active.
+import { NEW_PROGRESSION } from '@/core/doubleProgression';
 import { isLocalDate } from '@/core/dates';
 import { generatePlannedWorkouts } from '@/core/schedule/generate';
 import type { LocalDate, Phase } from '@/core/types';
@@ -7,6 +8,7 @@ import type { Db } from '@/data/db';
 import { repositories } from '@/data/repositories';
 
 import { exclusive, type ServiceContext, type ServiceResult } from './context';
+import { isTracked } from './doubleProgression';
 
 export interface StartPlanInput {
   planId: string;
@@ -137,7 +139,26 @@ export async function startPlanTx(
   }
 
   await r.plannedWorkouts.insertMany(planned);
-  // TODO(double-progression slice): §8.1 step 5 — create double_progression_state rows.
+
+  // Step 5: an empty track per double-progression exercise of a training phase (§3.12). A
+  // continuation shares its original's blueprint, and a deload reads its source's track.
+  const tracked = new Set<string>();
+  const roots = new Set(
+    phases.filter((p) => p.type === 'training').map((p) => p.continuesPhaseId ?? p.id),
+  );
+  for (const root of roots) {
+    const blueprint = await r.blueprints.loadBlueprint(root);
+    for (const w of blueprint?.workouts ?? []) {
+      for (const e of w.exercises) if (isTracked(e.sets)) tracked.add(e.exercise.id);
+    }
+  }
+  await r.progression.insertMany(
+    [...tracked].map((cycleExerciseId) => ({
+      ...NEW_PROGRESSION,
+      cycleExerciseId,
+      planId: plan.id,
+    })),
+  );
 
   // Step 6.
   await r.plans.update(plan.id, {

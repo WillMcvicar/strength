@@ -60,8 +60,24 @@ export interface PhaseLoadSettings {
   loadFactor?: number | null;
 }
 
+/**
+ * One exercise's double-progression track (DESIGN §3.12, §4.3 `double_progression_state`),
+ * keyed by its cycle exercise, so every slot of a workout shares it (D-20). "Paused" is derived
+ * from the phase type, so it isn't stored.
+ */
 export interface DoubleProgressionState {
-  workingLoadKg: number;
+  /** Null until the exercise is first logged in the plan (§3.12 first-session rule). */
+  workingLoadKg: number | null;
+  /** What one-tap revert goes back to. */
+  previousWorkingLoadKg: number | null;
+  lastIncreasedAt: string | null;
+  /** Set while an increase is waiting to be lifted: it shows the "↑" badge. */
+  lastIncreaseSessionId: string | null;
+  /** The session whose increase the lifter reverted, so a replay keeps it reverted (D-44). */
+  revertedIncreaseSessionId: string | null;
+  /** Reps per working set last session, null where a set wasn't completed (D-12). */
+  lastReps: (number | null)[];
+  consecutiveBelowMin: number;
 }
 
 /** Everything `prescribedLoadKg` needs about the surrounding plan (DESIGN §3.3). */
@@ -70,7 +86,7 @@ export interface LoadContext {
   unit: Unit;
   increment: number;
   phase: PhaseLoadSettings;
-  dpState?: DoubleProgressionState | null;
+  dpState?: Pick<DoubleProgressionState, 'workingLoadKg'> | null;
   lastLoadKg?: number | null;
 }
 

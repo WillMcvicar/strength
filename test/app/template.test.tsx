@@ -35,6 +35,7 @@ const row = (name: string, sets: number) => ({
   load: null,
   rpe: { min: 7, max: 8 },
   topSet: false,
+  increased: false,
   restSec: 180,
   inSuperset: false,
 });

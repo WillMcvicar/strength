@@ -72,6 +72,7 @@ const actions = {
   swapExercise: jest.fn(ok),
   addExercise: jest.fn(ok),
   removeExercise: jest.fn(ok),
+  revertIncrease: jest.fn(ok),
   exerciseNote: jest.fn(ok),
   details: jest.fn(ok),
   dismissTip: jest.fn(ok),
@@ -148,6 +149,9 @@ const exercise = (
   tmKg: null,
   increment: 2.5,
   lastTopSet: null,
+  lastTime: null,
+  increase: null,
+  reduceHint: false,
   sets,
   ...over,
 });
@@ -316,6 +320,45 @@ describe('AC-43 Term explanations', () => {
     await render(<SessionScreen />);
     expect(screen.getByText('TM 112.5 kg')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'What is Training max (TM)?' })).toBeTruthy();
+  });
+});
+
+describe('double progression on the session screen (FR-3.15, FR-9.5, §7.6)', () => {
+  const curl = exercise(
+    'curl',
+    'Dumbbell curl',
+    [set('c1', { prompt: 'optional', targetRpe: 9, loadKg: 16, reps: 8 })],
+    {
+      lastTime: 'Last: 3×12 @ 15 kg × 2',
+      increase: { text: '↑ +1 kg', amount: '+1 kg', kg: 1 },
+    },
+  );
+
+  it('shows the "↑ +1 kg" badge by the name and the last time under it', async () => {
+    show(session({ exercises: [curl] }));
+    await render(<SessionScreen />);
+    expect(screen.getByLabelText('Load up 1 kilogram since last time')).toHaveTextContent(
+      '↑ +1 kg',
+    );
+    expect(screen.getByText('Last: 3×12 @ 15 kg × 2')).toBeTruthy();
+    expect(screen.queryByText(/Consider reducing the load/)).toBeNull();
+  });
+
+  it('reverts the increase from the exercise menu (AC-28)', async () => {
+    show(session({ exercises: [curl] }));
+    await render(<SessionScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'More for Dumbbell curl' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Revert increase (+1 kg)' }));
+    expect(actions.revertIncrease).toHaveBeenCalledWith('curl');
+  });
+
+  it('offers no revert without an increase, and shows the neutral reduce hint', async () => {
+    show(session({ exercises: [{ ...curl, increase: null, reduceHint: true }] }));
+    await render(<SessionScreen />);
+    expect(screen.queryByText('↑ +1 kg')).toBeNull();
+    expect(screen.getByText(/Consider reducing the load/)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'More for Dumbbell curl' }));
+    expect(screen.queryByRole('button', { name: /Revert increase/ })).toBeNull();
   });
 });
 

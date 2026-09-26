@@ -1,0 +1,3391 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "9c6208da-0441-41f2-818c-d14cd19281cd",
+  "prevId": "9ddaf9e5-3bab-4e2b-9d63-6a9b4e353576",
+  "tables": {
+    "app_meta": {
+      "name": "app_meta",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "cycle_exercise": {
+      "name": "cycle_exercise",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_workout_id": {
+          "name": "cycle_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "superset_group": {
+          "name": "superset_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rest_sec": {
+          "name": "rest_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source_cycle_exercise_id": {
+          "name": "source_cycle_exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_ce_workout": {
+          "name": "idx_ce_workout",
+          "columns": [
+            "cycle_workout_id",
+            "sort_order"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cycle_exercise_cycle_workout_id_cycle_workout_id_fk": {
+          "name": "cycle_exercise_cycle_workout_id_cycle_workout_id_fk",
+          "tableFrom": "cycle_exercise",
+          "tableTo": "cycle_workout",
+          "columnsFrom": [
+            "cycle_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cycle_exercise_skill_id_skill_id_fk": {
+          "name": "cycle_exercise_skill_id_skill_id_fk",
+          "tableFrom": "cycle_exercise",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cycle_exercise_source_cycle_exercise_id_cycle_exercise_id_fk": {
+          "name": "cycle_exercise_source_cycle_exercise_id_cycle_exercise_id_fk",
+          "tableFrom": "cycle_exercise",
+          "tableTo": "cycle_exercise",
+          "columnsFrom": [
+            "source_cycle_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "cycle_review": {
+      "name": "cycle_review",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_group_id": {
+          "name": "cycle_group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phase_cycle_index": {
+          "name": "phase_cycle_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "sessions_completed": {
+          "name": "sessions_completed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sessions_planned": {
+          "name": "sessions_planned",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_final_review": {
+          "name": "uq_final_review",
+          "columns": [
+            "plan_id"
+          ],
+          "isUnique": true,
+          "where": "kind = 'final'"
+        },
+        "uq_cycle_review": {
+          "name": "uq_cycle_review",
+          "columns": [
+            "plan_id",
+            "cycle_group_id",
+            "phase_cycle_index"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "cycle_review_plan_id_plan_id_fk": {
+          "name": "cycle_review_plan_id_plan_id_fk",
+          "tableFrom": "cycle_review",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cycle_review_cycle_group_id_phase_id_fk": {
+          "name": "cycle_review_cycle_group_id_phase_id_fk",
+          "tableFrom": "cycle_review",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "cycle_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cycle_review_kind": {
+          "name": "cycle_review_kind",
+          "value": "kind IN ('cycle','final')"
+        },
+        "cycle_review_status": {
+          "name": "cycle_review_status",
+          "value": "status IN ('pending','completed')"
+        },
+        "cycle_review_kind_keys": {
+          "name": "cycle_review_kind_keys",
+          "value": "(kind = 'cycle') = (cycle_group_id IS NOT NULL AND phase_cycle_index IS NOT NULL)"
+        }
+      }
+    },
+    "cycle_review_item": {
+      "name": "cycle_review_item",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_review_id": {
+          "name": "cycle_review_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "previous_one_rm_kg": {
+          "name": "previous_one_rm_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "suggested_one_rm_kg": {
+          "name": "suggested_one_rm_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reference_e1rm_kg": {
+          "name": "reference_e1rm_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "heaviest_single_kg": {
+          "name": "heaviest_single_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suggestion_source": {
+          "name": "suggestion_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_fallback": {
+          "name": "is_fallback",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "source_set_log_id": {
+          "name": "source_set_log_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "confirmed_one_rm_kg": {
+          "name": "confirmed_one_rm_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "decision": {
+          "name": "decision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_cycle_review_item": {
+          "name": "uq_cycle_review_item",
+          "columns": [
+            "cycle_review_id",
+            "skill_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "cycle_review_item_cycle_review_id_cycle_review_id_fk": {
+          "name": "cycle_review_item_cycle_review_id_cycle_review_id_fk",
+          "tableFrom": "cycle_review_item",
+          "tableTo": "cycle_review",
+          "columnsFrom": [
+            "cycle_review_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cycle_review_item_skill_id_skill_id_fk": {
+          "name": "cycle_review_item_skill_id_skill_id_fk",
+          "tableFrom": "cycle_review_item",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cycle_review_item_source_set_log_id_set_log_id_fk": {
+          "name": "cycle_review_item_source_set_log_id_set_log_id_fk",
+          "tableFrom": "cycle_review_item",
+          "tableTo": "set_log",
+          "columnsFrom": [
+            "source_set_log_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cycle_review_item_source": {
+          "name": "cycle_review_item_source",
+          "value": "suggestion_source IN ('estimated','test_day','percent','fixed','none')"
+        },
+        "cycle_review_item_decision": {
+          "name": "cycle_review_item_decision",
+          "value": "decision IN ('accepted','edited','kept')"
+        }
+      }
+    },
+    "cycle_set": {
+      "name": "cycle_set",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_exercise_id": {
+          "name": "cycle_exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "set_index": {
+          "name": "set_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_warmup": {
+          "name": "is_warmup",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "reps_min": {
+          "name": "reps_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reps_max": {
+          "name": "reps_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_amrap": {
+          "name": "is_amrap",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "target_rpe_min": {
+          "name": "target_rpe_min",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_rpe_max": {
+          "name": "target_rpe_max",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "load_type": {
+          "name": "load_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_percent": {
+          "name": "load_percent",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fixed_load_kg": {
+          "name": "fixed_load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_time_sec": {
+          "name": "target_time_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_cycle_set": {
+          "name": "uq_cycle_set",
+          "columns": [
+            "cycle_exercise_id",
+            "set_index"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "cycle_set_cycle_exercise_id_cycle_exercise_id_fk": {
+          "name": "cycle_set_cycle_exercise_id_cycle_exercise_id_fk",
+          "tableFrom": "cycle_set",
+          "tableTo": "cycle_exercise",
+          "columnsFrom": [
+            "cycle_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cycle_set_target_rpe_min": {
+          "name": "cycle_set_target_rpe_min",
+          "value": "target_rpe_min IS NULL OR target_rpe_min BETWEEN 6 AND 10"
+        },
+        "cycle_set_target_rpe_max": {
+          "name": "cycle_set_target_rpe_max",
+          "value": "target_rpe_max IS NULL OR target_rpe_max BETWEEN 6 AND 10"
+        },
+        "cycle_set_load_type": {
+          "name": "cycle_set_load_type",
+          "value": "load_type IN ('percent_tm','double_progression','fixed','bodyweight','top_set')"
+        },
+        "cycle_set_percent_tm": {
+          "name": "cycle_set_percent_tm",
+          "value": "load_type <> 'percent_tm' OR load_percent IS NOT NULL"
+        },
+        "cycle_set_fixed": {
+          "name": "cycle_set_fixed",
+          "value": "load_type <> 'fixed' OR fixed_load_kg IS NOT NULL"
+        },
+        "cycle_set_top_set": {
+          "name": "cycle_set_top_set",
+          "value": "load_type <> 'top_set' OR (load_percent IS NOT NULL AND target_rpe_max IS NOT NULL\n                                    AND reps_max IS NOT NULL AND reps_max <= 5\n                                    AND is_amrap = 0 AND is_warmup = 0)"
+        },
+        "cycle_set_reps": {
+          "name": "cycle_set_reps",
+          "value": "reps_min IS NULL OR reps_max IS NULL OR reps_min <= reps_max"
+        }
+      }
+    },
+    "cycle_slot": {
+      "name": "cycle_slot",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_workout_id": {
+          "name": "cycle_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_week_index": {
+          "name": "cycle_week_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "weekday": {
+          "name": "weekday",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "retired_from_group_week": {
+          "name": "retired_from_group_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source_cycle_slot_id": {
+          "name": "source_cycle_slot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_slot_phase": {
+          "name": "idx_slot_phase",
+          "columns": [
+            "phase_id",
+            "cycle_week_index",
+            "sort_order"
+          ],
+          "isUnique": false
+        },
+        "idx_slot_workout": {
+          "name": "idx_slot_workout",
+          "columns": [
+            "cycle_workout_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cycle_slot_phase_id_phase_id_fk": {
+          "name": "cycle_slot_phase_id_phase_id_fk",
+          "tableFrom": "cycle_slot",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cycle_slot_cycle_workout_id_cycle_workout_id_fk": {
+          "name": "cycle_slot_cycle_workout_id_cycle_workout_id_fk",
+          "tableFrom": "cycle_slot",
+          "tableTo": "cycle_workout",
+          "columnsFrom": [
+            "cycle_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cycle_slot_source_cycle_slot_id_cycle_slot_id_fk": {
+          "name": "cycle_slot_source_cycle_slot_id_cycle_slot_id_fk",
+          "tableFrom": "cycle_slot",
+          "tableTo": "cycle_slot",
+          "columnsFrom": [
+            "source_cycle_slot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cycle_slot_week_index": {
+          "name": "cycle_slot_week_index",
+          "value": "cycle_week_index >= 1"
+        },
+        "cycle_slot_weekday": {
+          "name": "cycle_slot_weekday",
+          "value": "weekday BETWEEN 0 AND 6"
+        }
+      }
+    },
+    "cycle_workout": {
+      "name": "cycle_workout",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'normal'"
+        }
+      },
+      "indexes": {
+        "idx_cw_phase": {
+          "name": "idx_cw_phase",
+          "columns": [
+            "phase_id",
+            "sort_order"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cycle_workout_phase_id_phase_id_fk": {
+          "name": "cycle_workout_phase_id_phase_id_fk",
+          "tableFrom": "cycle_workout",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cycle_workout_kind": {
+          "name": "cycle_workout_kind",
+          "value": "kind IN ('normal','test_day')"
+        }
+      }
+    },
+    "double_progression_state": {
+      "name": "double_progression_state",
+      "columns": {
+        "cycle_exercise_id": {
+          "name": "cycle_exercise_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "working_load_kg": {
+          "name": "working_load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "previous_working_load_kg": {
+          "name": "previous_working_load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_increased_at": {
+          "name": "last_increased_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_increase_session_id": {
+          "name": "last_increase_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reverted_increase_session_id": {
+          "name": "reverted_increase_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_reps": {
+          "name": "last_reps",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "consecutive_below_min": {
+          "name": "consecutive_below_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "double_progression_state_cycle_exercise_id_cycle_exercise_id_fk": {
+          "name": "double_progression_state_cycle_exercise_id_cycle_exercise_id_fk",
+          "tableFrom": "double_progression_state",
+          "tableTo": "cycle_exercise",
+          "columnsFrom": [
+            "cycle_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "double_progression_state_plan_id_plan_id_fk": {
+          "name": "double_progression_state_plan_id_plan_id_fk",
+          "tableFrom": "double_progression_state",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "double_progression_state_last_increase_session_id_session_id_fk": {
+          "name": "double_progression_state_last_increase_session_id_session_id_fk",
+          "tableFrom": "double_progression_state",
+          "tableTo": "session",
+          "columnsFrom": [
+            "last_increase_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "double_progression_state_reverted_increase_session_id_session_id_fk": {
+          "name": "double_progression_state_reverted_increase_session_id_session_id_fk",
+          "tableFrom": "double_progression_state",
+          "tableTo": "session",
+          "columnsFrom": [
+            "reverted_increase_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "increase_rule": {
+      "name": "increase_rule",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "increase_type": {
+          "name": "increase_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "increase_value": {
+          "name": "increase_value",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "increase_value_lb": {
+          "name": "increase_value_lb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fallback_type": {
+          "name": "fallback_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fallback_value": {
+          "name": "fallback_value",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fallback_value_lb": {
+          "name": "fallback_value_lb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_increase_rule": {
+          "name": "uq_increase_rule",
+          "columns": [
+            "phase_id",
+            "skill_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "increase_rule_phase_id_phase_id_fk": {
+          "name": "increase_rule_phase_id_phase_id_fk",
+          "tableFrom": "increase_rule",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "increase_rule_skill_id_skill_id_fk": {
+          "name": "increase_rule_skill_id_skill_id_fk",
+          "tableFrom": "increase_rule",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "increase_rule_type": {
+          "name": "increase_rule_type",
+          "value": "increase_type IN ('estimated','percent','fixed','none')"
+        },
+        "increase_rule_fallback_type": {
+          "name": "increase_rule_fallback_type",
+          "value": "fallback_type IN ('percent','fixed','none')"
+        }
+      }
+    },
+    "one_rep_max_history": {
+      "name": "one_rep_max_history",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "one_rm_kg": {
+          "name": "one_rm_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "effective_from_week_index": {
+          "name": "effective_from_week_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cycle_review_id": {
+          "name": "cycle_review_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "estimate_session_id": {
+          "name": "estimate_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "set_at": {
+          "name": "set_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_orm_skill": {
+          "name": "idx_orm_skill",
+          "columns": [
+            "skill_id",
+            "set_at DESC"
+          ],
+          "isUnique": false
+        },
+        "idx_orm_plan": {
+          "name": "idx_orm_plan",
+          "columns": [
+            "plan_id",
+            "skill_id",
+            "effective_from_week_index"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "one_rep_max_history_skill_id_skill_id_fk": {
+          "name": "one_rep_max_history_skill_id_skill_id_fk",
+          "tableFrom": "one_rep_max_history",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "one_rep_max_history_plan_id_plan_id_fk": {
+          "name": "one_rep_max_history_plan_id_plan_id_fk",
+          "tableFrom": "one_rep_max_history",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "one_rep_max_history_cycle_review_id_cycle_review_id_fk": {
+          "name": "one_rep_max_history_cycle_review_id_cycle_review_id_fk",
+          "tableFrom": "one_rep_max_history",
+          "tableTo": "cycle_review",
+          "columnsFrom": [
+            "cycle_review_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "one_rep_max_history_estimate_session_id_session_id_fk": {
+          "name": "one_rep_max_history_estimate_session_id_session_id_fk",
+          "tableFrom": "one_rep_max_history",
+          "tableTo": "session",
+          "columnsFrom": [
+            "estimate_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "one_rep_max_history_positive": {
+          "name": "one_rep_max_history_positive",
+          "value": "one_rm_kg > 0"
+        },
+        "one_rep_max_history_source": {
+          "name": "one_rep_max_history_source",
+          "value": "source IN ('plan_setup','setup_estimate','cycle_review','manual')"
+        }
+      }
+    },
+    "personal_record": {
+      "name": "personal_record",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "context_weight_kg": {
+          "name": "context_weight_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "set_log_id": {
+          "name": "set_log_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "achieved_at": {
+          "name": "achieved_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_manual": {
+          "name": "is_manual",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_pr_skill": {
+          "name": "idx_pr_skill",
+          "columns": [
+            "skill_id",
+            "type",
+            "achieved_at"
+          ],
+          "isUnique": false
+        },
+        "idx_pr_session": {
+          "name": "idx_pr_session",
+          "columns": [
+            "session_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "personal_record_skill_id_skill_id_fk": {
+          "name": "personal_record_skill_id_skill_id_fk",
+          "tableFrom": "personal_record",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "personal_record_session_id_session_id_fk": {
+          "name": "personal_record_session_id_session_id_fk",
+          "tableFrom": "personal_record",
+          "tableTo": "session",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "personal_record_set_log_id_set_log_id_fk": {
+          "name": "personal_record_set_log_id_set_log_id_fk",
+          "tableFrom": "personal_record",
+          "tableTo": "set_log",
+          "columnsFrom": [
+            "set_log_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "personal_record_type": {
+          "name": "personal_record_type",
+          "value": "type IN ('heaviest','e1rm','reps_at_weight','max_reps','heaviest_added','reps_at_added','longest_time')"
+        }
+      }
+    },
+    "phase": {
+      "name": "phase",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "review_mode": {
+          "name": "review_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "length_weeks": {
+          "name": "length_weeks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_length_weeks": {
+          "name": "cycle_length_weeks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 2
+        },
+        "volume_factor": {
+          "name": "volume_factor",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "load_factor": {
+          "name": "load_factor",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rpe_cap": {
+          "name": "rpe_cap",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rest_days_at_end": {
+          "name": "rest_days_at_end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "has_test_day": {
+          "name": "has_test_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "generated_from_phase_id": {
+          "name": "generated_from_phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "continues_phase_id": {
+          "name": "continues_phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "continues_offset_weeks": {
+          "name": "continues_offset_weeks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "default_increase_type": {
+          "name": "default_increase_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'percent'"
+        },
+        "default_increase_value": {
+          "name": "default_increase_value",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "default_increase_value_lb": {
+          "name": "default_increase_value_lb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fallback_increase_type": {
+          "name": "fallback_increase_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fallback_increase_value": {
+          "name": "fallback_increase_value",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fallback_increase_value_lb": {
+          "name": "fallback_increase_value_lb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_phase_plan": {
+          "name": "idx_phase_plan",
+          "columns": [
+            "plan_id",
+            "sort_order"
+          ],
+          "isUnique": false
+        },
+        "idx_phase_template": {
+          "name": "idx_phase_template",
+          "columns": [
+            "template_id",
+            "sort_order"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "phase_template_id_template_id_fk": {
+          "name": "phase_template_id_template_id_fk",
+          "tableFrom": "phase",
+          "tableTo": "template",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "phase_plan_id_plan_id_fk": {
+          "name": "phase_plan_id_plan_id_fk",
+          "tableFrom": "phase",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "phase_generated_from_phase_id_phase_id_fk": {
+          "name": "phase_generated_from_phase_id_phase_id_fk",
+          "tableFrom": "phase",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "generated_from_phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "phase_continues_phase_id_phase_id_fk": {
+          "name": "phase_continues_phase_id_phase_id_fk",
+          "tableFrom": "phase",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "continues_phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "phase_type": {
+          "name": "phase_type",
+          "value": "type IN ('training','deload','taper')"
+        },
+        "phase_review_mode": {
+          "name": "phase_review_mode",
+          "value": "review_mode IN ('every_cycle','end_of_phase','none')"
+        },
+        "phase_length_weeks": {
+          "name": "phase_length_weeks",
+          "value": "length_weeks BETWEEN 1 AND 52"
+        },
+        "phase_cycle_length_weeks": {
+          "name": "phase_cycle_length_weeks",
+          "value": "cycle_length_weeks BETWEEN 1 AND 8"
+        },
+        "phase_volume_factor": {
+          "name": "phase_volume_factor",
+          "value": "volume_factor IS NULL OR volume_factor BETWEEN 0.1 AND 1"
+        },
+        "phase_load_factor": {
+          "name": "phase_load_factor",
+          "value": "load_factor IS NULL OR load_factor BETWEEN 0.5 AND 1"
+        },
+        "phase_rpe_cap": {
+          "name": "phase_rpe_cap",
+          "value": "rpe_cap IS NULL OR rpe_cap BETWEEN 6 AND 10"
+        },
+        "phase_rest_days_at_end": {
+          "name": "phase_rest_days_at_end",
+          "value": "rest_days_at_end IS NULL OR rest_days_at_end BETWEEN 2 AND 7"
+        },
+        "phase_default_increase_type": {
+          "name": "phase_default_increase_type",
+          "value": "default_increase_type IN ('estimated','percent','fixed','none')"
+        },
+        "phase_fallback_increase_type": {
+          "name": "phase_fallback_increase_type",
+          "value": "fallback_increase_type IN ('percent','fixed','none')"
+        },
+        "phase_owner": {
+          "name": "phase_owner",
+          "value": "(template_id IS NULL) <> (plan_id IS NULL)"
+        },
+        "phase_non_training_shape": {
+          "name": "phase_non_training_shape",
+          "value": "type = 'training' OR (length_weeks <= 2 AND cycle_length_weeks = 1)"
+        },
+        "phase_continuation": {
+          "name": "phase_continuation",
+          "value": "continues_phase_id IS NULL OR (type = 'training' AND continues_offset_weeks IS NOT NULL\n                                         AND continues_offset_weeks >= 1)"
+        },
+        "phase_test_day": {
+          "name": "phase_test_day",
+          "value": "has_test_day = 0 OR type = 'taper'"
+        }
+      }
+    },
+    "plan": {
+      "name": "plan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "source_template_id": {
+          "name": "source_template_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "default_tm_percent": {
+          "name": "default_tm_percent",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0.9
+        },
+        "paused_on": {
+          "name": "paused_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ended_on": {
+          "name": "ended_on",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "plan_source_template_id_template_id_fk": {
+          "name": "plan_source_template_id_template_id_fk",
+          "tableFrom": "plan",
+          "tableTo": "template",
+          "columnsFrom": [
+            "source_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "plan_status": {
+          "name": "plan_status",
+          "value": "status IN ('draft','active','paused','completed','abandoned')"
+        },
+        "plan_start_date": {
+          "name": "plan_start_date",
+          "value": "start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+        },
+        "plan_paused_on": {
+          "name": "plan_paused_on",
+          "value": "paused_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+        },
+        "plan_ended_on": {
+          "name": "plan_ended_on",
+          "value": "ended_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+        }
+      }
+    },
+    "plan_skill": {
+      "name": "plan_skill",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tm_percent": {
+          "name": "tm_percent",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "starting_one_rm_kg": {
+          "name": "starting_one_rm_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_plan_skill": {
+          "name": "uq_plan_skill",
+          "columns": [
+            "plan_id",
+            "skill_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "plan_skill_plan_id_plan_id_fk": {
+          "name": "plan_skill_plan_id_plan_id_fk",
+          "tableFrom": "plan_skill",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plan_skill_skill_id_skill_id_fk": {
+          "name": "plan_skill_skill_id_skill_id_fk",
+          "tableFrom": "plan_skill",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "planned_workout": {
+      "name": "planned_workout",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_group_id": {
+          "name": "cycle_group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_workout_id": {
+          "name": "cycle_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_slot_id": {
+          "name": "cycle_slot_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phase_cycle_index": {
+          "name": "phase_cycle_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "week_index": {
+          "name": "week_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scheduled_date": {
+          "name": "scheduled_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'upcoming'"
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "skipped_at": {
+          "name": "skipped_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_pw_date": {
+          "name": "idx_pw_date",
+          "columns": [
+            "plan_id",
+            "scheduled_date"
+          ],
+          "isUnique": false
+        },
+        "idx_pw_cycle": {
+          "name": "idx_pw_cycle",
+          "columns": [
+            "plan_id",
+            "cycle_group_id",
+            "phase_cycle_index"
+          ],
+          "isUnique": false
+        },
+        "idx_pw_week": {
+          "name": "idx_pw_week",
+          "columns": [
+            "plan_id",
+            "week_index"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "planned_workout_plan_id_plan_id_fk": {
+          "name": "planned_workout_plan_id_plan_id_fk",
+          "tableFrom": "planned_workout",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "planned_workout_phase_id_phase_id_fk": {
+          "name": "planned_workout_phase_id_phase_id_fk",
+          "tableFrom": "planned_workout",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "planned_workout_cycle_group_id_phase_id_fk": {
+          "name": "planned_workout_cycle_group_id_phase_id_fk",
+          "tableFrom": "planned_workout",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "cycle_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "planned_workout_cycle_workout_id_cycle_workout_id_fk": {
+          "name": "planned_workout_cycle_workout_id_cycle_workout_id_fk",
+          "tableFrom": "planned_workout",
+          "tableTo": "cycle_workout",
+          "columnsFrom": [
+            "cycle_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "planned_workout_cycle_slot_id_cycle_slot_id_fk": {
+          "name": "planned_workout_cycle_slot_id_cycle_slot_id_fk",
+          "tableFrom": "planned_workout",
+          "tableTo": "cycle_slot",
+          "columnsFrom": [
+            "cycle_slot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "planned_workout_session_id_session_id_fk": {
+          "name": "planned_workout_session_id_session_id_fk",
+          "tableFrom": "planned_workout",
+          "tableTo": "session",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "planned_workout_status": {
+          "name": "planned_workout_status",
+          "value": "status IN ('upcoming','completed','skipped')"
+        },
+        "planned_workout_scheduled_date": {
+          "name": "planned_workout_scheduled_date",
+          "value": "scheduled_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+        }
+      }
+    },
+    "schedule_change": {
+      "name": "schedule_change",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "from_planned_workout_id": {
+          "name": "from_planned_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "from_week_index": {
+          "name": "from_week_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "offset_days": {
+          "name": "offset_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "undone_at": {
+          "name": "undone_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_sc_plan": {
+          "name": "idx_sc_plan",
+          "columns": [
+            "plan_id",
+            "created_at DESC"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "schedule_change_plan_id_plan_id_fk": {
+          "name": "schedule_change_plan_id_plan_id_fk",
+          "tableFrom": "schedule_change",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "schedule_change_from_planned_workout_id_planned_workout_id_fk": {
+          "name": "schedule_change_from_planned_workout_id_planned_workout_id_fk",
+          "tableFrom": "schedule_change",
+          "tableTo": "planned_workout",
+          "columnsFrom": [
+            "from_planned_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "schedule_change_type": {
+          "name": "schedule_change_type",
+          "value": "type IN ('shift','move','repin','pause','length','insert_deload')"
+        }
+      }
+    },
+    "session": {
+      "name": "session",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "planned_workout_id": {
+          "name": "planned_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cycle_group_id": {
+          "name": "cycle_group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phase_cycle_index": {
+          "name": "phase_cycle_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'planned'"
+        },
+        "local_date": {
+          "name": "local_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rpe": {
+          "name": "rpe",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "total_volume_kg": {
+          "name": "total_volume_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_session_in_progress": {
+          "name": "uq_session_in_progress",
+          "columns": [
+            "status"
+          ],
+          "isUnique": true,
+          "where": "status = 'in_progress'"
+        },
+        "idx_session_date": {
+          "name": "idx_session_date",
+          "columns": [
+            "status",
+            "started_at DESC"
+          ],
+          "isUnique": false
+        },
+        "idx_session_plan": {
+          "name": "idx_session_plan",
+          "columns": [
+            "plan_id",
+            "started_at DESC"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "session_plan_id_plan_id_fk": {
+          "name": "session_plan_id_plan_id_fk",
+          "tableFrom": "session",
+          "tableTo": "plan",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "session_planned_workout_id_planned_workout_id_fk": {
+          "name": "session_planned_workout_id_planned_workout_id_fk",
+          "tableFrom": "session",
+          "tableTo": "planned_workout",
+          "columnsFrom": [
+            "planned_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "session_phase_id_phase_id_fk": {
+          "name": "session_phase_id_phase_id_fk",
+          "tableFrom": "session",
+          "tableTo": "phase",
+          "columnsFrom": [
+            "phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "session_kind": {
+          "name": "session_kind",
+          "value": "kind IN ('planned','ad_hoc','one_rm_estimate','test_day')"
+        },
+        "session_status": {
+          "name": "session_status",
+          "value": "status IN ('in_progress','completed')"
+        },
+        "session_rpe": {
+          "name": "session_rpe",
+          "value": "rpe IS NULL OR rpe BETWEEN 1 AND 10"
+        },
+        "session_local_date": {
+          "name": "session_local_date",
+          "value": "local_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
+        }
+      }
+    },
+    "session_exercise": {
+      "name": "session_exercise",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "skill_id": {
+          "name": "skill_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cycle_exercise_id": {
+          "name": "cycle_exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "superset_group": {
+          "name": "superset_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rest_sec": {
+          "name": "rest_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "was_substituted": {
+          "name": "was_substituted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "was_added": {
+          "name": "was_added",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "tm_snapshot_kg": {
+          "name": "tm_snapshot_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tracking_type": {
+          "name": "tracking_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_convention": {
+          "name": "load_convention",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_unilateral": {
+          "name": "is_unilateral",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_main_lift": {
+          "name": "is_main_lift",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dp_increase_kg": {
+          "name": "dp_increase_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_se_session": {
+          "name": "idx_se_session",
+          "columns": [
+            "session_id",
+            "sort_order"
+          ],
+          "isUnique": false
+        },
+        "idx_se_skill": {
+          "name": "idx_se_skill",
+          "columns": [
+            "skill_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "session_exercise_session_id_session_id_fk": {
+          "name": "session_exercise_session_id_session_id_fk",
+          "tableFrom": "session_exercise",
+          "tableTo": "session",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "session_exercise_skill_id_skill_id_fk": {
+          "name": "session_exercise_skill_id_skill_id_fk",
+          "tableFrom": "session_exercise",
+          "tableTo": "skill",
+          "columnsFrom": [
+            "skill_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "session_exercise_cycle_exercise_id_cycle_exercise_id_fk": {
+          "name": "session_exercise_cycle_exercise_id_cycle_exercise_id_fk",
+          "tableFrom": "session_exercise",
+          "tableTo": "cycle_exercise",
+          "columnsFrom": [
+            "cycle_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "set_log": {
+      "name": "set_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_exercise_id": {
+          "name": "session_exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "set_index": {
+          "name": "set_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_warmup": {
+          "name": "is_warmup",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "is_amrap": {
+          "name": "is_amrap",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "is_top_set": {
+          "name": "is_top_set",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "prescribed_reps_min": {
+          "name": "prescribed_reps_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prescribed_reps_max": {
+          "name": "prescribed_reps_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prescribed_load_kg": {
+          "name": "prescribed_load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prescribed_time_sec": {
+          "name": "prescribed_time_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_rpe_min": {
+          "name": "target_rpe_min",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_rpe_max": {
+          "name": "target_rpe_max",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reps": {
+          "name": "reps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "load_kg": {
+          "name": "load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "time_sec": {
+          "name": "time_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rpe": {
+          "name": "rpe",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_set_completed": {
+          "name": "idx_set_completed",
+          "columns": [
+            "completed_at"
+          ],
+          "isUnique": false
+        },
+        "uq_set_log": {
+          "name": "uq_set_log",
+          "columns": [
+            "session_exercise_id",
+            "set_index"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "set_log_session_exercise_id_session_exercise_id_fk": {
+          "name": "set_log_session_exercise_id_session_exercise_id_fk",
+          "tableFrom": "set_log",
+          "tableTo": "session_exercise",
+          "columnsFrom": [
+            "session_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "set_log_rpe": {
+          "name": "set_log_rpe",
+          "value": "rpe IS NULL OR (rpe BETWEEN 6 AND 10 AND rpe * 2 = CAST(rpe * 2 AS INTEGER))"
+        },
+        "set_log_status": {
+          "name": "set_log_status",
+          "value": "status IN ('pending','completed','failed')"
+        }
+      }
+    },
+    "settings": {
+      "name": "settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "unit": {
+          "name": "unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'kg'"
+        },
+        "default_rest_sec": {
+          "name": "default_rest_sec",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 120
+        },
+        "week_start": {
+          "name": "week_start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "weight_increment_kg": {
+          "name": "weight_increment_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 2.5
+        },
+        "weight_increment_lb": {
+          "name": "weight_increment_lb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 5
+        },
+        "reminder_enabled": {
+          "name": "reminder_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "reminder_time": {
+          "name": "reminder_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rest_timer_alerts": {
+          "name": "rest_timer_alerts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "1"
+        },
+        "keep_awake": {
+          "name": "keep_awake",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "1"
+        },
+        "theme": {
+          "name": "theme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'system'"
+        },
+        "disclaimer_ack_at": {
+          "name": "disclaimer_ack_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tips_enabled": {
+          "name": "tips_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "1"
+        },
+        "seen_tips": {
+          "name": "seen_tips",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "onboarding_completed_at": {
+          "name": "onboarding_completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_export_at": {
+          "name": "last_export_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "backup_reminder_dismissed_at": {
+          "name": "backup_reminder_dismissed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "auto_backup_enabled": {
+          "name": "auto_backup_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "last_auto_backup_at": {
+          "name": "last_auto_backup_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_auto_backup_error": {
+          "name": "last_auto_backup_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "settings_singleton": {
+          "name": "settings_singleton",
+          "value": "id = 1"
+        },
+        "settings_unit": {
+          "name": "settings_unit",
+          "value": "unit IN ('kg','lb')"
+        },
+        "settings_week_start": {
+          "name": "settings_week_start",
+          "value": "week_start IN (0,1)"
+        },
+        "settings_theme": {
+          "name": "settings_theme",
+          "value": "theme IN ('light','dark','system')"
+        }
+      }
+    },
+    "skill": {
+      "name": "skill",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "muscle_group": {
+          "name": "muscle_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "secondary_muscles": {
+          "name": "secondary_muscles",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "equipment": {
+          "name": "equipment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tracking_type": {
+          "name": "tracking_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_convention": {
+          "name": "load_convention",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'total'"
+        },
+        "is_unilateral": {
+          "name": "is_unilateral",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "is_main_lift": {
+          "name": "is_main_lift",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "load_increment_kg": {
+          "name": "load_increment_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "load_increment_lb": {
+          "name": "load_increment_lb",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_custom": {
+          "name": "is_custom",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "is_archived": {
+          "name": "is_archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_skill_name": {
+          "name": "idx_skill_name",
+          "columns": [
+            "name COLLATE NOCASE"
+          ],
+          "isUnique": false
+        },
+        "idx_skill_filter": {
+          "name": "idx_skill_filter",
+          "columns": [
+            "is_archived",
+            "muscle_group",
+            "equipment"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "skill_tracking_type": {
+          "name": "skill_tracking_type",
+          "value": "tracking_type IN ('weight_reps','reps_only','bodyweight_plus_load','time','completion_only')"
+        },
+        "skill_load_convention": {
+          "name": "skill_load_convention",
+          "value": "load_convention IN ('total','per_side')"
+        },
+        "skill_main_lift": {
+          "name": "skill_main_lift",
+          "value": "is_main_lift = 0 OR (tracking_type = 'weight_reps' AND load_convention = 'total')"
+        }
+      }
+    },
+    "template": {
+      "name": "template",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "default_tm_percent": {
+          "name": "default_tm_percent",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0.9
+        },
+        "sessions_per_week": {
+          "name": "sessions_per_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "level": {
+          "name": "level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_built_in": {
+          "name": "is_built_in",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "template_level": {
+          "name": "template_level",
+          "value": "level IN ('beginner','intermediate')"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "idx_ce_workout": {
+        "columns": {
+          "cycle_workout_id": {
+            "isExpression": true
+          },
+          "sort_order": {
+            "isExpression": true
+          }
+        }
+      },
+      "uq_final_review": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_slot_phase": {
+        "columns": {
+          "phase_id": {
+            "isExpression": true
+          },
+          "cycle_week_index": {
+            "isExpression": true
+          },
+          "sort_order": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_slot_workout": {
+        "columns": {
+          "cycle_workout_id": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_cw_phase": {
+        "columns": {
+          "phase_id": {
+            "isExpression": true
+          },
+          "sort_order": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_orm_skill": {
+        "columns": {
+          "skill_id": {
+            "isExpression": true
+          },
+          "set_at DESC": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_orm_plan": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "skill_id": {
+            "isExpression": true
+          },
+          "effective_from_week_index": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_pr_skill": {
+        "columns": {
+          "skill_id": {
+            "isExpression": true
+          },
+          "type": {
+            "isExpression": true
+          },
+          "achieved_at": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_pr_session": {
+        "columns": {
+          "session_id": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_phase_plan": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "sort_order": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_phase_template": {
+        "columns": {
+          "template_id": {
+            "isExpression": true
+          },
+          "sort_order": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_pw_date": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "scheduled_date": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_pw_cycle": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "cycle_group_id": {
+            "isExpression": true
+          },
+          "phase_cycle_index": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_pw_week": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "week_index": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_sc_plan": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "created_at DESC": {
+            "isExpression": true
+          }
+        }
+      },
+      "uq_session_in_progress": {
+        "columns": {
+          "status": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_session_date": {
+        "columns": {
+          "status": {
+            "isExpression": true
+          },
+          "started_at DESC": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_session_plan": {
+        "columns": {
+          "plan_id": {
+            "isExpression": true
+          },
+          "started_at DESC": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_se_session": {
+        "columns": {
+          "session_id": {
+            "isExpression": true
+          },
+          "sort_order": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_se_skill": {
+        "columns": {
+          "skill_id": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_set_completed": {
+        "columns": {
+          "completed_at": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_skill_name": {
+        "columns": {
+          "name COLLATE NOCASE": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_skill_filter": {
+        "columns": {
+          "is_archived": {
+            "isExpression": true
+          },
+          "muscle_group": {
+            "isExpression": true
+          },
+          "equipment": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,9 +2,11 @@
 // calculated now and snapshotted into the log, so later 1RM changes never rewrite it.
 import {
   cycleFirstWeek,
+  increaseKg,
   incrementFor,
   oneRmForCycle,
   prefillSets,
+  progressionKey,
   tmKg,
   type SessionExercise,
 } from '@/core';
@@ -67,12 +69,15 @@ export async function startSessionTx(
   if (!planned) return { ok: false, reason: 'not_found' };
 
   const skillIds = [...new Set(planned.exercises.map((e) => e.exercise.skillId))];
-  const [skills, lastLoads] = await Promise.all([
+  const [skills, lastLoads, tracks] = await Promise.all([
     r.skills.getMany(skillIds),
     r.sessions.lastLoadBySkill(skillIds),
+    // A deload copy reads its source's track (§3.12); every slot of a workout shares one (D-20).
+    r.progression.getMany(planned.exercises.map((e) => progressionKey(e.exercise))),
   ]);
   const skillById = new Map(skills.map((s) => [s.id, s]));
   const phase = phases.find((p) => p.id === workout.phaseId);
+  const training = (phase?.type ?? 'training') === 'training';
   const firstWeek = cycleFirstWeek(phases, workout.weekIndex);
 
   const sessionId = ctx.newId();
@@ -105,6 +110,7 @@ export async function startSessionTx(
       firstWeek,
     );
     const tm = oneRm === null ? null : tmKg(oneRm, planSkill?.tmPercent ?? plan.defaultTmPercent);
+    const track = tracks.get(progressionKey(exercise)) ?? null;
 
     const row: SessionExercise = {
       id: ctx.newId(),
@@ -124,8 +130,8 @@ export async function startSessionTx(
       loadConvention: skill.loadConvention,
       isUnilateral: skill.isUnilateral,
       isMainLift: skill.isMainLift,
-      // TODO(Slice 8): the "↑" badge from double-progression state (FR-3.15).
-      dpIncreaseKg: null,
+      // The "↑" badge while an increase waits to be lifted; none while paused (FR-3.15).
+      dpIncreaseKg: training && track ? increaseKg(track) : null,
     };
     await r.sessions.insertExercise(row);
 
@@ -134,8 +140,7 @@ export async function startSessionTx(
       unit: settings.unit,
       increment: incrementFor(skill, settings, settings.unit),
       phase: { type: phase?.type ?? 'training', loadFactor: phase?.loadFactor ?? null },
-      // TODO(Slice 8): read the working load from double_progression_state (§3.12).
-      dpState: null,
+      dpState: track,
       lastLoadKg: lastLoads.get(skill.id) ?? null,
     });
     for (const prefill of prefills) {
