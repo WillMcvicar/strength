@@ -466,7 +466,7 @@ export const doubleProgressionState = sqliteTable('double_progression_state', {
   ),
   // JSON reps per set, for the D-12 pre-fill
   lastReps: text('last_reps', { mode: 'json' })
-    .$type<number[]>()
+    .$type<(number | null)[]>()
     .notNull()
     .default(sql`'[]'`),
   consecutiveBelowMin: integer('consecutive_below_min').notNull().default(0),

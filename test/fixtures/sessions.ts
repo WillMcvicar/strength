@@ -123,6 +123,9 @@ export const on = (ctx: ServiceContext, date: string, time = '17:00'): ServiceCo
 
 export type SetValues = Omit<SetInput, 'setLogId'>;
 
+/** A skill's values for every working set, or one entry per working set in order. */
+export type DayValues = Record<string, SetValues | SetValues[]>;
+
 /**
  * Starts the day's workout and logs every set: working sets of a skill in `values` take those
  * values, and everything else is done as planned (RPE at the top of its target, or 8, where one is
@@ -133,7 +136,7 @@ export async function logDay(
   planId: string,
   date: string,
   ctx: ServiceContext,
-  values: Record<string, SetValues> = {},
+  values: DayValues = {},
 ): Promise<string> {
   const r = repositories(db);
   const c = on(ctx, date);
@@ -144,8 +147,14 @@ export async function logDay(
   const started = await startSession(db, { plannedWorkoutId: workout.id }, c);
   if (!started.ok) throw new Error(started.reason);
   for (const { exercise, sets } of await r.sessions.exercises(started.sessionId)) {
+    let working = 0;
     for (const s of sets) {
-      const given = s.isWarmup ? {} : (values[exercise.skillId] ?? {});
+      const skillValues = values[exercise.skillId] ?? {};
+      const given = s.isWarmup
+        ? {}
+        : Array.isArray(skillValues)
+          ? (skillValues[working++] ?? {})
+          : skillValues;
       const rpe = rpeRequired(exercise, s) ? (s.targetRpeMax ?? 8) : undefined;
       const done = await completeSet(db, { rpe, ...given, setLogId: s.id }, c);
       if (!done.ok) throw new Error(`${exercise.skillId}: ${done.reason}`);
@@ -160,7 +169,7 @@ export async function logAndFinish(
   planId: string,
   date: string,
   ctx: ServiceContext,
-  values: Record<string, SetValues> = {},
+  values: DayValues = {},
 ) {
   const sessionId = await logDay(db, planId, date, ctx, values);
   const finished = await finishSession(db, { sessionId }, on(ctx, date, '18:00'));

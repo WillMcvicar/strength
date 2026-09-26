@@ -1,12 +1,13 @@
 // Logged sessions (FR-9, DESIGN §4.3): the session, its exercises with their snapshots (FR-1.10),
 // and their sets. At most one session is in progress (`uq_session_in_progress`, FR-9.13).
-import { and, asc, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt } from 'drizzle-orm';
 
+import type { LoggedProgression } from '@/core/doubleProgression';
 import type { PrSet } from '@/core/prs';
 import type { LocalDate, Session, SessionExercise, SetLog } from '@/core/types';
 
 import type { Orm } from '../orm';
-import { session, sessionExercise, setLog } from '../schema';
+import { phase, session, sessionExercise, setLog } from '../schema';
 
 export type SessionPatch = Partial<
   Pick<Session, 'status' | 'endedAt' | 'notes' | 'rpe' | 'totalVolumeKg' | 'updatedAt'>
@@ -16,6 +17,7 @@ export type SetLogPatch = Partial<
     SetLog,
     | 'sessionExerciseId'
     | 'setIndex'
+    | 'prescribedLoadKg'
     | 'reps'
     | 'loadKg'
     | 'timeSec'
@@ -44,6 +46,11 @@ export type SessionExercisePatch = Partial<
 export interface LoggedExercise {
   exercise: SessionExercise;
   sets: SetLog[];
+}
+
+/** A past exercise with its session's start, for the "Last:" line (FR-9.5). */
+export interface PastExercise extends LoggedExercise {
+  startedAt: string;
 }
 
 /** The columns PR detection reads, joined across a set, its exercise and its session. */
@@ -277,6 +284,96 @@ export function sessionRepository(o: Orm) {
         .from(session)
         .where(inArray(session.id, [...new Set(sessionIds)]));
       return new Map(rows.map((row) => [row.id, row.localDate]));
+    },
+
+    /**
+     * Every finished session of a cycle exercise, oldest first, as double progression replays
+     * them (§3.12, C-4). Sessions never overlap (FR-9.13), so start order is session order.
+     */
+    async progressionHistory(cycleExerciseId: string): Promise<LoggedProgression[]> {
+      const rows = await o
+        .select({
+          id: sessionExercise.id,
+          sessionId: session.id,
+          endedAt: session.endedAt,
+          phaseType: phase.type,
+          wasSubstituted: sessionExercise.wasSubstituted,
+        })
+        .from(sessionExercise)
+        .innerJoin(session, eq(sessionExercise.sessionId, session.id))
+        .innerJoin(phase, eq(session.phaseId, phase.id))
+        .where(
+          and(
+            eq(sessionExercise.cycleExerciseId, cycleExerciseId),
+            eq(session.status, 'completed'),
+          ),
+        )
+        .orderBy(asc(session.startedAt));
+      if (rows.length === 0) return [];
+      const sets = await o
+        .select()
+        .from(setLog)
+        .where(
+          inArray(
+            setLog.sessionExerciseId,
+            rows.map((r) => r.id),
+          ),
+        )
+        .orderBy(asc(setLog.setIndex));
+      return rows.map(({ id, endedAt, ...row }) => ({
+        ...row,
+        endedAt: endedAt ?? '',
+        sets: sets.filter((s) => s.sessionExerciseId === id),
+      }));
+    },
+
+    /**
+     * Exercises of these skills with a completed working set, from completed sessions that
+     * started before `before`, newest first: where "Last:" comes from (FR-9.5). `perSkill` caps
+     * how many are read for each skill.
+     */
+    async pastExercises(
+      skillIds: readonly string[],
+      before: string,
+      perSkill: number,
+    ): Promise<PastExercise[]> {
+      if (skillIds.length === 0) return [];
+      const rows = await o
+        .selectDistinct({ exercise: sessionExercise, startedAt: session.startedAt })
+        .from(sessionExercise)
+        .innerJoin(session, eq(sessionExercise.sessionId, session.id))
+        .innerJoin(setLog, eq(setLog.sessionExerciseId, sessionExercise.id))
+        .where(
+          and(
+            inArray(sessionExercise.skillId, [...skillIds]),
+            eq(session.status, 'completed'),
+            lt(session.startedAt, before),
+            eq(setLog.status, 'completed'),
+            eq(setLog.isWarmup, false),
+          ),
+        )
+        .orderBy(desc(session.startedAt));
+      const counts = new Map<string, number>();
+      const kept = rows.filter(({ exercise }) => {
+        const n = (counts.get(exercise.skillId) ?? 0) + 1;
+        counts.set(exercise.skillId, n);
+        return n <= perSkill;
+      });
+      if (kept.length === 0) return [];
+      const sets = await o
+        .select()
+        .from(setLog)
+        .where(
+          inArray(
+            setLog.sessionExerciseId,
+            kept.map((r) => r.exercise.id),
+          ),
+        )
+        .orderBy(asc(setLog.setIndex));
+      return kept.map((row) => ({
+        ...row,
+        sets: sets.filter((s) => s.sessionExerciseId === row.exercise.id),
+      }));
     },
 
     /** Completed sessions, newest first (FR-11.1). */
