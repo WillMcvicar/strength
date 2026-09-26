@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Document version** | 0.22 (PRs and History details; Android timing spike deferred) |
+| **Document version** | 0.23 (Double-progression details) |
 | **Date** | 26 September 2026 |
 | **Status** | Ready for build (v1.0 scope) |
 | **Implements** | `docs/REQUIREMENTS.md` document version 1.5 (the SRS) |
@@ -76,6 +76,7 @@ The first design review found 18 gaps or conflicts in SRS 1.0, resolved in SRS 1
 | D-41 | **Session screen details.** Building §7.6 found six gaps. (1) The set menu offered "Add note", but `set_log` has no note column; exercise notes (FR-9.7) cover the need, so the set menu has no note. (2) An ad-hoc workout (FR-9.13) starts from "Log a workout without a plan", a text button under Today's main card, shown whenever no session is in progress. (3) Set rows and their controls name the exercise ("Back squat, set 1, …", "Mark back squat set 1 done"), because two exercises' set 1s otherwise read the same. (4) The top-set reference (FR-9.2b) is the skill's most recent completed top set from a finished session; top sets come once a cycle, so this is last cycle's. (5) A set waiting for a required RPE is held in memory only: if the app closes before one is picked, the set is back to not done, and its values are kept. (6) "Add warm-up set" sits in the exercise ⋯ menu (FR-9.14). (7) In a superset, each exercise's warm-ups come first, one exercise at a time, and only the working sets are paired into rounds, so a warm-up on one exercise can't put the rounds out of step. | DESIGN §7.2, §7.6, §7.17; FR-9.2b, FR-9.13, FR-9.14 (no SRS change) | session screen and Today tests (§9) |
 | D-42 | **PRs and History details.** Building Slice 7 found nine gaps in §3.13, §4.4, §7.7, §7.11 and §7.12. (1) There is no separate `editSession`. History's Edit reopens the logging screen in edit mode, and the in-session edits (§8.2) also accept a finished session: each change to one recomputes its volume and replays PRs for the skills it touched. (2) A replay after an edit or delete starts at that session's `started_at`. Records before it stand and seed the bests, because sessions never overlap (FR-9.13), so nothing earlier can change. (3) A set completed or failed while editing a finished session is dated at the session's `ended_at`, so replay order stays within the session. (4) "Strictly greater" allows for floating-point noise: values within 10⁻⁶ are a tie (87.5 × 10 and 100 × 5 both estimate 116.67 kg). (5) Like `reps_at_weight`, `reps_at_added` is hidden when the same set was also the `heaviest_added` PR. (6) A skill is a first log (C-7) in the session holding its oldest PR row; if that row is manual, it is never a first log. History's ★ counts only new PRs, not first logs. (7) A `bodyweight_plus_load` set with no added load scores as +0 kg ("Reps at BW"). (8) An Est. 1RM PR shows one decimal in the display unit (106.7 kg, AC-54). A PR is dated by its session's `local_date` (D-39), and a manual one by `achieved_at`. The PR board's headline is heaviest, else heaviest added load, most reps, then longest time. (9) Live reads pause while their screen is hidden (a tab not in front, or anything under a full-screen modal) and re-read once when it returns, so logging a set doesn't re-run History, the PR board or Today in the background. | DESIGN §2.4, §3.13, §4.4, §7.7, §7.11, §7.12; FR-9.12, FR-10.1–10.3, FR-10.5, C-7 (no SRS change) | PR core, service, live-query and screen tests (§9) |
 | D-43 | **Android rest-timer timing spike deferred.** No Android phone was available when Slice 6 closed, so the §2.6 timing test moves from before logging to a later device test. It must run before the rest-timer item in `docs/RELEASE_CHECKLIST.md` is ticked, and its result goes in `docs/SETUP.md`. The measuring tool is built (More tab, development builds only). Until then the in-app countdown stays authoritative, as §2.6 already requires if notifications fire late. | DESIGN §2.6, §11; `docs/BUILD_PLAN.md` Slice 6 (no SRS change) | release checklist rest-timer item |
+| D-44 | **Double-progression details.** Building Slice 8 found eight gaps in §3.12, §7.2, §7.6 and C-4. (1) Editing a finished session (D-42) replays its workout's double-progression tracks, just as a delete does (C-4): each track is rebuilt from that cycle exercise's finished sessions in start order. (2) Revert re-fills the sets still to do in the session with the previous working load and last session's reps (D-12's non-increase rule), as if the increase hadn't happened; done sets keep what was lifted. (3) "Last:" (FR-9.5) comes from the most recent finished session of the same cycle exercise, else the skill's most recent session anywhere (the fallback D-39 uses for the load). Equal sets read "3×8 @ 60 kg", uneven reps "12, 11, 10 @ 15 kg", runs at other loads are joined with " · ", timed sets show in seconds, and completion-only items show nothing. (4) The increase check reads each set's own prescribed range and target RPE, which matches the pseudocode when sets are uniform; a set with only a minimum has a fixed target. (5) For the reduce hint, a working set not done counts as missing the bottom of the range, like a failed one. (6) In a deload, double-progression sets pre-fill reps at the bottom of the range, with the source's working load × the load factor. (7) Today shows "↑" after a double-progression load while an increase waits, as the §7.2 sketch does; the reduce hint stays on the session screen. (8) The badge and the reduce hint show only while a session is in progress. | DESIGN §3.12, §7.2, §7.6, §8.2; FR-3.15, FR-9.5, FR-2.15, C-4 (no SRS change) | double-progression core, service and screen tests (§9) |
 
 ### 1.2 Open design questions
 
@@ -93,7 +94,7 @@ These rules sit inside the SRS wording but aren't spelled out there. The design 
 | C-1 | Deload and taper phases always have a 1-week cycle, so every week of a 2-week deload or taper repeats the generated week. | FR-2.12, FR-2.14 | §3.6 |
 | C-2 | While a plan is paused, its workouts aren't shown as missed and no reviews are created. | FR-4.10 | §3.7 |
 | C-3 | Undo is offered only for the most recent change, and only if no workout it affected has since been completed or skipped. | FR-4.13 | §3.8 |
-| C-4 | Deleting a logged session returns its planned workout to `upcoming` (so it shows as missed if its date has passed). It also reruns the double-progression check, and refreshes or withdraws that cycle's pending review (D-21). | FR-9.12 | §4.4 |
+| C-4 | Deleting a logged session returns its planned workout to `upcoming` (so it shows as missed if its date has passed). It also reruns the double-progression check, and refreshes or withdraws that cycle's pending review (D-21). Editing a finished session reruns the double-progression check too (D-44). | FR-9.12 | §4.4 |
 | C-5 | Removing a slot after the plan has started retires it from future weeks. Removing a whole workout retires all its slots. Past logs and their planned workouts remain. Adding a slot generates it for weeks after the current week. | FR-2.9 | §4.4 |
 | C-6 | Test Day loads are percentages of the current 1RM (warm-ups 50/70/80/90%, attempts 95/100/102.5%, all editable). The Test Day suggestion is the best RIR-adjusted e1RM of successful attempts, which equals the load for a single at RPE 10. Like cycle reviews, it never suggests a value below the current 1RM. | FR-2.14, FR-3.9 | §3.10, §3.11 |
 | C-7 | A skill's first-ever logged sets record baseline PRs, but the summary labels them "First log" rather than celebrating new PRs. | FR-10.1, FR-10.2 | §3.13 |
@@ -542,16 +543,19 @@ updateAfterSession(state, prescription, exercise, loggedSets, inc, unit, phaseTy
   working = loggedSets.filter(!isWarmup)
   done    = working.filter(s => s.status === 'completed')
   if done.length === 0 return state                                 // C-10
+  // each set's own prescription (D-44); a lone repsMin is a fixed target
   allTop = working.length >= prescription.workingSetCount &&
-           working.every(s => s.status === 'completed' && s.reps >= repsMax &&
-                              (s.rpe == null || targetRpeMax == null || s.rpe <= targetRpeMax))
+           working.every(s => s.status === 'completed' &&
+                              s.reps >= (s.prescribedRepsMax ?? s.prescribedRepsMin) &&
+                              (s.rpe == null || s.targetRpeMax == null || s.rpe <= s.targetRpeMax))
   used = modeLoad(done)                         // D-13: most common load, ties → heavier
   lastReps = working.map(s => s.status === 'completed' ? s.reps : null)
   if allTop:
     return { ...state, previousWorkingLoadKg: used, lastReps,
              workingLoadKg: roundLoadKg(used + toKg(inc, unit), unit, inc),
              lastIncreasedAt: now, lastIncreaseSessionId: sessionId, consecutiveBelowMin: 0 }
-  belowAll = working.every(s => s.status === 'failed' || s.reps < repsMin)
+  belowAll = working.every(s => s.status !== 'completed' ||           // not done counts as missed (D-44)
+                                s.reps < s.prescribedRepsMin)
   return { ...state, workingLoadKg: used, lastReps, lastIncreaseSessionId: null,
            consecutiveBelowMin: belowAll ? state.consecutiveBelowMin + 1 : 0 }
 
@@ -559,10 +563,11 @@ showReduceHint = state.consecutiveBelowMin >= 2
 ```
 
 - **Scope (D-20):** state is keyed by `cycle_exercise_id`, and a cycle exercise belongs to a workout definition. Every slot of "Full body A" therefore reads and writes the same state, in session order (AC-64).
-- **Revert (one tap):** sets `workingLoadKg = previousWorkingLoadKg` and clears the badge.
+- **Revert (one tap):** sets `workingLoadKg = previousWorkingLoadKg` and clears the badge. The sets still to do in the session are re-filled with that load and last session's reps, as if the increase hadn't happened; done sets keep what was lifted (D-44).
+- **Edits and deletes** to a finished session replay the tracks of its workout's exercises from their finished sessions, in start order (C-4, D-44).
 - **Pre-fill (D-12):** after an increase, `repsMin`; otherwise `lastReps` for that set, clamped to the range (`repsMin` if there's no value).
 - **No working load yet** (first session of a new plan): pre-fill the load of the skill's most recent completed working set (not a warm-up) from any completed session (D-39). If the skill has never been logged, the load cell is empty and "done as planned" is disabled until a load is entered.
-- **In deloads**, generated exercises read the source's state through `sourceCycleExerciseId` and apply the load factor, but never write to it.
+- **In deloads**, generated exercises read the source's state through `sourceCycleExerciseId` and apply the load factor, but never write to it. Their reps pre-fill at `repsMin` (D-44).
 
 AC-28: 3 × 12 at 15 kg → 16 kg × 8, badge "↑ +1 kg". AC-29: 12/11/10 → stays at 15 kg, pre-fills 12/11/10. AC-56: 10@15, 9@16, 9@16 → 16 kg, pre-fills 10/9/9. AC-53: in a deload, 16 kg × 0.9 = 14.4 → 14 kg, state untouched.
 
@@ -1279,7 +1284,7 @@ The Today screen shows one main card, chosen in this order: in-progress session 
 | No plan (FR-7.8) | "No plan yet. Pick a ready-made plan or build your own." | **Browse templates**, Build a plan |
 | Plan ended with open sessions (FR-4.14) | "Your plan's last day has passed." | Finish plan, Push rest back, Extend (v1.1) |
 
-**Banners** stack above the card, at most two, in this priority order: pending review, then backup reminder (FR-12.8). Double-progression hints appear in the session screen, not here.
+**Banners** stack above the card, at most two, in this priority order: pending review, then backup reminder (FR-12.8). The double-progression reduce hint appears in the session screen, not here; an increased double-progression load shows "↑" after it, as in the sketch (D-44).
 
 **Estimated duration:** 40 s per set plus the rest time after every set except each exercise's last, rounded to the nearest 5 minutes.
 
@@ -1396,7 +1401,8 @@ The most important screen. It is a full-screen modal, with keep-awake on when th
 - The header shows elapsed time. "Finish" is always available (FR-9.9). If sets are incomplete, it asks: "4 sets aren't done. Finish anyway?"
 - ✕ opens: Keep going, Save and exit (session stays in progress), **Discard workout** (destructive, confirmed; FR-9.11).
 - At the bottom of the list: **+ Add exercise** (ad-hoc, FR-9.4), session note, and effort rating (1–10 slider) (FR-9.7).
-- **Hints:** "↑ +2.5 kg" badge by the exercise name; "Consider reducing the load" hint when §3.12 says so.
+- **Hints:** "↑ +2.5 kg" badge by the exercise name; "Consider reducing the load" hint when §3.12 says so. Both show only while the session is in progress (D-44).
+- **Last time (FR-9.5):** "Last: 3×8 @ 60 kg" under the exercise name, from the same workout's last session, else the skill's; uneven reps read "12, 11, 10 @ 15 kg" (D-44).
 - **Top set tip:** the first top set a user meets shows a one-time TipCard (`tip_top_set`): "Warm up in a few jumps, then pick a weight you can lift for the target reps with about 2 left in the tank. This set is how the app estimates your new max." The same text is available from the ⓘ next to "TOP".
 - **Test Day** uses the same screen. Attempt rows show "Attempt 1", "Attempt 2" and "Attempt 3", with loads pre-filled from §3.10 that the user usually adjusts before each attempt. "Mark as failed" is a visible button on attempt rows, not hidden in a menu.
 - **Scroll behaviour:** after ✓ on the last set of an exercise, the list scrolls so the next exercise is at the top.
@@ -1636,7 +1642,8 @@ finishSession(sessionId, now)
   1. session.status = 'completed', ended_at, total_volume_kg
   2. if planned: planned_workout.status = 'completed', session_id
   3. incremental PR detection for each skill (§3.13) → new PR rows (returned for the summary)
-  4. double progression update for each linked cycle_exercise (§3.12)
+  4. double progression update for each linked cycle_exercise (§3.12); edits and deletes of a
+     finished session replay the tracks instead (C-4, D-44)
   5. reconcile(today) → may create a pending Cycle Review
   6. (v1.1) queue an automatic backup
 ```
