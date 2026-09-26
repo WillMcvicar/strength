@@ -330,7 +330,7 @@ describe('double progression on the session screen (FR-3.15, FR-9.5, §7.6)', ()
     [set('c1', { prompt: 'optional', targetRpe: 9, loadKg: 16, reps: 8 })],
     {
       lastTime: 'Last: 3×12 @ 15 kg × 2',
-      increase: { text: '↑ +1 kg', kg: 1 },
+      increase: { text: '↑ +1 kg', amount: '+1 kg', kg: 1 },
     },
   );
 

@@ -20,7 +20,7 @@ import {
   type Unit,
 } from '@/core';
 import type { Db } from '@/data/db';
-import { repositories, type PastExercise } from '@/data/repositories';
+import { repositories, type LoggedExercise, type Repositories } from '@/data/repositories';
 import { addExercise } from '@/services/addExercise';
 import { addSet } from '@/services/addSet';
 import { completeSet } from '@/services/completeSet';
@@ -80,7 +80,7 @@ export interface SessionExerciseView {
   /** "Last: 3×8 @ 60 kg", from this workout's last session, else the skill's (FR-9.5). */
   lastTime: string | null;
   /** The "↑ +1 kg" badge while this session is in progress (FR-3.15); Revert undoes it. */
-  increase: { text: string; kg: number } | null;
+  increase: { text: string; amount: string; kg: number } | null;
   /** "Consider reducing the load": the range was missed twice running (FR-3.15). */
   reduceHint: boolean;
   sets: SessionSetView[];
@@ -146,9 +146,6 @@ export function loadLabel(kg: number, exercise: SessionExercise, unit: Unit): st
   return formatLoad(kg, unit, { perSide: exercise.loadConvention === 'per_side' });
 }
 
-/** How many past sessions of each skill are searched for the same workout's last one. */
-const LAST_TIME_LOOKBACK = 10;
-
 /** One run of sets: "3×8", or "12, 11, 10" when the values differ. */
 const runLabel = (values: readonly number[]) =>
   values.length > 1 && values.every((v) => v === values[0])
@@ -170,14 +167,18 @@ export function lastTimeLabel(
   return `Last: ${parts.join(' · ')}`;
 }
 
-/** This workout's last time for the exercise, else the skill's last time anywhere (FR-9.5). */
-function lastOf(exercise: SessionExercise, past: readonly PastExercise[]): PastExercise | null {
-  const ofSkill = past.filter((p) => p.exercise.skillId === exercise.skillId);
+/** This workout's last time for the exercise, else the skill's last time anywhere (D-44). */
+async function lastOf(
+  r: Repositories,
+  exercise: SessionExercise,
+  before: string,
+): Promise<LoggedExercise | null> {
+  const { skillId, cycleExerciseId } = exercise;
   const sameWorkout =
-    exercise.cycleExerciseId === null
-      ? undefined
-      : ofSkill.find((p) => p.exercise.cycleExerciseId === exercise.cycleExerciseId);
-  return sameWorkout ?? ofSkill[0] ?? null;
+    cycleExerciseId === null
+      ? null
+      : await r.sessions.lastLogged({ skillId, cycleExerciseId }, before);
+  return sameWorkout ?? (await r.sessions.lastLogged({ skillId }, before));
 }
 
 export async function readSession(db: Db, sessionId: string): Promise<SessionView | null> {
@@ -192,17 +193,23 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
     r.skills.getMany(skillIds),
     r.sessions.lastTopSetBySkill(skillIds),
     readSessionPrs(r, sessionId),
-    r.sessions.pastExercises(skillIds, session.startedAt, LAST_TIME_LOOKBACK),
+    Promise.all(logged.map((e) => lastOf(r, e.exercise, session.startedAt))),
     // Hints are for the workout being lifted; a finished one has already moved its track on.
     inProgress ? r.progression.getMany(trackIds) : new Map(),
   ]);
   const skillById = new Map(skills.map((s) => [s.id, s]));
   const unit = settings.unit;
 
-  const exercises = logged.map(({ exercise, sets }): SessionExerciseView => {
+  const exercises = logged.map(({ exercise, sets }, i): SessionExerciseView => {
     const skill = skillById.get(exercise.skillId);
     let number = 0;
     const last = lastTop.get(exercise.skillId);
+    const previous = past[i];
+    const track = exercise.cycleExerciseId ? tracks.get(exercise.cycleExerciseId) : undefined;
+    const amount =
+      exercise.dpIncreaseKg === null
+        ? null
+        : formatLoad(exercise.dpIncreaseKg, unit, { signed: true });
     return {
       id: exercise.id,
       skillId: exercise.skillId,
@@ -217,18 +224,18 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
         last && last.loadKg !== null && last.reps !== null
           ? `Last: ${loadLabel(last.loadKg, exercise, unit)} × ${last.reps}${last.rpe === null ? '' : ` @ RPE ${last.rpe}`}`
           : null,
-      lastTime: lastTimeText(exercise, past, unit),
+      lastTime: previous
+        ? lastTimeLabel(
+            lastTimeGroups(previous.sets, previous.exercise.trackingType),
+            previous.exercise,
+            unit,
+          )
+        : null,
       increase:
-        inProgress && exercise.dpIncreaseKg !== null
-          ? {
-              text: `↑ ${formatLoad(exercise.dpIncreaseKg, unit, { signed: true })}`,
-              kg: exercise.dpIncreaseKg,
-            }
+        inProgress && exercise.dpIncreaseKg !== null && amount !== null
+          ? { text: `↑ ${amount}`, amount, kg: exercise.dpIncreaseKg }
           : null,
-      reduceHint: (() => {
-        const track = exercise.cycleExerciseId ? tracks.get(exercise.cycleExerciseId) : undefined;
-        return !exercise.wasSubstituted && track !== undefined && showReduceHint(track);
-      })(),
+      reduceHint: !exercise.wasSubstituted && track !== undefined && showReduceHint(track),
       sets: sets.map((s) => {
         if (!s.isWarmup) number += 1;
         const rpe = rpeRange(s.targetRpeMin, s.targetRpeMax);
@@ -273,17 +280,6 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionVie
     exercises,
     prs,
   };
-}
-
-function lastTimeText(
-  exercise: SessionExercise,
-  past: readonly PastExercise[],
-  unit: Unit,
-): string | null {
-  const last = lastOf(exercise, past);
-  return last
-    ? lastTimeLabel(lastTimeGroups(last.sets, last.exercise.trackingType), last.exercise, unit)
-    : null;
 }
 
 /** What the lifter reads when an action is refused (§6.6). */

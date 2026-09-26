@@ -73,6 +73,8 @@ export interface DoubleProgressionState {
   lastIncreasedAt: string | null;
   /** Set while an increase is waiting to be lifted: it shows the "↑" badge. */
   lastIncreaseSessionId: string | null;
+  /** The session whose increase the lifter reverted, so a replay keeps it reverted (D-44). */
+  revertedIncreaseSessionId: string | null;
   /** Reps per working set last session, null where a set wasn't completed (D-12). */
   lastReps: (number | null)[];
   consecutiveBelowMin: number;

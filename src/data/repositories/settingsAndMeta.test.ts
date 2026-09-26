@@ -73,7 +73,7 @@ describe('settings repository', () => {
 describe('app_meta repository', () => {
   it('holds the schema and seed versions (NFR-4)', async () => {
     const { appMeta } = repositories(db);
-    expect(await appMeta.get('schema_version')).toBe('3');
+    expect(await appMeta.get('schema_version')).toBe('4');
     expect(await appMeta.get('seed_version')).toBe(String(SEED_VERSION));
     expect(await appMeta.get('nope')).toBeNull();
   });

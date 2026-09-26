@@ -58,7 +58,7 @@ export function finishSession(
     const prs = await recordSessionPrs(r, session.id, ctx);
 
     // Step 4: each linked exercise moves its workout's track on (§3.12).
-    await recordSessionProgression(r, session, ctx.now);
+    await recordSessionProgression(r, session, exercises, ctx.now);
     // TODO(Slice 10): step 5, finish with reconcile(ctx.today) once it exists (DESIGN §2.5).
 
     return {

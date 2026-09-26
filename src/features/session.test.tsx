@@ -273,7 +273,7 @@ describe('double progression on the session screen (FR-3.15, FR-9.5, §7.6)', ()
     const view = await viewOf(friday);
     // Last time follows the workout: Monday's Full body A, not Wednesday's B (FR-2.15).
     expect(view.exercises[0]).toMatchObject({
-      increase: { text: '↑ +1 kg', kg: 1 },
+      increase: { text: '↑ +1 kg', amount: '+1 kg', kg: 1 },
       lastTime: 'Last: 3×12 @ 15 kg × 2',
       reduceHint: false,
     });

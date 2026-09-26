@@ -464,12 +464,18 @@ export const doubleProgressionState = sqliteTable('double_progression_state', {
     (): AnySQLiteColumn => session.id,
     { onDelete: 'set null' },
   ),
+
   // JSON reps per set, for the D-12 pre-fill
   lastReps: text('last_reps', { mode: 'json' })
     .$type<(number | null)[]>()
     .notNull()
     .default(sql`'[]'`),
   consecutiveBelowMin: integer('consecutive_below_min').notNull().default(0),
+  // D-44: the increase the lifter reverted, kept reverted when the track is replayed
+  revertedIncreaseSessionId: text('reverted_increase_session_id').references(
+    (): AnySQLiteColumn => session.id,
+    { onDelete: 'set null' },
+  ),
 });
 
 // ───────────── Reviews ─────────────

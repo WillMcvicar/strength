@@ -587,7 +587,7 @@ function Menus({
           ...(exercise.increase
             ? [
                 {
-                  label: `Revert increase (${exercise.increase.text.replace('↑ ', '')})`,
+                  label: `Revert increase (${exercise.increase.amount})`,
                   onPress: () => void actions.revertIncrease(exercise.id).then(report),
                 },
               ]

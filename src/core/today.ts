@@ -1,6 +1,7 @@
 // DESIGN §3.3 and §7.2 — what Today shows (FR-7.2, FR-7.4, FR-7.5, FR-7.8; C-9).
 import { addDays, weekday } from './dates';
 import { increaseKg, progressionKey } from './doubleProgression';
+import { LOADED_TRACKING as LOADED } from './tracking';
 import { prescribedLoadKg, tmKg } from './loads';
 import { incrementFor } from './rounding';
 import { effectiveStatus, type EffectiveStatus } from './schedule/status';
@@ -146,11 +147,6 @@ export interface WorkoutRow {
   restSec: number;
   inSuperset: boolean;
 }
-
-const LOADED: ReadonlySet<RowSkill['trackingType']> = new Set([
-  'weight_reps',
-  'bodyweight_plus_load',
-]);
 
 /**
  * Today's exercise list (FR-7.2): working sets × target × calculated load. The target and load

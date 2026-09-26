@@ -11,7 +11,7 @@ import { repositories, type Repositories } from '@/data/repositories';
 
 import { openMigratedTestDb } from '../../test/db/betterSqlite3';
 import { idSequence } from '../../test/fixtures/ids';
-import { aPlan, sets, strength } from '../../test/fixtures/plans';
+import { aPlan, sets, strength, topSet } from '../../test/fixtures/plans';
 import {
   FRI,
   MON,
@@ -26,8 +26,10 @@ import { completeSet } from './completeSet';
 import type { ServiceContext } from './context';
 import { createPlanFromTemplate } from './createPlanFromTemplate';
 import { deleteSession } from './deleteSession';
+import { discardSession } from './discardSession';
 import { finishSession } from './finishSession';
 import { insertDeload } from './insertDeload';
+import { removeExercise } from './removeExercise';
 import { revertIncrease } from './revertIncrease';
 import { startPlan } from './startPlan';
 import { startSession } from './startSession';
@@ -481,6 +483,45 @@ describe('History edits and deletes replay the track (C-4, D-42)', () => {
     expect(await curlTrack()).toMatchObject({ workingLoadKg: null, lastReps: [] });
   });
 
+  it('replays the track of an exercise removed from a past session', async () => {
+    const { planId } = await aCurlPlan();
+    await start(planId);
+    const { sessionId } = await logAndFinish(db, planId, MON, ctx, { [CURL]: reps(12, 12, 12) });
+    const [curl] = await repos.sessions.exercises(sessionId);
+    expect(
+      await removeExercise(db, { sessionExerciseId: curl!.exercise.id }, on(ctx, FRI)),
+    ).toEqual({ ok: true });
+    expect(await curlTrack()).toMatchObject({ workingLoadKg: null, lastIncreaseSessionId: null });
+  });
+
+  it('keeps a reverted increase reverted when a past session is edited (D-44)', async () => {
+    const { planId } = await aCurlPlan();
+    await start(planId);
+    const monday = await logAndFinish(db, planId, MON, ctx, { [CURL]: reps(12, 12, 12) });
+    const friday = await curlOn(planId, FRI);
+    await revertIncrease(db, { sessionExerciseId: friday.exercise.id }, on(ctx, FRI));
+    await discardSession(db, { sessionId: friday.sessionId }, on(ctx, FRI));
+
+    const [curl] = await repos.sessions.exercises(monday.sessionId);
+    await updateSet(db, { setLogId: curl!.sets[0]!.id, rpe: 8.5 }, on(ctx, FRI));
+    expect(await curlTrack()).toMatchObject({
+      workingLoadKg: 15,
+      lastIncreaseSessionId: null,
+      revertedIncreaseSessionId: monday.sessionId,
+    });
+  });
+
+  it('leaves the track alone for a note on a past session', async () => {
+    const { planId } = await aCurlPlan();
+    await start(planId);
+    const monday = await logAndFinish(db, planId, MON, ctx, { [CURL]: reps(12, 12, 12) });
+    const before = await curlTrack();
+    const [curl] = await repos.sessions.exercises(monday.sessionId);
+    const { updateExerciseNote } = jest.requireActual('./updateExerciseNote');
+    await updateExerciseNote(db, { sessionExerciseId: curl!.exercise.id, notes: 'Easy' }, ctx);
+    expect(await curlTrack()).toEqual(before);
+  });
+
   it('leaves the track alone for an edit to a session still in progress', async () => {
     const { planId } = await aCurlPlan();
     await start(planId);
@@ -522,6 +563,66 @@ describe('revertIncrease (FR-3.15, §7.6 ⋯ menu)', () => {
       ['completed', 16, 8],
       ['pending', 15, 12],
       ['pending', 15, 12],
+    ]);
+  });
+
+  it('clears a badge the track no longer backs, and re-fills from the track as it is', async () => {
+    const { planId } = await aCurlPlan();
+    await start(planId);
+    const monday = await logAndFinish(db, planId, MON, ctx, { [CURL]: reps(12, 12, 12) });
+    const friday = await curlOn(planId, FRI);
+    // History edit while Friday is under way: Monday no longer earns the increase.
+    const [curl] = await repos.sessions.exercises(monday.sessionId);
+    await updateSet(db, { setLogId: curl!.sets[2]!.id, reps: 10 }, on(ctx, FRI));
+
+    expect(
+      await revertIncrease(db, { sessionExerciseId: friday.exercise.id }, on(ctx, FRI)),
+    ).toEqual({ ok: true });
+    const after = (await repos.sessions.exercises(friday.sessionId))[0]!;
+    expect(after.exercise.dpIncreaseKg).toBeNull();
+    expect(after.sets.map((s) => [s.loadKg, s.reps])).toEqual([
+      [15, 12],
+      [15, 12],
+      [15, 10],
+    ]);
+  });
+
+  it('leaves a top set in the same exercise alone', async () => {
+    const bench = 'skill_bench_press';
+    const backOff = {
+      loadType: 'double_progression' as const,
+      loadPercent: null,
+      repsMin: 8,
+      repsMax: 12,
+      targetRpeMin: 8,
+      targetRpeMax: 9,
+    };
+    const built = await aPlan('top')
+      .startingOn(START)
+      .withWorkouts('Heavy')
+      .withExercises('Heavy', [{ skill: bench, sets: [topSet(), ...sets(2, backOff)] }])
+      .withSchedule({ A: { Mon: 'Heavy', Fri: 'Heavy' }, B: { Mon: 'Heavy', Fri: 'Heavy' } })
+      .withOneRm(bench, 100)
+      .build(db);
+    await start(built.planId);
+    await logAndFinish(db, built.planId, MON, ctx, {
+      [bench]: [
+        { reps: 3, loadKg: 90, rpe: 8 },
+        { reps: 12, loadKg: 60, rpe: 8 },
+        { reps: 12, loadKg: 60, rpe: 8 },
+      ],
+    });
+    const fridayId = await logDayStart(built.planId, FRI);
+    const [before] = await repos.sessions.exercises(fridayId);
+    expect(before!.exercise.dpIncreaseKg).toBe(2.5);
+    const topBefore = before!.sets[0]!;
+
+    await revertIncrease(db, { sessionExerciseId: before!.exercise.id }, on(ctx, FRI));
+    const [after] = await repos.sessions.exercises(fridayId);
+    expect(after!.sets[0]).toEqual(topBefore);
+    expect(after!.sets.slice(1).map((s) => [s.loadKg, s.reps])).toEqual([
+      [60, 12],
+      [60, 12],
     ]);
   });
 

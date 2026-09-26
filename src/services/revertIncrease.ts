@@ -1,8 +1,11 @@
-// Revert increase (DESIGN §7.6 ⋯ menu, §3.12, FR-3.15): one tap undoes a double-progression
+// Revert increase (DESIGN §7.6 ⋯ menu, §3.12, FR-3.15, D-44): one tap undoes a double-progression
 // increase for the workout's track, and re-fills the sets still to do in this session as if it
-// hadn't happened. Sets already done keep what was lifted.
+// hadn't happened. Sets already done keep what was lifted, and only the sets pre-filled at the
+// increased load change, so a top set or a fixed set in the same exercise keeps its own.
 import {
   incrementFor,
+  modeLoad,
+  nearlyEqual,
   prescribedLoadKg,
   progressionReps,
   revertIncrease as revertedState,
@@ -31,12 +34,14 @@ export function revertIncrease(
 
     const id = exercise.cycleExerciseId;
     const state = id ? (await r.progression.getMany([id])).get(id) : undefined;
-    if (!id || !state || exercise.dpIncreaseKg === null || state.lastIncreaseSessionId === null) {
+    if (!state || exercise.dpIncreaseKg === null) {
       return { ok: false, reason: 'nothing_to_revert' };
     }
 
+    // A History edit may already have replayed the increase away; the badge then just follows
+    // the track as it is now.
     const reverted = revertedState(state);
-    await r.progression.upsert({ ...state, ...reverted });
+    if (reverted !== state) await r.progression.upsert({ ...state, ...reverted });
     await r.sessions.updateExercise(exercise.id, { dpIncreaseKg: null });
 
     const [settings, skill] = await Promise.all([r.settings.get(), r.skills.get(exercise.skillId)]);
@@ -51,13 +56,27 @@ export function revertIncrease(
       },
     );
     const working = (await r.sessions.setsOf(exercise.id)).filter((s) => !s.isWarmup);
+    // The sets the increase pre-filled all carry its load.
+    const increased = modeLoad(
+      working.flatMap((s) =>
+        s.isTopSet || s.prescribedLoadKg === null ? [] : [s.prescribedLoadKg],
+      ),
+    );
     const reps = progressionReps(
       reverted,
       working.map((s) => ({ repsMin: s.prescribedRepsMin, repsMax: s.prescribedRepsMax })),
       { paused: false },
     );
     for (const [i, set] of working.entries()) {
-      if (set.status !== 'pending') continue;
+      if (
+        set.status !== 'pending' ||
+        set.isTopSet ||
+        increased === null ||
+        set.prescribedLoadKg === null ||
+        !nearlyEqual(set.prescribedLoadKg, increased)
+      ) {
+        continue;
+      }
       await r.sessions.updateSet(set.id, {
         prescribedLoadKg: loadKg,
         loadKg,

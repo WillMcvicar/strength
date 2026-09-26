@@ -2,6 +2,7 @@
 // records a PR when it strictly beats the best so far for that (skill, type, weight). Finishing a
 // session detects against the current bests; editing or deleting one replays the skill's history.
 import { e1rm, isPrEligibleE1rm } from './e1rm';
+import { FLOAT_NOISE } from './tracking';
 import type { PersonalRecord, PrType, SetStatus, TrackingType } from './types';
 
 /** A logged set with what PR detection needs from its exercise and session. */
@@ -35,7 +36,7 @@ type Keyed = Pick<PersonalRecord, 'skillId' | 'type' | 'contextWeightKg'>;
  * different sets can be equal but for floating-point noise (87.5 × 10 and 100 × 5 are both 116.67).
  */
 const beats = (value: number, best: number | undefined): boolean =>
-  best === undefined || value > best + 1e-6;
+  best === undefined || value > best + FLOAT_NOISE;
 
 /** The (skill, type, weight) a record competes within. */
 const keyOf = (r: Keyed): string => `${r.skillId}|${r.type}|${r.contextWeightKg ?? ''}`;

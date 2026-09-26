@@ -18,7 +18,9 @@ export function removeExercise(
     const found = await editableExercise(r, input.sessionExerciseId);
     if (!found.ok) return found;
     await r.sessions.deleteExercise(found.exercise.id);
-    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx);
+    await afterSessionChange(r, found.session, [found.exercise.skillId], ctx, [
+      found.exercise.cycleExerciseId,
+    ]);
     return { ok: true };
   });
 }

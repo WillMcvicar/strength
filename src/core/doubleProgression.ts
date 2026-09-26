@@ -2,6 +2,7 @@
 // cycle exercise, so every slot of a workout shares one track (D-20). It is only written in
 // training phases; a deload reads its source's state and applies the load factor (D-9).
 import { roundLoadKg } from './rounding';
+import { LOADED_TRACKING, nearlyEqual } from './tracking';
 import type {
   CycleExercise,
   DoubleProgressionState,
@@ -18,6 +19,7 @@ export const NEW_PROGRESSION: DoubleProgressionState = {
   previousWorkingLoadKg: null,
   lastIncreasedAt: null,
   lastIncreaseSessionId: null,
+  revertedIncreaseSessionId: null,
   lastReps: [],
   consecutiveBelowMin: 0,
 };
@@ -58,14 +60,11 @@ export interface ProgressionRules {
   unit: Unit;
 }
 
-/** Loads within 10⁻⁶ kg are the same load, so lb conversions don't split a group. */
-const sameLoad = (a: number, b: number) => Math.abs(a - b) < 1e-6;
-
 /** D-13: the most common load, with ties going to the heavier. */
 export function modeLoad(loads: readonly number[]): number | null {
   const counts: { load: number; n: number }[] = [];
   for (const load of loads) {
-    const found = counts.find((c) => sameLoad(c.load, load));
+    const found = counts.find((c) => nearlyEqual(c.load, load));
     if (found) found.n += 1;
     else counts.push({ load, n: 1 });
   }
@@ -140,21 +139,37 @@ export function updateProgression(
   };
 }
 
-/** Rebuilds a track from its finished sessions in order, after one is edited or deleted (C-4). */
+/**
+ * Rebuilds a track from its finished sessions in order, after one is edited or deleted (C-4,
+ * D-44). An increase the lifter reverted stays reverted if the replay brings it back.
+ */
 export function replayProgression(
   sessions: readonly LoggedProgression[],
   rules: ProgressionRules,
+  revertedIncreaseSessionId: string | null = null,
 ): DoubleProgressionState {
-  return sessions.reduce((state, s) => updateProgression(state, s, rules), NEW_PROGRESSION);
+  const state = sessions.reduce(
+    (s, logged) => updateProgression(s, logged, rules),
+    NEW_PROGRESSION,
+  );
+  const replayed = { ...state, revertedIncreaseSessionId };
+  return replayed.lastIncreaseSessionId !== null &&
+    replayed.lastIncreaseSessionId === revertedIncreaseSessionId
+    ? revertIncrease(replayed)
+    : replayed;
 }
 
-/** One-tap revert (FR-3.15): back to the load before the increase, as if it hadn't happened. */
+/**
+ * One-tap revert (FR-3.15): back to the load before the increase, as if it hadn't happened. The
+ * session that earned it is remembered, so a later replay doesn't bring it back (D-44).
+ */
 export function revertIncrease(state: DoubleProgressionState): DoubleProgressionState {
   if (state.lastIncreaseSessionId === null) return state;
   return {
     ...state,
     workingLoadKg: state.previousWorkingLoadKg,
     lastIncreaseSessionId: null,
+    revertedIncreaseSessionId: state.lastIncreaseSessionId,
   };
 }
 
@@ -201,26 +216,27 @@ export interface LastTimeGroup {
   values: number[];
 }
 
-const LOADED: ReadonlySet<TrackingType> = new Set(['weight_reps', 'bodyweight_plus_load']);
-
-/** The completed working sets of a past session, grouped for the "Last:" line (FR-9.5). */
+/**
+ * The completed working sets of a past session, grouped for the "Last:" line (FR-9.5). A weighted
+ * bodyweight set with no added load groups as bodyweight alone.
+ */
 export function lastTimeGroups(
   sets: readonly Pick<SetLog, 'status' | 'isWarmup' | 'reps' | 'loadKg' | 'timeSec'>[],
   trackingType: TrackingType,
 ): LastTimeGroup[] {
   if (trackingType === 'completion_only') return [];
-  const loaded = LOADED.has(trackingType);
+  const loaded = LOADED_TRACKING.has(trackingType);
   const groups: LastTimeGroup[] = [];
   for (const s of sets) {
     if (s.isWarmup || s.status !== 'completed') continue;
     const value = trackingType === 'time' ? s.timeSec : s.reps;
     const loadKg = loaded ? s.loadKg : null;
-    if (value === null || (loaded && loadKg === null)) continue;
+    if (value === null || (trackingType === 'weight_reps' && loadKg === null)) continue;
     const last = groups[groups.length - 1];
     if (
       last &&
       (last.loadKg === loadKg ||
-        (last.loadKg !== null && loadKg !== null && sameLoad(last.loadKg, loadKg)))
+        (last.loadKg !== null && loadKg !== null && nearlyEqual(last.loadKg, loadKg)))
     ) {
       last.values.push(value);
     } else {

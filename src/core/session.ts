@@ -2,6 +2,7 @@
 // be marked complete (FR-3.12, FR-9.2, FR-9.2a, FR-9.2b, FR-9.3, FR-9.14).
 import { progressionReps } from './doubleProgression';
 import { prescribedLoadKg } from './loads';
+import { LOADED_TRACKING as LOADED } from './tracking';
 import type { CycleSet, DoubleProgressionState, LoadContext, SetLog, TrackingType } from './types';
 
 /** A `set_log` row as it is written at session start, before any ids or results. */
@@ -19,7 +20,6 @@ export type PrefillContext = Omit<LoadContext, 'tmKg' | 'dpState'> & {
   dpState?: DoubleProgressionState | null;
 };
 
-const LOADED: ReadonlySet<TrackingType> = new Set(['weight_reps', 'bodyweight_plus_load']);
 const REPS: ReadonlySet<TrackingType> = new Set([
   'weight_reps',
   'reps_only',

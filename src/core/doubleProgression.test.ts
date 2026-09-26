@@ -296,6 +296,30 @@ describe('replayProgression (C-4, edits and deletes)', () => {
     });
   });
 
+  it('keeps an increase the lifter reverted reverted (D-44)', () => {
+    const monday = logged([aSet(12), aSet(12), aSet(12)], { sessionId: 'mon' });
+    const reverted = revertIncrease(updateProgression(NEW_PROGRESSION, monday, curl));
+    expect(reverted.revertedIncreaseSessionId).toBe('mon');
+
+    const replayed = replayProgression([monday], curl, reverted.revertedIncreaseSessionId);
+    expect(replayed).toEqual(reverted);
+    expect(increaseKg(replayed)).toBeNull();
+  });
+
+  it('lets a later increase through, and remembers the old revert', () => {
+    const sessions = [
+      logged([aSet(12), aSet(12), aSet(12)], { sessionId: 'mon' }),
+      logged([aSet(12), aSet(12), aSet(12)], { sessionId: 'fri' }),
+    ];
+    const replayed = replayProgression(sessions, curl, 'mon');
+    // Friday was lifted at the reverted 15 kg, and earned its own increase to 16 kg.
+    expect(replayed).toMatchObject({
+      workingLoadKg: 16,
+      lastIncreaseSessionId: 'fri',
+      revertedIncreaseSessionId: 'mon',
+    });
+  });
+
   it("starts a new track from the first session's load", () => {
     const first = replayProgression([logged([aSet(10, 14), aSet(10, 14), aSet(9, 14)])], curl);
     expect(first).toMatchObject({ workingLoadKg: 14, previousWorkingLoadKg: null });
@@ -338,9 +362,12 @@ describe('lastTimeGroups (FR-9.5)', () => {
     ).toEqual([{ loadKg: 15, values: [12] }]);
   });
 
-  it('keeps added load for weighted bodyweight skills', () => {
+  it('keeps added load for weighted bodyweight skills, and bodyweight alone without it', () => {
     expect(lastTimeGroups([logSet(6, 10), logSet(5, 10)], 'bodyweight_plus_load')).toEqual([
       { loadKg: 10, values: [6, 5] },
+    ]);
+    expect(lastTimeGroups([logSet(8, null), logSet(8, null)], 'bodyweight_plus_load')).toEqual([
+      { loadKg: null, values: [8, 8] },
     ]);
   });
 

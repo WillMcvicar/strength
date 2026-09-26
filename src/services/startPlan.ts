@@ -143,8 +143,11 @@ export async function startPlanTx(
   // Step 5: an empty track per double-progression exercise of a training phase (§3.12). A
   // continuation shares its original's blueprint, and a deload reads its source's track.
   const tracked = new Set<string>();
-  for (const phase of phases.filter((p) => p.type === 'training')) {
-    const blueprint = await r.blueprints.loadBlueprint(phase.continuesPhaseId ?? phase.id);
+  const roots = new Set(
+    phases.filter((p) => p.type === 'training').map((p) => p.continuesPhaseId ?? p.id),
+  );
+  for (const root of roots) {
+    const blueprint = await r.blueprints.loadBlueprint(root);
     for (const w of blueprint?.workouts ?? []) {
       for (const e of w.exercises) if (isTracked(e.sets)) tracked.add(e.exercise.id);
     }

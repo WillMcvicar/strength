@@ -1,6 +1,6 @@
 // Logged sessions (FR-9, DESIGN §4.3): the session, its exercises with their snapshots (FR-1.10),
 // and their sets. At most one session is in progress (`uq_session_in_progress`, FR-9.13).
-import { and, asc, desc, eq, gte, inArray, lt } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, gte, inArray, lt, sql } from 'drizzle-orm';
 
 import type { LoggedProgression } from '@/core/doubleProgression';
 import type { PrSet } from '@/core/prs';
@@ -46,11 +46,6 @@ export type SessionExercisePatch = Partial<
 export interface LoggedExercise {
   exercise: SessionExercise;
   sets: SetLog[];
-}
-
-/** A past exercise with its session's start, for the "Last:" line (FR-9.5). */
-export interface PastExercise extends LoggedExercise {
-  startedAt: string;
 }
 
 /** The columns PR detection reads, joined across a set, its exercise and its session. */
@@ -328,52 +323,44 @@ export function sessionRepository(o: Orm) {
     },
 
     /**
-     * Exercises of these skills with a completed working set, from completed sessions that
-     * started before `before`, newest first: where "Last:" comes from (FR-9.5). `perSkill` caps
-     * how many are read for each skill.
+     * The latest exercise of this skill with a completed working set, from a completed session
+     * that started before `before`: where "Last:" comes from (FR-9.5, D-44). With
+     * `cycleExerciseId`, only that workout's exercise counts.
      */
-    async pastExercises(
-      skillIds: readonly string[],
+    async lastLogged(
+      match: { skillId: string; cycleExerciseId?: string },
       before: string,
-      perSkill: number,
-    ): Promise<PastExercise[]> {
-      if (skillIds.length === 0) return [];
-      const rows = await o
-        .selectDistinct({ exercise: sessionExercise, startedAt: session.startedAt })
+    ): Promise<LoggedExercise | null> {
+      const [row] = await o
+        .select({ exercise: sessionExercise })
         .from(sessionExercise)
         .innerJoin(session, eq(sessionExercise.sessionId, session.id))
-        .innerJoin(setLog, eq(setLog.sessionExerciseId, sessionExercise.id))
         .where(
           and(
-            inArray(sessionExercise.skillId, [...skillIds]),
+            eq(sessionExercise.skillId, match.skillId),
+            match.cycleExerciseId === undefined
+              ? undefined
+              : eq(sessionExercise.cycleExerciseId, match.cycleExerciseId),
             eq(session.status, 'completed'),
             lt(session.startedAt, before),
-            eq(setLog.status, 'completed'),
-            eq(setLog.isWarmup, false),
+            exists(
+              o
+                .select({ one: sql`1` })
+                .from(setLog)
+                .where(
+                  and(
+                    eq(setLog.sessionExerciseId, sessionExercise.id),
+                    eq(setLog.status, 'completed'),
+                    eq(setLog.isWarmup, false),
+                  ),
+                ),
+            ),
           ),
         )
-        .orderBy(desc(session.startedAt));
-      const counts = new Map<string, number>();
-      const kept = rows.filter(({ exercise }) => {
-        const n = (counts.get(exercise.skillId) ?? 0) + 1;
-        counts.set(exercise.skillId, n);
-        return n <= perSkill;
-      });
-      if (kept.length === 0) return [];
-      const sets = await o
-        .select()
-        .from(setLog)
-        .where(
-          inArray(
-            setLog.sessionExerciseId,
-            kept.map((r) => r.exercise.id),
-          ),
-        )
-        .orderBy(asc(setLog.setIndex));
-      return kept.map((row) => ({
-        ...row,
-        sets: sets.filter((s) => s.sessionExerciseId === row.exercise.id),
-      }));
+        .orderBy(desc(session.startedAt))
+        .limit(1);
+      if (!row) return null;
+      return { exercise: row.exercise, sets: await this.setsOf(row.exercise.id) };
     },
 
     /** Completed sessions, newest first (FR-11.1). */
