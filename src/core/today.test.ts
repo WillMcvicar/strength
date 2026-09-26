@@ -8,7 +8,8 @@ import {
   type RowSkill,
   type WorkoutRowsInput,
 } from './today';
-import type { CycleExercise, CycleSet, PlannedWorkout } from './types';
+import { NEW_PROGRESSION } from './doubleProgression';
+import type { CycleExercise, CycleSet, DoubleProgressionState, PlannedWorkout } from './types';
 
 describe('oneRmForCycle (§3.3, C-9)', () => {
   const row = (oneRmKg: number, effectiveFromWeekIndex: number | null, setAt: string) => ({
@@ -217,6 +218,7 @@ describe('workoutRows (FR-7.2, §3.3)', () => {
         load: { kg: 72.5, perSide: false, added: false },
         rpe: null,
         topSet: false,
+        increased: false,
         restSec: 120,
         inSuperset: false,
       },
@@ -318,9 +320,25 @@ describe('workoutRows (FR-7.2, §3.3)', () => {
       expect(rowOf()?.load).toBeNull();
     });
 
+    const track = (over: Partial<DoubleProgressionState> = {}) => ({
+      ...NEW_PROGRESSION,
+      workingLoadKg: 60,
+      ...over,
+    });
+    const waiting = track({
+      workingLoadKg: 62.5,
+      previousWorkingLoadKg: 60,
+      lastIncreaseSessionId: 's1',
+    });
+
     it("shows the working load from the workout's own track", () => {
-      const dpStates = new Map([['row_x', { workingLoadKg: 62.5 }]]);
-      expect(rowOf({ dpStates })?.load?.kg).toBe(62.5);
+      const dpStates = new Map([['row_x', track({ workingLoadKg: 62.5 })]]);
+      expect(rowOf({ dpStates })).toMatchObject({ load: { kg: 62.5 }, increased: false });
+    });
+
+    it('marks a load that went up, as "60 kg ↑" in §7.2', () => {
+      const dpStates = new Map([['row_x', waiting]]);
+      expect(rowOf({ dpStates })).toMatchObject({ load: { kg: 62.5 }, increased: true });
     });
 
     it("falls back to the skill's last logged load", () => {
@@ -329,9 +347,13 @@ describe('workoutRows (FR-7.2, §3.3)', () => {
 
     it("reads a deload copy's source track and applies the load factor (D-9)", () => {
       const copy = exercise('row_deload', 'row', { sourceCycleExerciseId: 'row_x' });
-      const dpStates = new Map([['row_x', { workingLoadKg: 60 }]]);
+      const dpStates = new Map([['row_x', { ...waiting, workingLoadKg: 60 }]]);
       const deload = { type: 'deload' as const, loadFactor: 0.9 };
-      expect(rowOf({ dpStates, phase: deload }, copy)?.load?.kg).toBe(55);
+      // Paused, so no "↑" even while the source's increase waits.
+      expect(rowOf({ dpStates, phase: deload }, copy)).toMatchObject({
+        load: { kg: 55 },
+        increased: false,
+      });
     });
   });
 
