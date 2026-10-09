@@ -1,10 +1,10 @@
 // DESIGN §3.3 and §7.2 — what Today shows (FR-7.2, FR-7.4, FR-7.5, FR-7.8; C-9).
-import { addDays, weekday } from './dates';
 import { increaseKg, progressionKey } from './doubleProgression';
 import { LOADED_TRACKING as LOADED } from './tracking';
 import { prescribedLoadKg, tmKg } from './loads';
 import { incrementFor } from './rounding';
-import { effectiveStatus, type EffectiveStatus } from './schedule/status';
+import type { EffectiveStatus } from './schedule/status';
+import { calendarWeek } from './week';
 import type {
   CycleExercise,
   CycleSet,
@@ -227,7 +227,7 @@ export type StripStatus = EffectiveStatus | 'rest';
 
 /**
  * The calendar week around today for the week strip (FR-8.1, §7.2), starting on the week-start
- * day. A day with no workout is a rest day; with two (D-4), the first in date order shows.
+ * day. A day with no workout is a rest day; with two (D-4), the first in schedule order shows.
  */
 export function weekDays(
   workouts: readonly PlannedWorkout[],
@@ -236,15 +236,12 @@ export function weekDays(
   plan: Pick<Plan, 'status' | 'pausedOn' | 'endedOn'>,
   inProgressWorkoutId: string | null,
 ): { date: LocalDate; status: StripStatus }[] {
-  const start = addDays(today, -((weekday(today) - weekStart + 7) % 7));
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(start, i);
-    const workout = workouts.find((w) => w.scheduledDate === date);
-    return {
-      date,
-      status: workout
-        ? effectiveStatus(workout, today, plan, workout.id === inProgressWorkoutId)
-        : 'rest',
-    };
-  });
+  return calendarWeek({
+    workouts,
+    date: today,
+    weekStart,
+    today,
+    plan,
+    inProgressWorkoutId,
+  }).days.map((d) => ({ date: d.date, status: d.workouts[0]?.status ?? 'rest' }));
 }
