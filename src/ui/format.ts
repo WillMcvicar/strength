@@ -29,9 +29,41 @@ export function formatDay(date: LocalDate): string {
   return `${p.day.slice(0, 3)} ${p.date} ${p.month.slice(0, 3)}`;
 }
 
+/** A day in a week list (§7.3): "Wed 16". */
+export function formatDayOfMonth(date: LocalDate): string {
+  const p = parts(date);
+  return `${p.day.slice(0, 3)} ${p.date}`;
+}
+
 export function spokenDay(date: LocalDate): string {
   const p = parts(date);
   return `${p.day} ${p.date} ${p.month}`;
+}
+
+/** A calendar week's dates (§7.3): "14–20 Sep", "28 Sep – 4 Oct", "28 Dec 2026 – 3 Jan 2027". */
+export function formatWeekRange(start: LocalDate, end: LocalDate): string {
+  return weekRange(start, end, (month) => month.slice(0, 3), '–', ' – ');
+}
+
+/** The same, for screen readers: "14 to 20 September". */
+export function spokenWeekRange(start: LocalDate, end: LocalDate): string {
+  return weekRange(start, end, (month) => month, ' to ', ' to ');
+}
+
+function weekRange(
+  start: LocalDate,
+  end: LocalDate,
+  month: (name: string) => string,
+  sameMonth: string,
+  apart: string,
+): string {
+  const a = parts(start);
+  const b = parts(end);
+  if (start.slice(0, 4) !== end.slice(0, 4)) {
+    return `${a.date} ${month(a.month)} ${start.slice(0, 4)}${apart}${b.date} ${month(b.month)} ${end.slice(0, 4)}`;
+  }
+  if (a.month !== b.month) return `${a.date} ${month(a.month)}${apart}${b.date} ${month(b.month)}`;
+  return `${a.date}${sameMonth}${b.date} ${month(b.month)}`;
 }
 
 /** A History month heading: "2026-09" → "September 2026" (§7.12). */

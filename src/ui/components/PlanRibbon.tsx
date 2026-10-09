@@ -36,13 +36,19 @@ function ribbonLabel(phases: readonly RibbonPhase[], currentWeek: number | null)
   return `Phase ${index + 1} of ${phases.length}, ${phase.name}, week ${currentWeek} of ${totalWeeks}`;
 }
 
-/** §6.2: consecutive training phases alternate full and 70% tint, so the boundary still shows. */
-function tints(phases: readonly RibbonPhase[]): number[] {
-  const out: number[] = [];
+/**
+ * Each phase's colour and tint (§6.2): consecutive training phases alternate full and 70% tint, so
+ * the boundary still shows. The plan overview's row edges use the same (§7.3).
+ */
+export function phaseFills(
+  phases: readonly Pick<RibbonPhase, 'type'>[],
+): { color: keyof ColorTokens; opacity: number }[] {
+  const out: { color: keyof ColorTokens; opacity: number }[] = [];
   phases.forEach((p, i) => {
     const prev = phases[i - 1];
-    const alternate = p.type === 'training' && prev?.type === 'training' && out[i - 1] === 1;
-    out.push(alternate ? 0.7 : 1);
+    const alternate =
+      p.type === 'training' && prev?.type === 'training' && out[i - 1]?.opacity === 1;
+    out.push({ color: FILL[p.type], opacity: alternate ? 0.7 : 1 });
   });
   return out;
 }
@@ -51,7 +57,7 @@ export function PlanRibbon({ phases, currentWeek, onPress }: PlanRibbonProps) {
   const c = useColors();
   const label = ribbonLabel(phases, currentWeek);
   const totalWeeks = phases.reduce((sum, p) => sum + p.weeks, 0);
-  const opacity = tints(phases);
+  const fills = phaseFills(phases);
 
   const strip = (
     <View style={styles.strip}>
@@ -61,7 +67,7 @@ export function PlanRibbon({ phases, currentWeek, onPress }: PlanRibbonProps) {
           testID="ribbon-segment"
           style={[
             styles.segment,
-            { flexGrow: p.weeks, backgroundColor: c[FILL[p.type]], opacity: opacity[i] },
+            { flexGrow: p.weeks, backgroundColor: c[fills[i]!.color], opacity: fills[i]!.opacity },
           ]}
         >
           {Array.from({ length: p.weeks - 1 }, (_, w) => (

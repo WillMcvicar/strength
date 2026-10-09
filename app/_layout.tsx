@@ -74,6 +74,8 @@ function AppStack() {
           name="session/summary/[id]"
           options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
+        {/* Workout detail is a sheet over Week and the plan overview (§7.3). */}
+        <Stack.Screen name="workout/[id]" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack>
   );
