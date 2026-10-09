@@ -21,10 +21,10 @@ can be checked. Its "Done when" check must pass before the next slice starts.
 | 4 | Shell, design system, Today (read-only) | **Done** |
 | 5 | Start a plan from a template | **Done** |
 | 6 | Log a session | **Done** |
-| ✓ | Checkpoint: gym test (runs alongside 7–9) | |
+| ✓ | Checkpoint: gym test (runs alongside 7–9) | Next |
 | 7 | PRs and history | **Done** |
 | 8 | Double progression | **Done** |
-| 9 | Week and progress | Next |
+| 9 | Week and progress | **Done** |
 | 10 | Missed workouts and schedule changes | |
 | 11 | Cycle Review and Final Review | |
 | 12 | Plan builder | |
@@ -176,6 +176,9 @@ The calendar-week view with statuses, week stepping, the plan progress meter and
 full plan overview grid.
 
 - **IDs:** FR-8.1–8.4. D-7. AC-51.
+- **Built:** AC-51 has tests (the calendar week in core and the Week view-model, and the start-date
+  default in plan setup). Workout detail starts only today's workout; Start on a missed one, Move,
+  Skip and the shifts come with Slice 10's FR-7.6 options.
 
 ---
 
