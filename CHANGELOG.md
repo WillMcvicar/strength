@@ -10,6 +10,16 @@ SRS §11 (v1.0 Core Loop, v1.1 Periodisation, v1.2 Insight & Polish).
 
 ### Added
 
+- Week and progress (build plan Slice 9, FR-8.1–8.4, D-7, AC-51): the Week tab shows the
+  calendar week from the week-start setting, each day's workouts with their status (two on a
+  day both show), and the plan week(s) in view, e.g. "Plan weeks 1–2" when a plan starts
+  midweek. ‹ › or a swipe changes week, and tapping the dates comes back to this one.
+- Workout detail: tapping a workout on the Week tab or the plan overview shows its exercises and
+  loads, with Start for today's workout, Resume for one under way and View session for a finished
+  one.
+- The plan overview (Week → View whole plan): a row per plan week with its phase colour, deload
+  and taper weeks labelled, a cell per workout with its status, and the full progress meter.
+
 - Double progression (build plan Slice 8, FR-3.15, FR-9.5, FR-2.15, AC-28, AC-29, AC-56, AC-64):
   when every working set of an accessory reaches the top of its range at or below the target
   RPE, the next session pre-fills the load plus the skill's increment at the bottom of the range,

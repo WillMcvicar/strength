@@ -3,20 +3,15 @@
 import { useCallback, useState } from 'react';
 
 import {
-  cycleFirstWeek,
   estimatedDurationMin,
   progress,
-  progressionKey,
   sessionTotals,
   todayCard,
   weekDays,
   weekPosition,
-  workoutRows,
   type LocalDate,
-  type OneRmRow,
   type PhaseType,
   type PlanProgress,
-  type PlannedWorkout,
   type StripStatus,
   type Unit,
   type WorkoutRow,
@@ -28,6 +23,7 @@ import { startAdHocSession } from '@/services/startAdHocSession';
 import { startSession, type StartSessionError } from '@/services/startSession';
 
 import { durationMin } from './device';
+import { positionLabel, readWorkoutRows, workoutName } from './plannedWorkout';
 import { useDb } from './database';
 import { readSessionPrs, type SessionPrsView } from './prs';
 import { serviceContext } from './serviceContext';
@@ -121,7 +117,7 @@ async function readToday(
   const position = weekPosition(phases, planProgress.currentWeek);
 
   const planView: TodayPlanView = {
-    header: `${position.phase.name} · Cycle ${position.phaseCycleIndex} · Week ${position.weekIndex} of ${position.totalWeeks}`,
+    header: positionLabel(position),
     ribbon: phases.map((p) => ({ name: p.name, type: p.type, weeks: p.lengthWeeks })),
     currentWeek: planProgress.currentWeek,
     progress: planProgress,
@@ -146,37 +142,11 @@ async function readToday(
       session: card.workout.sessionId ? await completedSession(r, card.workout.sessionId) : null,
     };
   } else {
-    const workout = card.workout;
-    const blueprint = await r.blueprints.loadBlueprint(workout.cycleGroupId);
-    const planned = blueprint?.workouts.find((w) => w.workout.id === workout.cycleWorkoutId);
-    const exercises = planned?.exercises ?? [];
-    const skillIds = [...new Set(exercises.map((e) => e.exercise.skillId))];
-    const [skills, planSkills, oneRms, dpStates, lastLoads] = await Promise.all([
-      r.skills.getMany(skillIds),
-      r.plans.skills(plan.id),
-      r.oneRepMax.listByPlan(plan.id),
-      r.progression.getMany(exercises.map((e) => progressionKey(e.exercise))),
-      r.sessions.lastLoadBySkill(skillIds),
-    ]);
-    const phase = phases.find((p) => p.id === workout.phaseId);
-    const rows = workoutRows({
-      exercises,
-      skills: new Map(skills.map((s) => [s.id, s])),
-      planSkills: new Map(planSkills.map((s) => [s.skillId, s])),
-      oneRmRows: groupBySkill(oneRms),
-      defaultTmPercent: plan.defaultTmPercent,
-      firstWeekOfCycle: cycleFirstWeek(phases, workout.weekIndex),
-      phase: { type: phase?.type ?? 'training', loadFactor: phase?.loadFactor ?? null },
-      unit: settings.unit,
-      increments: settings,
-      defaultRestSec: settings.defaultRestSec,
-      dpStates,
-      lastLoads,
-    });
+    const { name, rows } = await readWorkoutRows(r, plan, phases, settings, card.workout);
     cardView = {
       kind: card.kind,
-      workoutId: workout.id,
-      name: planned?.workout.name ?? 'Workout',
+      workoutId: card.workout.id,
+      name,
       durationMin: estimatedDurationMin(rows),
       rows,
     };
@@ -203,20 +173,6 @@ async function completedSession(
     volumeKg: totals.volumeKg,
     prs,
   };
-}
-
-async function workoutName(r: Repositories, workout: PlannedWorkout): Promise<string> {
-  const blueprint = await r.blueprints.loadBlueprint(workout.cycleGroupId);
-  return (
-    blueprint?.workouts.find((w) => w.workout.id === workout.cycleWorkoutId)?.workout.name ??
-    'Workout'
-  );
-}
-
-function groupBySkill(rows: readonly (OneRmRow & { skillId: string })[]) {
-  const bySkill = new Map<string, OneRmRow[]>();
-  for (const row of rows) bySkill.set(row.skillId, [...(bySkill.get(row.skillId) ?? []), row]);
-  return bySkill;
 }
 
 const START_MESSAGES: Record<StartSessionError, string> = {

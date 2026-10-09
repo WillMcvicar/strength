@@ -17,3 +17,4 @@ export * from './session';
 export * from './prs';
 export * from './doubleProgression';
 export * from './tracking';
+export * from './week';

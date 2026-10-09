@@ -28,6 +28,11 @@ export const STATUS_LOOK: Record<
   paused: { icon: '‖', label: 'Paused', color: 'inkMuted' },
 };
 
+/** The chip's outline: quiet for an upcoming workout, the status colour otherwise. */
+export function statusBorder(status: ChipStatus, c: ColorTokens): string {
+  return status === 'upcoming' ? c.line : c[STATUS_LOOK[status].color];
+}
+
 export function StatusChip({ status }: { status: ChipStatus }) {
   const c = useColors();
   const type = useTypography();
@@ -37,7 +42,7 @@ export function StatusChip({ status }: { status: ChipStatus }) {
     <View
       accessible
       accessibilityLabel={label}
-      style={[styles.chip, { borderColor: status === 'upcoming' ? c.line : c[color] }]}
+      style={[styles.chip, { borderColor: statusBorder(status, c) }]}
     >
       <Text style={[type.label, tone]}>
         <Text importantForAccessibility="no" accessibilityElementsHidden style={tone}>

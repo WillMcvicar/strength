@@ -2,13 +2,16 @@
 import {
   formatClock,
   formatDay,
+  formatDayOfMonth,
   formatMonth,
   formatSetCount,
   formatTime,
   formatVolume,
+  formatWeekRange,
   localDayOf,
   spokenClock,
   spokenDay,
+  spokenWeekRange,
 } from './format';
 
 describe('formatDay', () => {
@@ -21,8 +24,29 @@ describe('formatDay', () => {
     expect(formatDay(date)).toBe(shown);
   });
 
+  it('drops the month in a week list', () => {
+    expect(formatDayOfMonth('2026-09-16')).toBe('Wed 16');
+  });
+
   it('spells it out for screen readers', () => {
     expect(spokenDay('2026-09-16')).toBe('Wednesday 16 September');
+  });
+});
+
+describe('formatWeekRange and spokenWeekRange (§7.3)', () => {
+  it.each([
+    ['within a month', '2026-09-14', '2026-09-20', '14–20 Sep', '14 to 20 September'],
+    ['across a month', '2026-09-28', '2026-10-04', '28 Sep – 4 Oct', '28 September to 4 October'],
+    [
+      'across a year',
+      '2026-12-28',
+      '2027-01-03',
+      '28 Dec 2026 – 3 Jan 2027',
+      '28 December 2026 to 3 January 2027',
+    ],
+  ])('%s', (_, start, end, shown, spoken) => {
+    expect(formatWeekRange(start, end)).toBe(shown);
+    expect(spokenWeekRange(start, end)).toBe(spoken);
   });
 });
 

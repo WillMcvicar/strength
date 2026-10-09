@@ -1,6 +1,6 @@
 // DESIGN §3.7 (FR-4.11, FR-4.15, FR-8.3, C-2, D-24).
 import type { Phase, Plan, PlannedWorkout } from '../types';
-import { effectiveStatus, progress } from './status';
+import { effectiveStatus, progress, progressOf } from './status';
 
 const plan = (over: Partial<Plan> = {}): Pick<Plan, 'status' | 'pausedOn' | 'endedOn'> => ({
   status: 'active',
@@ -113,6 +113,17 @@ describe('progress (FR-8.3)', () => {
       pctSessions: 0.25,
       adherence: 0.5,
     });
+  });
+
+  it('gives the same from statuses already derived, so the overview derives them once', () => {
+    const done = [pw('w1', 1, '2026-09-14', 'completed'), ...schedule.slice(1)];
+    const derived = done.map((workout) => ({
+      workout,
+      status: effectiveStatus(workout, '2026-09-22', plan(), false),
+    }));
+    expect(progressOf(phases, derived, '2026-09-22')).toEqual(
+      progress(phases, done, '2026-09-22', plan()),
+    );
   });
 
   it('an in-progress session is neither completed nor missed', () => {

@@ -50,7 +50,7 @@ const setupOf = async (planId: string, today = TODAY) => {
   return (result.current as Extract<ReturnType<typeof usePlanSetup>, { status: 'ready' }>).setup;
 };
 
-describe('FR-2.3 the start date default', () => {
+describe('AC-51 Week view uses calendar weeks: the start date default (FR-2.3)', () => {
   it('is the next week-start day, so plan weeks line up with calendar weeks', async () => {
     const setup = await setupOf(await draft());
     // Wednesday 16 September 2026 → Monday 21 September.
