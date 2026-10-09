@@ -3,8 +3,9 @@ import { increaseKg, progressionKey } from './doubleProgression';
 import { LOADED_TRACKING as LOADED } from './tracking';
 import { prescribedLoadKg, tmKg } from './loads';
 import { incrementFor } from './rounding';
-import type { EffectiveStatus } from './schedule/status';
-import { calendarWeek } from './week';
+import { effectiveStatus, type EffectiveStatus } from './schedule/status';
+import { addDays } from './dates';
+import { calendarWeekStart } from './week';
 import type {
   CycleExercise,
   CycleSet,
@@ -236,12 +237,15 @@ export function weekDays(
   plan: Pick<Plan, 'status' | 'pausedOn' | 'endedOn'>,
   inProgressWorkoutId: string | null,
 ): { date: LocalDate; status: StripStatus }[] {
-  return calendarWeek({
-    workouts,
-    date: today,
-    weekStart,
-    today,
-    plan,
-    inProgressWorkoutId,
-  }).days.map((d) => ({ date: d.date, status: d.workouts[0]?.status ?? 'rest' }));
+  const start = calendarWeekStart(today, weekStart);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(start, i);
+    const workout = workouts.find((w) => w.scheduledDate === date);
+    return {
+      date,
+      status: workout
+        ? effectiveStatus(workout, today, plan, workout.id === inProgressWorkoutId)
+        : 'rest',
+    };
+  });
 }

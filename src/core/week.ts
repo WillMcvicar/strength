@@ -106,14 +106,18 @@ export function slotRanks(slots: readonly CycleSlot[], startDate: LocalDate): Ma
  */
 export function planOverview(input: OverviewInput): OverviewRow[] {
   const totalWeeks = input.phases.reduce((sum, p) => sum + p.lengthWeeks, 0);
+  const byWeek = new Map<number, { workout: PlannedWorkout; rank: number }[]>();
+  input.workouts.forEach((workout, order) => {
+    const week = byWeek.get(workout.weekIndex) ?? [];
+    week.push({ workout, rank: rankOf(workout, input.slotRanks, order) });
+    byWeek.set(workout.weekIndex, week);
+  });
   return Array.from({ length: totalWeeks }, (_, i) => {
     const weekIndex = i + 1;
     return {
       weekIndex,
       phase: weekPosition(input.phases, weekIndex).phase,
-      cells: input.workouts
-        .filter((w) => w.weekIndex === weekIndex)
-        .map((workout, order) => ({ workout, rank: rankOf(workout, input.slotRanks, order) }))
+      cells: (byWeek.get(weekIndex) ?? [])
         .sort((a, b) => a.rank - b.rank)
         .map(({ workout }) => ({
           workout,

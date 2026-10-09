@@ -52,16 +52,32 @@ export function progress(
   plan: PlanState,
   inProgressIds: ReadonlySet<string> = new Set(),
 ): PlanProgress {
+  return progressOf(
+    phases,
+    workouts.map((workout) => ({
+      workout,
+      status: effectiveStatus(workout, today, plan, inProgressIds.has(workout.id)),
+    })),
+    today,
+  );
+}
+
+/** `progress` over statuses the caller has already derived, e.g. the plan overview's cells. */
+export function progressOf(
+  phases: readonly Phase[],
+  workouts: readonly { workout: PlannedWorkout; status: EffectiveStatus }[],
+  today: LocalDate,
+): PlanProgress {
   const last = phases.reduce((sum, p) => sum + p.lengthWeeks, 0);
-  const next = [...workouts]
+  const next = workouts
+    .map((w) => w.workout)
     .filter((w) => w.scheduledDate >= today)
     .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || a.weekIndex - b.weekIndex)[0];
   const position = weekPosition(phases, next?.weekIndex ?? last);
 
   let completed = 0;
   let missed = 0;
-  for (const w of workouts) {
-    const status = effectiveStatus(w, today, plan, inProgressIds.has(w.id));
+  for (const { status } of workouts) {
     if (status === 'completed') completed += 1;
     if (status === 'missed') missed += 1;
   }

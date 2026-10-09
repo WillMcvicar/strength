@@ -6,7 +6,7 @@ import {
   effectiveStatus,
   estimatedDurationMin,
   planOverview,
-  progress,
+  progressOf,
   slotRanks,
   weekPosition,
   type EffectiveStatus,
@@ -267,12 +267,11 @@ async function readPlanOverview(
   return {
     name: plan.name,
     ribbon: phases.map((p) => ({ name: p.name, type: p.type, weeks: p.lengthWeeks })),
-    progress: progress(
+    // The rows hold every workout with its status, so progress needn't derive them again.
+    progress: progressOf(
       phases,
-      workouts,
+      rows.flatMap((row) => row.cells),
       today,
-      plan,
-      new Set(inProgressWorkoutId ? [inProgressWorkoutId] : []),
     ),
     rows: rows.map((row) => ({
       weekIndex: row.weekIndex,
